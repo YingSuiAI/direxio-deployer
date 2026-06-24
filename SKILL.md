@@ -66,6 +66,19 @@ Step-by-step onboarding flow:
      Direxio node?"
    - If yes, ask for the domain.
    - If no, ask them to buy or prepare one first, then stop until they have it.
+   - When guiding domain purchase, keep it concrete and short:
+     1. Open one official registrar URL in the browser.
+     2. Search for a domain name.
+     3. Buy the domain.
+     4. Return with the domain name, such as `im.example.com` or
+        `example.com`.
+   - Use plain official URLs instead of complex Markdown links. Do not invent
+     deep links or wrap one URL inside another.
+   - Suggested official registrar URLs:
+     - AWS Route53 domain registration: `https://console.aws.amazon.com/route53/domains/home#/DomainSearch`
+     - Alibaba Cloud domain registration: `https://wanwang.aliyun.com/domain/`
+     - Cloudflare domain registration: `https://dash.cloudflare.com/`
+     - GoDaddy domain registration: `https://www.godaddy.com/domains`
    - Explain only this much by default: "Use a real long-term domain because
      changing it later means creating a new chat server identity."
    - Do not use localhost, raw IP addresses, wildcard domains, disposable
