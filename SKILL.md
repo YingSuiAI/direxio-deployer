@@ -14,6 +14,91 @@ scripts/orchestrate.sh
 scripts/destroy.sh
 ```
 
+## Cloud Account And Domain Onboarding
+
+Before running any deployment command or creating paid cloud resources, make
+sure the user has the three real-world prerequisites: an active AWS account, a
+stable domain, and AWS credentials that the agent can use without seeing or
+printing secrets.
+
+For first-time users, guide them step by step. Do not front-load the whole
+cloud setup checklist. Ask only the next blocking question, wait for the user's
+answer or completion, then continue to the next step.
+
+Default tone for new users:
+
+- Use product language such as account, domain, access key file, DNS provider,
+  server, fixed IP, and monthly AWS cost.
+- Avoid technical labels such as EC2, EIP, IAM policy, security group, EBS,
+  Matrix `server_name`, Route53 hosted zone, federation identity, or TURN unless
+  the user asks what they mean or the term appears in an AWS screen they must
+  operate.
+- When a technical term is unavoidable, explain it in one short sentence before
+  asking the user to act.
+- Never give a long architecture explanation during onboarding unless the user
+  explicitly asks why the step is needed.
+
+Step-by-step onboarding flow:
+
+1. **AWS account.**
+   - Ask: "Do you already have an AWS account you can log into?"
+   - If yes, continue to the access key step.
+   - If no, ask the user to open `https://aws.amazon.com/` and register in their
+     browser, then stop until they say the account is ready.
+   - Do not explain AWS resource details at this stage unless asked.
+   - Never ask for, collect, paste, log, or store payment card details, root
+     password, MFA code, email verification code, or phone verification code.
+
+2. **Access key file.**
+   - Ask: "Do you already have an AWS access key CSV file for deployment?"
+   - If yes, ask only for the local file path.
+   - If no, guide them through creating one in the AWS console one screen at a
+     time. Prefer a dedicated deployment user or role over root access keys.
+   - If they need a permission policy, point to `references/iam-policy.json`.
+     Do not explain the policy line by line unless asked.
+   - The agent may read the local CSV path, but must never print the Access Key
+     ID together with the Secret Access Key, and must never write secrets into
+     the repository, skill files, logs, or chat output.
+
+3. **Domain.**
+   - Ask: "Do you already own a domain or subdomain you want to use for this
+     Direxio node?"
+   - If yes, ask for the domain.
+   - If no, ask them to buy or prepare one first, then stop until they have it.
+   - Explain only this much by default: "Use a real long-term domain because
+     changing it later means creating a new chat server identity."
+   - Do not use localhost, raw IP addresses, wildcard domains, disposable
+     domains, temporary `sslip.io`, or other throwaway names for production.
+
+4. **DNS control.**
+   - Ask: "Is this domain managed in AWS Route53, or somewhere else like
+     Cloudflare, GoDaddy, or Alibaba Cloud?"
+   - If AWS Route53, use `DOMAIN_MODE=route53` only after the user confirms AWS
+     may create or update the domain's A record.
+   - If another provider, use `DOMAIN_MODE=user`. Later, when the script emits
+     the fixed IP, ask the user to create exactly:
+
+     ```text
+     <DOMAIN>  A  <PUBLIC_IP>
+     ```
+
+5. **Billing confirmation.**
+   - Give a short billing warning before the first mutating AWS command:
+     "This will create paid AWS resources for the server. They keep billing
+     until destroyed."
+   - Do not list every AWS resource by default. If the user asks what is billed,
+     mention EC2/server, fixed IP, storage, DNS, network traffic, and call relay
+     traffic.
+
+Required first-time deployment confirmation:
+
+```text
+I confirm that I have an active AWS account, a real long-lived domain, and an AWS access key CSV or AWS profile for this deployment. I understand this can create billable AWS resources and that they keep billing until destroyed.
+```
+
+If any prerequisite is missing, stop deployment and guide the user through that
+specific step before running `scripts/orchestrate.sh`.
+
 ## Skill And Runtime Targets
 
 When the user asks to install or update this skill itself, or asks to wire Direxio into a local agent runtime, read `references/agent-targets.md` first. It is the source of truth for Codex, Claude Code, Gemini, Cursor, GitHub Copilot, OpenClaw, Hermes, generic, and unknown targets.
@@ -64,20 +149,21 @@ Use `DOMAIN_MODE=route53` only when the domain is in Route53 and the user confir
 
 ## Deployment Flow
 
-1. Read `references/tooling.md`; inspect the user OS and install or prepare missing `bash`, `aws`, `jq`, `ssh`, `scp`, and `curl` only after approval.
-2. Inspect DNS, AWS credentials, region defaults, local tooling, and existing deployment state before asking the user anything that can be discovered automatically.
-3. Present one complete deployment configuration and request one consolidated confirmation covering the final domain and irreversible binding, DNS mode, AWS region and billing, credentials source, instance type, message-server image, required installs, and existing-state action.
-4. Apply the approved existing-state action for `${P2P_WORKDIR:-$HOME/.direxio/deploy}/state.json`: continue, destroy, or use a new workdir.
-5. Run `scripts/orchestrate.sh` with the confirmed environment. Let the state machine own AWS calls, state, polling, cloud-init, token/password handling, verification, and destroy behavior.
-6. For `DOMAIN_MODE=user`, pause when the script emits an Elastic IP and ask the user to set:
+1. Complete the Cloud Account And Domain Onboarding gate above for first-time users or whenever AWS credentials, domain ownership, or DNS authority are unclear.
+2. Read `references/tooling.md`; inspect the user OS and install or prepare missing `bash`, `aws`, `jq`, `ssh`, `scp`, and `curl` only after approval.
+3. Inspect DNS, AWS credentials, region defaults, local tooling, and existing deployment state before asking the user anything that can be discovered automatically.
+4. Present one complete deployment configuration and request one consolidated confirmation covering the final domain and irreversible binding, DNS mode, AWS region and billing, credentials source, instance type, message-server image, required installs, and existing-state action.
+5. Apply the approved existing-state action for `${P2P_WORKDIR:-$HOME/.direxio/deploy}/state.json`: continue, destroy, or use a new workdir.
+6. Run `scripts/orchestrate.sh` with the confirmed environment. Let the state machine own AWS calls, state, polling, cloud-init, token/password handling, verification, and destroy behavior.
+7. For `DOMAIN_MODE=user`, pause when the script emits an Elastic IP and ask the user to set:
 
 ```text
 <DOMAIN>  A  <PUBLIC_IP>
 ```
 
-7. After authoritative DNS resolves, rerun the same command with `DNS_READY=1`.
-8. After S7 passes, read `references/runtime-wiring.md` and `references/agent-targets.md`, then report the URL, `password`, agent token status, `agent_room_id`, persistent Direxio MCP/plugin env status, runtime-specific target paths, resources, SSH command, state path, and destroy command.
-9. Detect the current agent runtime from S6 state (`agent_runtime`) and the active environment. If `DIREXIO_AGENT_INSTALL=auto` was explicitly set, S6 may run the detected install command. Otherwise ask the user whether to automatically install/configure the Direxio plugin and MCP service for that runtime. Do not mutate Codex, Claude Code, Gemini, Cursor, Copilot, OpenClaw, Hermes, or other agent config without explicit post-deploy confirmation or `DIREXIO_AGENT_INSTALL=auto`.
+8. After authoritative DNS resolves, rerun the same command with `DNS_READY=1`.
+9. After S7 passes, read `references/runtime-wiring.md` and `references/agent-targets.md`, then report the URL, `password`, agent token status, `agent_room_id`, persistent Direxio MCP/plugin env status, runtime-specific target paths, resources, SSH command, state path, and destroy command.
+10. Detect the current agent runtime from S6 state (`agent_runtime`) and the active environment. If `DIREXIO_AGENT_INSTALL=auto` was explicitly set, S6 may run the detected install command. Otherwise ask the user whether to automatically install/configure the Direxio plugin and MCP service for that runtime. Do not mutate Codex, Claude Code, Gemini, Cursor, Copilot, OpenClaw, Hermes, or other agent config without explicit post-deploy confirmation or `DIREXIO_AGENT_INSTALL=auto`.
 
 ## Destroy Flow
 
@@ -117,6 +203,7 @@ Ask once, plainly and in the user's language. The confirmation message must summ
 - Instance type: default `t3.small`.
 - Message-server image: default `direxio/message-server:latest`; override with `MESSAGE_SERVER_IMAGE`.
 - AWS credentials source and any elevated-risk credential choice such as root access keys.
+- AWS/domain onboarding status: active AWS account, real long-lived domain, access key CSV or AWS profile, DNS authority, and billing/deletion acknowledgement.
 - Existing state action: `continue`, `destroy`, or new `P2P_WORKDIR`.
 - Network/system installs: package managers, AWS CLI, jq, Git Bash/MSYS2/WSL, Homebrew, apt/dnf/yum/pacman/zypper.
 
