@@ -34,25 +34,18 @@ _detect_agent_runtime() {
     printf '%s\n' "$DIREXIO_AGENT_PLATFORM"
     return 0
   fi
-  # Each agent runtime sets its own *_HOME env var. Check those first —
-  # they are the most reliable signal of which agent is running this
-  # script, regardless of which agent directories happen to exist on
-  # the filesystem from past use.
+  # Check HERMES_HOME environment variable first — it's the most reliable indicator
+  # that the current session is running under Hermes, even when other agent
+  # directories (~/.codex, ~/.cursor, etc.) also exist from past tool use.
+  # On Windows, Hermes home is ~/AppData/Local/hermes/ (set via HERMES_HOME).
   if [ -n "${HERMES_HOME:-}" ]; then printf 'hermes\n'; return 0; fi
-  if [ -n "${CODEX_HOME:-}" ]; then printf 'codex\n'; return 0; fi
-  if [ -n "${CLAUDE_HOME:-}" ]; then printf 'claude-code\n'; return 0; fi
-  if [ -n "${GEMINI_HOME:-}" ]; then printf 'gemini\n'; return 0; fi
-  if [ -n "${CURSOR_HOME:-}" ]; then printf 'cursor\n'; return 0; fi
-  if [ -n "${COPILOT_HOME:-}" ]; then printf 'copilot\n'; return 0; fi
-  if [ -n "${OPENCLAW_HOME:-}" ]; then printf 'openclaw\n'; return 0; fi
-  # Fallback: check for agent config directories on disk.
   if [ -d "$HOME/.hermes" ]; then printf 'hermes\n'; return 0; fi
-  if [ -d "$HOME/.codex" ]; then printf 'codex\n'; return 0; fi
-  if [ -d "$HOME/.claude" ]; then printf 'claude-code\n'; return 0; fi
-  if [ -d "$HOME/.gemini" ]; then printf 'gemini\n'; return 0; fi
-  if [ -d "$HOME/.cursor" ]; then printf 'cursor\n'; return 0; fi
-  if [ -d "$HOME/.copilot" ]; then printf 'copilot\n'; return 0; fi
-  if [ -d "$HOME/.openclaw" ]; then printf 'openclaw\n'; return 0; fi
+  if [ -n "${CODEX_HOME:-}" ] || [ -d "$HOME/.codex" ]; then printf 'codex\n'; return 0; fi
+  if [ -n "${CLAUDE_HOME:-}" ] || [ -d "$HOME/.claude" ]; then printf 'claude-code\n'; return 0; fi
+  if [ -n "${GEMINI_HOME:-}" ] || [ -d "$HOME/.gemini" ]; then printf 'gemini\n'; return 0; fi
+  if [ -n "${CURSOR_HOME:-}" ] || [ -d "$HOME/.cursor" ]; then printf 'cursor\n'; return 0; fi
+  if [ -n "${COPILOT_HOME:-}" ] || [ -d "$HOME/.copilot" ]; then printf 'copilot\n'; return 0; fi
+  if [ -n "${OPENCLAW_HOME:-}" ] || [ -d "$HOME/.openclaw" ]; then printf 'openclaw\n'; return 0; fi
   printf 'unknown\n'
 }
 
