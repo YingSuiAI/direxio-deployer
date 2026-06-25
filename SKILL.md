@@ -14,6 +14,33 @@ scripts/orchestrate.sh
 scripts/destroy.sh
 ```
 
+## Skill Freshness Gate
+
+Before following this local Skill for deployment, repair, verification,
+teardown, or runtime wiring, make one freshness attempt against the canonical
+source:
+
+```text
+https://github.com/YingSuiAI/direxio-deployer/blob/main/SKILL.md
+```
+
+If this Skill is running from a Git clone whose origin is
+`YingSuiAI/direxio-deployer`, fetch `origin main` and compare the local HEAD
+with `origin/main`. Fast-forward only when it is safe and does not overwrite
+local edits. If the clone has local changes, do not discard them; report the
+divergence and continue from the local copy unless the user approves a specific
+update action.
+
+If this Skill is not running from that Git clone, read the canonical `SKILL.md`
+URL once and use it as the latest deployment guidance when reachable. If GitHub
+or the private repository is unreachable, say so briefly and continue with this
+local copy.
+
+Do not fall back to older P2P-IM skill repositories, copied skill bundles, or
+`Public-skills-and-mcp` unless the user explicitly asks for one of those
+repositories. Never print or commit AWS credentials, IM passwords, agent tokens,
+or local credential files while refreshing the Skill.
+
 ## Cloud Account And Domain Onboarding
 
 Before running any deployment command or creating paid cloud resources, make
