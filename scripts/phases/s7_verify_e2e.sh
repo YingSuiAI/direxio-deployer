@@ -20,7 +20,7 @@ run_phase() {
   if [ -n "$token" ]; then
     _check_p2p_agent_auth "$domain" "$token" || fails=$((fails+1))
   else
-    warn "  ✗ _p2p/query apis.list (failed to exchange fresh access_token)"
+    warn "  ✗ _p2p/query mcp.messages.list (failed to exchange fresh access_token)"
     fails=$((fails+1))
   fi
   _check_turn "$domain" "$password" || fails=$((fails+1))
@@ -36,6 +36,8 @@ run_phase() {
 
 _check_p2p_agent_auth() {
   local domain=$1 token=$2 code body
+  local room_id
+  room_id=$(state_get agent_room_id)
   local args=()
   while IFS= read -r arg; do args+=("$arg"); done < <(curl_resolve_args "$domain")
   body=$(mktemp)
@@ -43,13 +45,13 @@ _check_p2p_agent_auth() {
     -X POST "https://$domain/_p2p/query" \
     -H 'Content-Type: application/json' \
     -H "Authorization: Bearer $token" \
-    -d '{"action":"apis.list","params":{}}' 2>/dev/null)
-  if [ "$code" = "200" ] && jq -e '((.apis // .items) | type == "array")' "$body" >/dev/null 2>&1; then
+    -d "{\"action\":\"mcp.messages.list\",\"params\":{\"room_id\":\"$room_id\",\"limit\":1}}" 2>/dev/null)
+  if [ "$code" = "200" ] && jq -e '(.messages | type == "array") and (.room_id | type == "string")' "$body" >/dev/null 2>&1; then
     rm -f "$body"
-    ok "  ✓ _p2p/query apis.list (access token)"
+    ok "  ✓ _p2p/query mcp.messages.list (agent token)"
     return 0
   fi
-  warn "  ✗ _p2p/query apis.list (got $code, body=$(head -c 120 "$body" 2>/dev/null))"
+  warn "  ✗ _p2p/query mcp.messages.list (got $code, body=$(head -c 120 "$body" 2>/dev/null))"
   rm -f "$body"
   return 1
 }
