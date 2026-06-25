@@ -178,16 +178,96 @@ _agent_install_command() {
   printf 'npx -y -p @direxio/agent-plugins@latest direxio-agent-install --platform %q --mode %q --node-id %q --workspace %q --credentials-file %q --write' "$runtime" "$mode" "$node_id" "$workspace" "$cred"
 }
 
+_agent_runtime_required_gates() {
+  local runtime=$1 mode=$2
+  case "$runtime:$mode" in
+    openclaw:native)
+      cat <<'EOF'
+openclaw_plugin_installed
+openclaw_channel_configured
+openclaw_channel_probe_passed
+openclaw_mcp_registered
+openclaw_mcp_probe_passed
+agent_chat_round_trip_passed
+EOF
+      ;;
+    hermes:native)
+      cat <<'EOF'
+hermes_config_merged
+mcp_tool_discovery_passed
+agent_chat_round_trip_passed
+EOF
+      ;;
+    codex:gateway|generic:gateway)
+      cat <<'EOF'
+gateway_process_running
+mcp_tool_discovery_passed
+agent_chat_round_trip_passed
+EOF
+      ;;
+    *)
+      cat <<'EOF'
+mcp_config_loaded
+mcp_tool_discovery_passed
+EOF
+      ;;
+  esac
+}
+
+_agent_runtime_verification_commands() {
+  local runtime=$1 mode=$2 mcp_path=$3 quoted_mcp_path
+  printf -v quoted_mcp_path '%q' "$mcp_path"
+  case "$runtime:$mode" in
+    openclaw:native)
+      cat <<EOF
+openclaw plugins install ./platforms/openclaw
+openclaw gateway restart
+openclaw channels list --all
+openclaw channels status --probe
+openclaw mcp set direxio $quoted_mcp_path
+openclaw mcp reload
+openclaw mcp probe direxio --json
+EOF
+      ;;
+    hermes:native)
+      cat <<EOF
+merge $mcp_path into ~/.hermes/config.yaml mcp_servers
+verify Hermes MCP tool discovery for direxio
+send an Agent chat round trip through DIREXIO_AGENT_ROOM_ID
+EOF
+      ;;
+    *)
+      cat <<EOF
+load $mcp_path in the detected agent MCP registry
+verify MCP tool discovery for direxio
+EOF
+      ;;
+  esac
+}
+
+_agent_runtime_completion_rule() {
+  local runtime=$1 mode=$2
+  case "$runtime:$mode" in
+    openclaw:native)
+      printf '%s\n' 'Do not mark OpenClaw integration complete until channel probe, MCP probe, and an Agent chat round trip pass.'
+      ;;
+    *)
+      printf '%s\n' 'Do not mark local agent integration complete until MCP/tool discovery and the runtime-specific chat path are verified.'
+      ;;
+  esac
+}
+
 _print_runtime_install_summary() {
-  local runtime=$1 mode=$2 mcp_path=$3 project_mcp
+  local runtime=$1 mode=$2 mcp_path=$3 project_mcp verification_commands
   project_mcp=$(_agent_project_mcp_target "$runtime")
   case "$runtime:$mode" in
     openclaw:native)
+      verification_commands=$(_agent_runtime_verification_commands "$runtime" "$mode" "$mcp_path")
       cat >&2 <<EOF
 Recommended OpenClaw install:
-  openclaw plugins install ./platforms/openclaw
-  mount $mcp_path or platforms/openclaw/mcp.json in OpenClaw's MCP registry
+$verification_commands
 Native passive listening should use /_p2p/events and /_p2p/command action mcp.messages.send.
+Do not mark OpenClaw complete until channel probe, MCP probe, and an Agent chat round trip pass.
 EOF
       ;;
     hermes:native)
@@ -343,11 +423,14 @@ _persist_agent_env() {
 
 _print_mcp_plugin_guidance() {
   local runtime=$1 asurl=$2 cred=$3 envfile=$4 policy=$5 mode=$6 install_command=$7 node_id=$8
-  local skill_path global_skill_path mcp_config_path install_target_summary
+  local skill_path global_skill_path mcp_config_path install_target_summary gates verification_commands completion_rule
   skill_path=$(_agent_skill_install_path "$runtime")
   global_skill_path=$(_agent_global_skill_install_path "$runtime")
   mcp_config_path=$(_agent_mcp_config_path "$runtime" "$node_id")
   install_target_summary=$(_agent_install_target_summary "$runtime" "$mcp_config_path")
+  gates=$(_agent_runtime_required_gates "$runtime" "$mode" | paste -sd ',' -)
+  verification_commands=$(_agent_runtime_verification_commands "$runtime" "$mode" "$mcp_config_path")
+  completion_rule=$(_agent_runtime_completion_rule "$runtime" "$mode")
   if [ "$policy" = "skip" ]; then
     warn "Direxio MCP/plugin install guidance skipped by DIREXIO_AGENT_INSTALL=skip."
     return 0
@@ -364,6 +447,8 @@ Project skill clone:    $skill_path
 Global skill fallback:  $global_skill_path
 MCP/config payload:     $mcp_config_path
 Target summary:         $install_target_summary
+Required gates:         $gates
+Completion rule:        $completion_rule
 
 Use this stdio MCP server in the current agent config:
   command: npx
@@ -373,6 +458,9 @@ Use this stdio MCP server in the current agent config:
 
 Gateway native send is also available without MCP:
   npx -y -p @direxio/agent-plugins@latest direxio-agent-gateway send --room "\$DIREXIO_AGENT_ROOM_ID" --message "hello"
+
+Runtime verification commands:
+$verification_commands
 EOF
   _print_runtime_install_summary "$runtime" "$mode" "$mcp_config_path"
 }
@@ -381,7 +469,7 @@ run_phase() {
   phase_set S6_WIRE_LOCAL in_progress "writing credentials and Direxio MCP/plugin env"
   local domain asurl token access_token password agent_room_id envfile runtime install_policy install_mode install_command
   local node_id service_dir node_cred workspace service_id
-  local skill_path global_skill_path mcp_config_path install_target_summary
+  local skill_path global_skill_path mcp_config_path install_target_summary gates verification_commands completion_rule
   domain=$(state_get domain)
   asurl=$(state_get as_url)
   token=$(state_get agent_token)
@@ -428,6 +516,9 @@ run_phase() {
   global_skill_path=$(_agent_global_skill_install_path "$runtime")
   mcp_config_path=$(_agent_mcp_config_path "$runtime" "$node_id")
   install_target_summary=$(_agent_install_target_summary "$runtime" "$mcp_config_path")
+  gates=$(_agent_runtime_required_gates "$runtime" "$install_mode" | paste -sd ',' -)
+  verification_commands=$(_agent_runtime_verification_commands "$runtime" "$install_mode" "$mcp_config_path" | paste -sd ';' -)
+  completion_rule=$(_agent_runtime_completion_rule "$runtime" "$install_mode")
   state_set agent_runtime "$runtime" 2>/dev/null || true
   state_set agent_install_policy "$install_policy" 2>/dev/null || true
   state_set agent_install_mode "$install_mode" 2>/dev/null || true
@@ -436,6 +527,9 @@ run_phase() {
   state_set agent_global_skill_install_path "$global_skill_path" 2>/dev/null || true
   state_set agent_mcp_config_path "$mcp_config_path" 2>/dev/null || true
   state_set agent_install_target_summary "$install_target_summary" 2>/dev/null || true
+  state_set agent_runtime_required_gates "$gates" 2>/dev/null || true
+  state_set agent_runtime_verification_commands "$verification_commands" 2>/dev/null || true
+  state_set agent_runtime_completion_rule "$completion_rule" 2>/dev/null || true
   state_set direxio_mcp_package "@direxio/local-mcp" 2>/dev/null || true
   state_set direxio_agent_plugins_package "@direxio/agent-plugins" 2>/dev/null || true
   state_set direxio_plugin_repo "@direxio/agent-plugins" 2>/dev/null || true

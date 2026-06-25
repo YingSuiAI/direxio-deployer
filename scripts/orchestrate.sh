@@ -111,6 +111,7 @@ cmd_status() {
 # Delivery summary.
 print_delivery() {
   local domain asurl password keyfile pubip iid region statejson envfile agent_room_id runtime mcp_package plugin_pkg install_policy install_mode install_status install_command
+  local runtime_gates runtime_rule
   local agent_node_id agent_service_dir agent_cred
   domain=$(state_get domain); asurl=$(state_get as_url)
   password=$(state_get password)
@@ -129,6 +130,8 @@ print_delivery() {
   install_mode=$(state_get agent_install_mode)
   install_status=$(state_get agent_install_status)
   install_command=$(state_get agent_install_command)
+  runtime_gates=$(state_get agent_runtime_required_gates)
+  runtime_rule=$(state_get agent_runtime_completion_rule)
   echo
   echo -e "\033[32m========== Deployment Complete ==========\033[0m"
   echo "  IM URL       : ${asurl:-https://$domain}"
@@ -142,6 +145,8 @@ print_delivery() {
   echo "  agent runtime: ${runtime:-unknown}"
   echo "  install mode : policy=${install_policy:-recommend} mode=${install_mode:-recommended} status=${install_status:-recommend}"
   [ -n "$install_command" ] && echo "  install cmd  : $install_command"
+  [ -n "$runtime_gates" ] && echo "  runtime gates: $runtime_gates"
+  [ -n "$runtime_rule" ] && echo "  gate rule    : $runtime_rule"
   echo "  gateway send : npx -y -p @direxio/agent-plugins@latest direxio-agent-gateway send --room \"\$DIREXIO_AGENT_ROOM_ID\" --message \"hello\""
   echo "  env vars     : DIREXIO_DOMAIN, DIREXIO_AGENT_TOKEN, DIREXIO_AGENT_ROOM_ID persisted${envfile:+ via $envfile}"
   echo "  AWS region   : $region"

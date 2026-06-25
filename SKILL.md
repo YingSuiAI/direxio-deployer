@@ -338,8 +338,9 @@ IP-derived, localhost, wildcard, or disposable domains.
    pre-created and delegated before step 6.
 
 8. After authoritative DNS resolves, rerun the same command with `DNS_READY=1`.
-9. After S7 passes, read `references/runtime-wiring.md` and `references/agent-targets.md`, then report the URL, `password`, agent token status, `agent_room_id`, persistent Direxio MCP/plugin env status, runtime-specific target paths, resources, SSH command, state path, and destroy command.
+9. After S7 passes, read `manifest.json`, `references/runtime-wiring.md`, and `references/agent-targets.md`, then report the URL, `password`, agent token status, `agent_room_id`, persistent Direxio MCP/plugin env status, runtime-specific target paths, runtime gates, resources, SSH command, state path, and destroy command.
 10. Detect the current agent runtime from S6 state (`agent_runtime`) and the active environment. If `DIREXIO_AGENT_INSTALL=auto` was explicitly set, S6 may run the detected install command. Otherwise ask the user whether to automatically install/configure the Direxio plugin and MCP service for that runtime. Do not mutate Codex, Claude Code, Gemini, Cursor, Copilot, OpenClaw, Hermes, or other agent config without explicit post-deploy confirmation or `DIREXIO_AGENT_INSTALL=auto`.
+11. Do not report local agent integration as complete until the S6 runtime gates have passed. For OpenClaw native mode this means plugin installed, channel configured, `openclaw channels status --probe` passed, MCP registered, `openclaw mcp probe direxio --json` passed, and an Agent chat round trip passed.
 
 ## Destroy Flow
 
@@ -417,6 +418,8 @@ install mode  : policy=<skip|recommend|auto> mode=<mcp|native|gateway> status=<.
 mcp config    : <agent_mcp_config_path>
 skill clone   : <agent_skill_install_path>
 target summary: <agent_install_target_summary>
+runtime gates : <agent_runtime_required_gates>
+gate rule     : <agent_runtime_completion_rule>
 gateway send  : npx -y -p @direxio/agent-plugins@latest direxio-agent-gateway send --room "$DIREXIO_AGENT_ROOM_ID" --message "hello"
 AWS region   : <region>
 EC2          : <instance-id> (<public-ip>)
@@ -441,7 +444,7 @@ args: ["-y", "@direxio/local-mcp@latest"]
 env: DIREXIO_CREDENTIALS_FILE, DIREXIO_AGENT_NODE_ID
 ```
 
-For OpenClaw and Hermes, prefer native long-process integration. For Claude Code, Cursor, Gemini, and Copilot, use MCP-only unless the user supplies a local command for an external `generic-cli` gateway.
+For OpenClaw and Hermes, prefer native long-process integration. For Claude Code, Cursor, Gemini, and Copilot, use MCP-only unless the user supplies a local command for an external `generic-cli` gateway. For OpenClaw, run and record channel probe, MCP registration/probe, and an Agent chat round trip before telling the user it is connected.
 
 ## References
 

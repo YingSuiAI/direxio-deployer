@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "repository": "YingSuiAI/direxio-deployer",
+  "combined_skill_release": true,
+  "description": "Direxio deployer keeps the agent skill, deploy scripts, release contract, and runtime verification gates together in one repository.",
+  "operations": [
+    {
+      "id": "deploy_or_resume",
+      "entrypoint": "scripts/orchestrate.sh",
+      "phases": [
+        "S0_PREREQ_AWS",
+        "S1_PREFLIGHT",
+        "S2_DOMAIN",
+        "S3_PROVISION",
+        "S4_BOOTSTRAP_STACK",
+        "S5_INIT_TOKENS",
+        "S6_WIRE_LOCAL",
+        "S7_VERIFY_E2E"
+      ],
+      "completion_gates": [
+        "s7_verify_e2e_done",
+        "local_credentials_persisted",
+        "agent_runtime_targets_recorded"
+      ]
+    },
+    {
+      "id": "wire_local_agent_runtime",
+      "phase": "S6_WIRE_LOCAL",
+      "entrypoint": "scripts/phases/s6_wire_local.sh",
+      "inputs": [
+        "DIREXIO_DOMAIN",
+        "DIREXIO_AGENT_TOKEN",
+        "DIREXIO_AGENT_ROOM_ID",
+        "DIREXIO_AGENT_NODE_ID"
+      ],
+      "completion_gates": [
+        "local_credentials_persisted",
+        "agent_runtime_targets_recorded",
+        "mcp_config_payload_known",
+        "openclaw_plugin_installed",
+        "openclaw_channel_configured",
+        "openclaw_channel_probe_passed",
+        "openclaw_mcp_registered",
+        "openclaw_mcp_probe_passed",
+        "agent_chat_round_trip_passed"
+      ]
+    }
+  ],
+  "quality_gates": [
+    {
+      "id": "local_credentials_persisted",
+      "phase": "S6_WIRE_LOCAL",
+      "evidence": "~/.direxio/nodes/<service_id>/credentials.json and env are written with mode 0600"
+    },
+    {
+      "id": "agent_runtime_targets_recorded",
+      "phase": "S6_WIRE_LOCAL",
+      "evidence": "state.json contains agent_runtime, agent_node_id, agent_mcp_config_path, and install command"
+    },
+    {
+      "id": "openclaw_channel_probe_passed",
+      "runtime": "openclaw",
+      "command": "openclaw channels status --probe",
+      "completion_rule": "Required before OpenClaw native integration may be reported as complete"
+    },
+    {
+      "id": "openclaw_mcp_probe_passed",
+      "runtime": "openclaw",
+      "command": "openclaw mcp probe direxio --json",
+      "completion_rule": "Required before OpenClaw MCP discovery may be reported as complete"
+    },
+    {
+      "id": "agent_chat_round_trip_passed",
+      "runtime": "all",
+      "evidence": "Agent chat can send to and receive from DIREXIO_AGENT_ROOM_ID through the configured runtime"
+    }
+  ]
+}

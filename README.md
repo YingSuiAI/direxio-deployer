@@ -29,6 +29,7 @@ See `references/agent-targets.md` for the full runtime matrix, global fallbacks,
 - The backend uses `password` for IM login; local credentials retain `access_token` and agent-specific `agent_token`.
 - Public multi-node channel routing is client-provided through target `_p2p` base URLs; the deployer no longer writes a fixed remote-node table.
 - After deployment, S6 persists `DIREXIO_DOMAIN`, `DIREXIO_AGENT_TOKEN`, `DIREXIO_AGENT_ROOM_ID`, and `DIREXIO_AGENT_NODE_ID` under the domain-derived `~/.direxio/nodes/<service_id>/`, then records `@direxio/local-mcp`, `@direxio/agent-plugins`, runtime-specific skill clone paths, and node-scoped MCP/config payload targets.
+- `manifest.json` is the in-repo release contract. It defines deploy operations and quality gates, including OpenClaw channel probing, MCP probing, and Agent chat round-trip completion.
 - Post-deploy agent installation is controlled by `DIREXIO_AGENT_INSTALL=skip|recommend|auto`; the default is `recommend`. Only `auto` attempts to run `npx -y -p @direxio/agent-plugins@latest direxio-agent-install --node-id <agent_node_id> --credentials-file ~/.direxio/nodes/<service_id>/credentials.json --write`. Gateway mode restarts only the matching node gateway.
 - The gateway has native `mcp.messages.send` support through `/_p2p/command`; it does not require `@direxio/local-mcp` for room replies.
 
@@ -83,7 +84,7 @@ Agents should read `SKILL.md` first. Use this skill when the user asks to deploy
 
 After deployment, S6 detects the current runtime, such as Codex, Claude Code, Gemini, Cursor, GitHub Copilot, OpenClaw, or Hermes. After S7 passes, the executing agent must ask before automatically installing/configuring Direxio plugin and MCP access for the detected runtime. Non-interactive deployment can opt in with `DIREXIO_AGENT_INSTALL=auto`.
 
-OpenClaw and Hermes should prefer native long-process integration. Claude Code, Cursor, Gemini, and GitHub Copilot use MCP-only unless the user provides a local command for an external gateway. S6 records `agent_skill_install_path`, `agent_global_skill_install_path`, `agent_mcp_config_path`, and `agent_install_target_summary`; agents must follow those fields and `references/agent-targets.md` instead of defaulting to Codex paths.
+OpenClaw and Hermes should prefer native long-process integration. Claude Code, Cursor, Gemini, and GitHub Copilot use MCP-only unless the user provides a local command for an external gateway. S6 records `agent_skill_install_path`, `agent_global_skill_install_path`, `agent_mcp_config_path`, `agent_install_target_summary`, `agent_runtime_required_gates`, and `agent_runtime_completion_rule`; agents must follow those fields, `manifest.json`, and `references/agent-targets.md` instead of defaulting to Codex paths. OpenClaw is not complete until channel probe, MCP probe, and Agent chat round trip pass.
 
 Gateway native send test:
 

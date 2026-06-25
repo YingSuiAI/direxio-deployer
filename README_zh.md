@@ -27,6 +27,7 @@
 - 当前后端使用 `password` 作为 IM 登录信息；本地凭据保留统一的 `access_token` 和 agent 专用的 `agent_token`。
 - 多节点公开频道互通由客户端请求参数携带目标节点 `_p2p` 基地址，部署器不再写入固定远端节点表。
 - 部署完成后会按服务域名持久化当前 MCP 和插件所需的 `DIREXIO_DOMAIN`、`DIREXIO_AGENT_TOKEN`、`DIREXIO_AGENT_ROOM_ID`、`DIREXIO_AGENT_NODE_ID` 到 `~/.direxio/nodes/<service_id>/`，并记录 `@direxio/local-mcp`、`@direxio/agent-plugins`、runtime-specific skill clone 目录和按节点隔离的 MCP/config payload 目标。
+- `manifest.json` 是本仓内置的 release contract，记录部署操作和质量门，包括 OpenClaw channel probe、MCP probe 和 Agent 聊天回环验收。
 - 部署器支持部署后 agent 安装策略：`DIREXIO_AGENT_INSTALL=skip|recommend|auto`，默认 `recommend`。只有 `auto` 会尝试执行 `npx -y -p @direxio/agent-plugins@latest direxio-agent-install --node-id <agent_node_id> --credentials-file ~/.direxio/nodes/<service_id>/credentials.json --write`。gateway 模式只会重启同一节点的 gateway，不影响其他本地节点。
 - gateway 原生内置 `mcp.messages.send` 发送能力，会直接调用 `/_p2p/command`，不依赖 `@direxio/local-mcp`。
 
@@ -83,7 +84,7 @@ bash scripts/destroy.sh
 
 非交互部署可用 `DIREXIO_AGENT_INSTALL=auto` 显式授权自动安装。OpenClaw/Hermes 这类支持长进程的平台优先使用原生插件/配置；Claude Code、Cursor、Gemini、Copilot 等不托管本地长进程的平台使用 MCP-only 或外置 gateway。
 
-S6 会在 `state.json` 里记录 `agent_skill_install_path`、`agent_global_skill_install_path`、`agent_mcp_config_path` 和 `agent_install_target_summary`，执行 agent 应按这些字段和 `references/agent-targets.md` 操作，不要默认使用 Codex 目录。
+S6 会在 `state.json` 里记录 `agent_skill_install_path`、`agent_global_skill_install_path`、`agent_mcp_config_path`、`agent_install_target_summary`、`agent_runtime_required_gates` 和 `agent_runtime_completion_rule`，执行 agent 应按这些字段、`manifest.json` 和 `references/agent-targets.md` 操作，不要默认使用 Codex 目录。OpenClaw 不能只看安装命令退出，必须通过 channel probe、MCP probe 和 Agent 聊天回环后才算接通。
 
 部署后可直接用 gateway 原生发送测试消息：
 

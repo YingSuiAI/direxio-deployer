@@ -58,6 +58,9 @@ agent_skill_install_path
 agent_global_skill_install_path
 agent_mcp_config_path
 agent_install_target_summary
+agent_runtime_required_gates
+agent_runtime_verification_commands
+agent_runtime_completion_rule
 ```
 
 ## Persistent Agent Environment
@@ -117,6 +120,7 @@ Defaults:
 Platform guidance:
 
 - OpenClaw and Hermes: prefer native long-process integration using `/_p2p/events` and `mcp.messages.send`.
+- OpenClaw native installs are not complete until `openclaw channels status --probe`, `openclaw mcp probe direxio --json`, and an Agent chat round trip pass. S6 records the exact gates and commands in `state.json`.
 - Codex: prefer gateway with `codex-app-server`; when Codex runs from Windows under WSL, `CODEX_HOME=/mnt/c/.../.codex` is the MCP/config target.
 - Claude Code, Cursor, Gemini, and Copilot: use MCP-only unless the user supplies a local prompt command for `generic-cli`.
 - Cursor repository target: copy or merge the generated MCP payload into `PROJECT_ROOT/.cursor/mcp.json`.
