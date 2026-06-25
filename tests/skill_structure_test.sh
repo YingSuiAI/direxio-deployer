@@ -34,4 +34,29 @@ grep -q '通用 Agent Skill' README_zh.md
 grep -q 'PROJECT_ROOT/.cursor/skills/direxio-deployer' references/agent-targets.md
 grep -q 'PROJECT_ROOT/.github/copilot/mcp.json' references/agent-targets.md
 
+if grep -RE '(^|[^[:alnum:]_])([a-z0-9-]+\.)*example\.com([^[:alnum:]_]|$)' SKILL.md references scripts README.md README_zh.md >/dev/null; then
+  echo "published docs/scripts must use placeholders such as __DOMAIN__, not example.com-style domains" >&2
+  exit 1
+fi
+
+if grep -RE '(^|[^[:alnum:]_])([a-z0-9-]+\.)*direxio\.ai([^[:alnum:]_]|$)' SKILL.md references scripts README.md README_zh.md >/dev/null; then
+  echo "published docs/scripts must use placeholders such as __DOMAIN__, not real Direxio-owned domains" >&2
+  exit 1
+fi
+
+if grep -RE 'agentp2p\.im|54\.161\.73\.211' SKILL.md references scripts README.md README_zh.md >/dev/null; then
+  echo "published docs/scripts must use placeholders such as __DOMAIN__ and __EIP__, not session-specific domains or IPs" >&2
+  exit 1
+fi
+
+if grep -R 'DIREXIO_CREDENTIALS_FILE' SKILL.md references scripts README.md README_zh.md >/dev/null; then
+  echo "published docs/scripts must not use DIREXIO_CREDENTIALS_FILE for local MCP; use direct DIREXIO_* env" >&2
+  exit 1
+fi
+
+if grep -RE 'fixed order.*\.codex.*\.hermes|\.codex.*checked before.*\.hermes' SKILL.md references scripts README.md README_zh.md >/dev/null; then
+  echo "published docs/scripts must not describe stale Codex-before-Hermes runtime detection" >&2
+  exit 1
+fi
+
 echo "skill structure ok"

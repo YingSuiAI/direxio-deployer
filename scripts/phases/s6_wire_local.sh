@@ -29,15 +29,16 @@ _direxio_service_dir() {
 }
 
 _detect_agent_runtime() {
+  local active_runtime
   if [ -n "${DIREXIO_AGENT_PLATFORM:-}" ] && [ "${DIREXIO_AGENT_PLATFORM:-}" != "auto" ]; then
     _validate_agent_platform "$DIREXIO_AGENT_PLATFORM"
     printf '%s\n' "$DIREXIO_AGENT_PLATFORM"
     return 0
   fi
-  # Each agent runtime sets its own *_HOME env var. Check those first —
-  # they are the most reliable signal of which agent is running this
-  # script, regardless of which agent directories happen to exist on
-  # the filesystem from past use.
+  # Active-process signals are stronger than stale config directories from
+  # other agents that have used this WSL home before.
+  active_runtime=$(_active_agent_runtime)
+  if [ -n "$active_runtime" ]; then printf '%s\n' "$active_runtime"; return 0; fi
   if [ -n "${HERMES_HOME:-}" ]; then printf 'hermes\n'; return 0; fi
   if [ -n "${CODEX_HOME:-}" ]; then printf 'codex\n'; return 0; fi
   if [ -n "${CLAUDE_HOME:-}" ]; then printf 'claude-code\n'; return 0; fi
@@ -54,6 +55,131 @@ _detect_agent_runtime() {
   if [ -d "$HOME/.copilot" ]; then printf 'copilot\n'; return 0; fi
   if [ -d "$HOME/.openclaw" ]; then printf 'openclaw\n'; return 0; fi
   printf 'unknown\n'
+}
+
+_active_agent_runtime() {
+  local runtime
+  for runtime in codex claude-code gemini cursor copilot openclaw hermes; do
+    if _runtime_has_env_signal "$runtime"; then
+      printf '%s\n' "$runtime"
+      return 0
+    fi
+  done
+  for runtime in codex claude-code gemini cursor copilot openclaw hermes; do
+    if _runtime_has_context_signal "$runtime"; then
+      printf '%s\n' "$runtime"
+      return 0
+    fi
+  done
+  return 0
+}
+
+_runtime_has_active_signal() {
+  _runtime_has_env_signal "$1" || _runtime_has_context_signal "$1"
+}
+
+_runtime_has_env_signal() {
+  local runtime=$1
+  case "$runtime" in
+    codex)
+      _env_name_matches '^CODEX_'
+      ;;
+    claude-code)
+      _env_name_matches '^(CLAUDECODE|CLAUDECODE_|CLAUDE_CODE_)'
+      ;;
+    gemini)
+      _env_name_matches '^(GEMINI_CLI|GEMINI_CLI_|GEMINI_AGENT_|GOOGLE_GEMINI_CLI_)'
+      ;;
+    cursor)
+      _env_name_matches '^CURSOR_'
+      ;;
+    copilot)
+      _env_name_matches '^(COPILOT_|GITHUB_COPILOT_)'
+      ;;
+    openclaw)
+      _env_name_matches '^OPENCLAW_'
+      ;;
+    hermes)
+      _env_name_matches '^HERMES_'
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+_runtime_has_context_signal() {
+  local runtime=$1
+  case "$runtime" in
+    codex)
+      _active_text_contains '/.codex/tmp/' ||
+        _active_text_contains 'openai/codex' ||
+        _active_text_contains 'openai.codex' ||
+        _active_text_contains '/.codex/' ||
+        _process_name_matches 'codex'
+      ;;
+    claude-code)
+      _active_text_contains '/.claude/tmp/' ||
+        _active_text_contains '/.claude/' ||
+        _active_text_contains 'claude-code' ||
+        _process_name_matches 'claude'
+      ;;
+    gemini)
+      _active_text_contains '/.gemini/tmp/' ||
+        _active_text_contains '/.gemini/' ||
+        _process_name_matches 'gemini'
+      ;;
+    cursor)
+      _active_text_contains '/.cursor/tmp/' ||
+        _active_text_contains '/.cursor/' ||
+        _active_text_contains 'cursor' ||
+        _process_name_matches 'cursor'
+      ;;
+    copilot)
+      _active_text_contains '/.github/copilot/' ||
+        _active_text_contains '/.copilot/' ||
+        _process_name_matches 'copilot'
+      ;;
+    openclaw)
+      _active_text_contains '/.openclaw/tmp/' ||
+        _active_text_contains '/.openclaw/' ||
+        _process_name_matches 'openclaw'
+      ;;
+    hermes)
+      _active_text_contains '/.hermes/tmp/' ||
+        _active_text_contains '/.hermes/' ||
+        _process_name_matches 'hermes'
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+_env_name_matches() {
+  env | sed -E 's/=.*$//' | grep -Eq "$1"
+}
+
+_active_text_contains() {
+  local needle=$1 text
+  text=$(printf '%s:%s' "${PATH:-}" "${PWD:-}" | tr '[:upper:]' '[:lower:]')
+  case "$text" in
+    *"$needle"*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+_process_name_matches() {
+  local needle=$1
+  [ "${DIREXIO_AGENT_DETECT_PROCESS:-1}" != "0" ] || return 1
+  _process_tree_names | tr '[:upper:]' '[:lower:]' | grep -Eq "(^|[^a-z0-9])${needle}([^a-z0-9]|$)"
+}
+
+_process_tree_names() {
+  local pid=${BASHPID:-$$} ppid depth=0
+  while [ -n "$pid" ] && [ "$pid" != "0" ] && [ "$depth" -lt 12 ]; do
+    ps -o comm= -p "$pid" 2>/dev/null || true
+    ppid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d '[:space:]')
+    [ -n "$ppid" ] && [ "$ppid" != "$pid" ] || break
+    pid=$ppid
+    depth=$((depth+1))
+  done
 }
 
 _validate_agent_platform() {
@@ -90,6 +216,32 @@ _agent_config_home() {
   printf '%s\n' "${XDG_CONFIG_HOME:-$HOME/.config}"
 }
 
+_codex_home_for_runtime() {
+  local detected
+  if [ -n "${CODEX_HOME:-}" ]; then
+    printf '%s\n' "$CODEX_HOME"
+    return 0
+  fi
+  detected=$(_codex_home_from_active_context)
+  if [ -n "$detected" ]; then
+    printf '%s\n' "$detected"
+    return 0
+  fi
+  printf '%s/.codex\n' "$HOME"
+}
+
+_codex_home_from_active_context() {
+  local part
+  printf '%s:%s\n' "${PATH:-}" "${PWD:-}" | tr ':;' '\n' | while IFS= read -r part; do
+    case "$part" in
+      */.codex/tmp|*/.codex/tmp/*)
+        printf '%s/.codex\n' "${part%%/.codex*}"
+        return 0
+        ;;
+    esac
+  done | head -n 1
+}
+
 _agent_skill_install_path() {
   local runtime=$1
   case "$runtime" in
@@ -122,7 +274,7 @@ _agent_mcp_config_path() {
   local runtime=$1 node_id=${2:-direxio-agent} config_home
   config_home=$(_agent_config_home)
   case "$runtime" in
-    codex) printf '%s/direxio-agent/nodes/%s/mcp.json\n' "${CODEX_HOME:-$HOME/.codex}" "$node_id" ;;
+    codex) printf '%s/direxio-agent/nodes/%s/mcp.json\n' "$(_codex_home_for_runtime)" "$node_id" ;;
     claude-code) printf '%s/.claude/direxio-agent/nodes/%s/mcp.json\n' "$HOME" "$node_id" ;;
     openclaw) printf '%s/.openclaw/direxio/nodes/%s/mcp.json\n' "$HOME" "$node_id" ;;
     hermes) printf '%s/.hermes/direxio/nodes/%s/mcp.json\n' "$HOME" "$node_id" ;;
@@ -202,6 +354,7 @@ EOF
 Recommended Codex install:
   mount @direxio/agent-plugins Codex plugin templates and run direxio-agent-gateway with codex-app-server.
   MCP payload target: $mcp_path
+  On Windows-native Codex, start the gateway from Windows PowerShell, set HOME=\$env:USERPROFILE, CODEX_HOME=\$env:USERPROFILE\\.codex, XDG_CONFIG_HOME=\$env:USERPROFILE\\.config, and set DIREXIO_CODEX_COMMAND to the real codex.exe path when PATH resolves to a restricted WindowsApps alias.
 EOF
       ;;
     cursor:mcp)
@@ -463,13 +616,13 @@ EOF
 _agent_node_id() {
   local runtime=$1 domain=$2 room=$3 explicit host digest raw
   explicit=${DIREXIO_AGENT_NODE_ID:-}
-  if [ -n "$explicit" ]; then
+  host=${domain#http://}
+  host=${host#https://}
+  host=${host%%/*}
+  host=${host%%:*}
+  if [ -n "$explicit" ] && { [ "${DIREXIO_AGENT_NODE_ID_FORCE:-}" = "1" ] || _agent_node_id_matches_host "$explicit" "$host"; }; then
     raw=$explicit
   else
-    host=${domain#http://}
-    host=${host#https://}
-    host=${host%%/*}
-    host=${host%%:*}
     if command -v sha256sum >/dev/null 2>&1; then
       digest=$(printf '%s\n%s\n' "$domain" "$room" | sha256sum | awk '{print substr($1,1,10)}')
     else
@@ -478,6 +631,13 @@ _agent_node_id() {
     raw="${runtime:-agent}-${host:-direxio}-$digest"
   fi
   printf '%s\n' "$raw" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9._-]+/-/g; s/^-+//; s/-+$//; s/^$/direxio-agent/'
+}
+
+_agent_node_id_matches_host() {
+  local node_id=$1 host=$2 normalized_node normalized_host
+  normalized_node=$(printf '%s\n' "$node_id" | tr '[:upper:]' '[:lower:]')
+  normalized_host=$(printf '%s\n' "$host" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9._-]+/-/g; s/^-+//; s/-+$//')
+  [ -n "$normalized_host" ] && [[ "$normalized_node" == *"$normalized_host"* ]]
 }
 
 _write_credentials_file() {
@@ -525,8 +685,10 @@ Target summary:         $install_target_summary
 
 Use this stdio MCP server in the current agent config:
   command: npx
-  args:    ["-y", "@direxio/local-mcp@latest"]
-  env:     DIREXIO_CREDENTIALS_FILE=$cred
+  args:    ["-y", "-p", "@direxio/local-mcp@latest", "direxio-mcp"]
+  env:     DIREXIO_DOMAIN=$asurl
+           DIREXIO_AGENT_TOKEN=<secret from $envfile>
+           DIREXIO_AGENT_ROOM_ID=<room id from $envfile>
            DIREXIO_AGENT_NODE_ID=$node_id
 
 Gateway native send is also available without MCP:

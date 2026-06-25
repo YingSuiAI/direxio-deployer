@@ -12,7 +12,7 @@ The important policy is simple:
 
 Confirm these items before calling `scripts/orchestrate.sh`:
 
-1. The final Matrix domain is selected, for example `im.example.com`.
+1. The final Matrix domain is selected, for example `__DOMAIN__`.
 2. The user understands that Matrix `server_name` is bound to that domain.
 3. The user has confirmed `CONFIRM_DOMAIN_BINDING=1`.
 4. AWS CLI v2, `jq`, `ssh`, `scp`, and `curl` are available.
@@ -50,7 +50,7 @@ domain purchase must be done manually before deployment.
 ```bash
 AWS_PROFILE=p2p-matrix \
 AWS_DEFAULT_REGION=us-east-1 \
-DOMAIN=im.example.com \
+DOMAIN=__DOMAIN__ \
 DOMAIN_MODE=user \
 CONFIRM_DOMAIN_BINDING=1 \
 INSTANCE_TYPE=t3.small \
@@ -78,7 +78,7 @@ For `DOMAIN_MODE=user`, S3 stops after allocating the EIP and prints the A recor
 the user must set:
 
 ```text
-im.example.com  A  <EC2 Elastic IP>
+__DOMAIN__  A  <EC2 Elastic IP>
 ```
 
 The script will not proceed to cloud-init bootstrap until DNS actually resolves

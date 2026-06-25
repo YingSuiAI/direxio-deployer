@@ -54,12 +54,12 @@ Windows Git Bash has some DNS tooling quirks:
 - **curl `--resolve` bypass** — when local DNS cache is stale but Route53
   has the correct A record, use `--resolve` to pin the domain to the right IP:
   ```bash
-  curl -sk --resolve agentp2p.im:443:54.161.73.211 https://agentp2p.im/healthz
+  curl -sk --resolve __DOMAIN__:443:__EIP__ https://__DOMAIN__/healthz
   ```
 - **Public DNS fallback** — if `nslookup` returns wrong cached results, try
   a direct public resolver:
   ```bash
-  nslookup agentp2p.im 8.8.8.8
+  nslookup __DOMAIN__ 8.8.8.8
   ```
 
 ## AWS Proxy Bypass
@@ -111,9 +111,11 @@ Input should be a valid list [type=list_type, input_value='["-y","@direxio/local
 ```bash
 hermes mcp add direxio \
   --command npx \
-  --args -y @direxio/local-mcp@latest \
-  --env DIREXIO_CREDENTIALS_FILE="C:/Users/.../credentials.json" \
-  --env DIREXIO_AGENT_NODE_ID="..."
+  --args -y -p @direxio/local-mcp@latest direxio-mcp \
+  --env DIREXIO_DOMAIN="https://__DOMAIN__" \
+  --env DIREXIO_AGENT_TOKEN="__AGENT_TOKEN__" \
+  --env DIREXIO_AGENT_ROOM_ID="__ROOM_ID__" \
+  --env DIREXIO_AGENT_NODE_ID="__AGENT_NODE_ID__"
 ```
 
 Or remove and re-add with `--args` as the last positional option.
@@ -160,11 +162,11 @@ Node process tries to execute the prompt text as JavaScript.
 
 ## Runtime Detection on Windows
 
-The `_detect_agent_runtime()` function checks for agent config directories. On Windows, Hermes home is `~/AppData/Local/hermes/` (set via `$HERMES_HOME`), but the check `[ -d "$HOME/.hermes" ]` looks for `~/.hermes/` which may not exist.
+The `_detect_agent_runtime()` function checks active-process signals before stale config directories. On Windows, Hermes home is `~/AppData/Local/hermes/` (set via `$HERMES_HOME`), while Codex Desktop commonly exposes active `.codex/tmp` paths.
 
-The env-var check `[ -n "${HERMES_HOME:-}" ]` is the most reliable indicator.
+The env-var check `[ -n "${HERMES_HOME:-}" ]` is a reliable fallback after active-process detection.
 
-Also: `~/.codex` may exist from past Codex usage even when the current session is Hermes. The detection order matters — `*_HOME` env var checks should come before directory checks so each runtime identifies itself correctly.
+Also: `~/.codex` may exist from past Codex usage even when the current session is Hermes. Current S6 treats active runtime signals and runtime-specific `*_HOME` variables as stronger than historical directories. If a session still appears ambiguous, set `DIREXIO_AGENT_PLATFORM=<runtime>` explicitly before running deployment.
 
 ## EC2 SSH Key Paths
 

@@ -26,7 +26,7 @@ run_phase() {
     elif [ -t 0 ]; then
       warn "P2P-IM requires a production domain as the Matrix server_name."
       warn "Changing the domain is effectively a new homeserver identity; temporary sslip.io defaults are not supported."
-      printf "Enter the final domain (for example im.example.com): " >&2
+      printf "Enter the final domain (for example __DOMAIN__): " >&2
       read -r domain
       [ -n "$domain" ] || {
         phase_set S2_DOMAIN waiting_user "waiting for production domain"
@@ -37,9 +37,9 @@ run_phase() {
     else
       phase_set S2_DOMAIN waiting_user "waiting for production domain"
       warn "Deployment blocked: DOMAIN is missing. P2P-IM no longer supports temporary sslip.io defaults."
-      warn "Prepare a production domain such as im.example.com. Matrix server_name binds to that domain; changing it later is effectively a new homeserver identity."
+      warn "Prepare a production domain such as __DOMAIN__. Matrix server_name binds to that domain; changing it later is effectively a new homeserver identity."
       warn "Example:"
-      warn "  DOMAIN=im.example.com DOMAIN_MODE=user CONFIRM_DOMAIN_BINDING=1 bash scripts/orchestrate.sh"
+      warn "  DOMAIN=__DOMAIN__ DOMAIN_MODE=user CONFIRM_DOMAIN_BINDING=1 bash scripts/orchestrate.sh"
       return 2
     fi
   fi
@@ -47,14 +47,14 @@ run_phase() {
   if [ -z "$domain" ]; then
     phase_set S2_DOMAIN waiting_user "$mode mode requires DOMAIN"
     warn "Deployment blocked: DOMAIN_MODE=$mode requires explicit DOMAIN."
-    warn "Example: DOMAIN=im.example.com DOMAIN_MODE=$mode CONFIRM_DOMAIN_BINDING=1 bash scripts/orchestrate.sh"
+    warn "Example: DOMAIN=__DOMAIN__ DOMAIN_MODE=$mode CONFIRM_DOMAIN_BINDING=1 bash scripts/orchestrate.sh"
     return 2
   fi
   domain=$(domain_normalize "$domain")
   if ! domain_is_formal_name "$domain"; then
     phase_set S2_DOMAIN waiting_user "DOMAIN is not a valid production domain"
     warn "Deployment blocked: DOMAIN=$domain is not a valid production domain."
-    warn "Use a long-lived domain you own and can manage in DNS, such as im.example.com. IPs, localhost, wildcards, and temporary resolver domains are not accepted."
+    warn "Use a long-lived domain you own and can manage in DNS, such as __DOMAIN__. IPs, localhost, wildcards, and temporary resolver domains are not accepted."
     return 2
   fi
 

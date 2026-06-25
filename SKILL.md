@@ -140,8 +140,8 @@ Step-by-step onboarding flow:
      1. Open one official registrar URL in the browser.
      2. Search for a domain name.
      3. Buy the domain.
-     4. Return with the domain name, such as `im.example.com` or
-        `example.com`.
+     4. Return with the domain name. In examples and templates, represent it
+        as `__DOMAIN__`.
    - Use plain official URLs instead of complex Markdown links. Do not invent
      deep links or wrap one URL inside another.
    - Suggested official registrar URLs:
@@ -320,7 +320,12 @@ IP-derived, localhost, wildcard, or disposable domains.
 5. Apply the approved existing-state action for `${P2P_WORKDIR:-$HOME/.direxio/deploy}/state.json`: continue, destroy, or use a new workdir.
 6. Run `scripts/orchestrate.sh` with the confirmed environment. Let the state machine own AWS calls, state, polling, cloud-init, token/password handling, verification, and destroy behavior.
    **Hermes passive agent pitfall:** Hermes needs both a working model provider and the generated gateway handler. Before expecting App Agent replies, run `hermes -z "Reply with only: ok"` locally. If Hermes reports a missing model API key, configure the provider through `hermes model` or the Hermes environment file, then start `~/.direxio/nodes/<service_id>/hermes-gateway/start_gateway.sh`.
-   **⚠️ Runtime detection pitfall:** S6 detects the agent runtime by checking directories in a fixed order — `~/.codex` is checked before `~/.hermes`. If `~/.codex` exists from past tool use, the script may mis-detect `codex` even when Hermes is running. **Fix:** pass `DIREXIO_AGENT_PLATFORM=hermes` explicitly when deploying from a Hermes session. Also see `references/windows-deployment-notes.md`.
+   **Runtime detection note:** S6 checks active-process signals before stale
+   config directories, so current-session markers such as Codex `.codex/tmp`
+   paths, Hermes environment variables, and process names win over historical
+   runtime directories. If a session still appears ambiguous, set
+   `DIREXIO_AGENT_PLATFORM=<runtime>` explicitly before deployment. Also see
+   `references/windows-deployment-notes.md`.
    **⚠️ Route53 pre-requisite for domains at other registrars:** The script's `_find_route53_zone()` looks up existing hosted zones only — it does NOT create one. If the domain is registered at Alibaba, GoDaddy, Cloudflare, etc. and the user chose Route53 management, the agent must pre-create the hosted zone (see Step 4 DNS control) BEFORE running orchestrate.sh. Do not rely on the script to create the zone.
    **⚠️ Let's Encrypt certificate rate limit:** A single domain can get at most
    5 certificates per 7 days (504 hours). If the chosen domain has been
@@ -351,13 +356,11 @@ If an operator needs to preserve local state files for debugging, run destroy wi
 
 ### Full reset / "treat me as a brand new user"
 
-When the user asks for a complete fresh start — "destroy everything", "start over from zero", "treat me as a brand new user" — running `scripts/destroy.sh` alone is **not sufficient**. The destroy script only handles infrastructure and local workdir cleanup. The agent must also clear its own persistent memory about the old deployment. Specifically:
+When the user asks for a complete fresh start — "destroy everything", "start over from zero", "treat me as a brand new user" — running `scripts/destroy.sh` alone is **not sufficient**. The destroy script only handles infrastructure and local workdir cleanup. The agent should also clear any runtime-supported persistent memory about the old deployment. Specifically:
 
 1. **Run `scripts/destroy.sh` first** (infra teardown).
-2. **Clear agent memory entries** for this deployment:
-   - `memory(action='remove', target='memory')` — remove all entries referencing the old domain, deployment URLs, credentials, passwords, tokens, node IDs, room IDs, service IDs, AWS account info, MCP config paths, and the skill install/update history.
-   - `memory(action='remove', target='user')` — remove any user profile entries that describe the user's cloud/DNS setup from the prior deployment (the new deployment starts fresh with new onboarding).
-3. **Verify** that `~/AppData/Local/hermes/memory.json` (Hermes desktop) or `~/.hermes/memory.json` (CLI) no longer carries stale deployment facts.
+2. **Clear agent memory entries only through capabilities available in the current runtime.** If the runtime provides an explicit memory-management tool, remove entries referencing the old domain, deployment URLs, credentials, passwords, tokens, node IDs, room IDs, service IDs, AWS account info, MCP config paths, and skill install/update history. If no such capability exists, say that memory cleanup cannot be automated in this runtime and avoid inventing tool calls.
+3. **Verify runtime-specific memory stores only when they are known and accessible.** For Hermes, check the documented Hermes memory location. For Codex or other agents, use their native memory/config mechanism if exposed; otherwise report the limitation.
 4. **Then start from Step 1** of the Cloud Account And Domain Onboarding section — ask about AWS account first, don't assume anything carried over.
 
 > ⚠️ Do not skip step 2. Stale credentials (URLs, passwords, tokens) in agent memory can leak into the new deployment's Delivery report or cause the agent to skip onboarding steps by referencing facts that no longer apply. A true fresh start requires both infra cleanup **and** agent memory cleanup.
@@ -374,7 +377,7 @@ For repeated test refreshes, rerun `scripts/orchestrate.sh` normally. S6 only re
 
 ```bash
 AWS_DEFAULT_REGION=us-east-1 \
-DOMAIN=im.example.com \
+DOMAIN=__DOMAIN__ \
 DOMAIN_MODE=user \
 CONFIRM_DOMAIN_BINDING=1 \
 INSTANCE_TYPE=t3.small \
@@ -414,7 +417,7 @@ agent_token  : written to ~/.direxio/nodes/<service_id>/credentials.json
 agent_room_id: written to ~/.direxio/nodes/<service_id>/credentials.json
 mcp package  : @direxio/local-mcp
 plugins pkg  : @direxio/agent-plugins
-env vars      : DIREXIO_DOMAIN, DIREXIO_AGENT_TOKEN, DIREXIO_AGENT_ROOM_ID persisted
+env vars      : DIREXIO_DOMAIN, DIREXIO_AGENT_TOKEN, DIREXIO_AGENT_ROOM_ID, DIREXIO_AGENT_NODE_ID persisted
 install mode  : policy=<skip|recommend|auto> mode=<mcp|native|gateway> status=<...>
 mcp config    : <agent_mcp_config_path>
 skill clone   : <agent_skill_install_path>
@@ -440,11 +443,11 @@ If the user agrees, use the runtime's native configuration path where available.
 
 ```text
 command: npx
-args: ["-y", "@direxio/local-mcp@latest"]
-env: DIREXIO_CREDENTIALS_FILE, DIREXIO_AGENT_NODE_ID
+args: ["-y", "-p", "@direxio/local-mcp@latest", "direxio-mcp"]
+env: DIREXIO_DOMAIN, DIREXIO_AGENT_TOKEN, DIREXIO_AGENT_ROOM_ID, DIREXIO_AGENT_NODE_ID
 ```
 
-For OpenClaw and Hermes, prefer native long-process integration. For Hermes passive App-agent replies, use the generated `hermes-gateway/start_gateway.sh` so prompts are routed through `p2p_handler.cjs` into `hermes -z`. For Claude Code, Cursor, Gemini, and Copilot, use MCP-only unless the user supplies a local command for an external `generic-cli` gateway.
+Do not configure `@direxio/local-mcp` through credential-file indirection unless the package version being installed documents that support. Current published local MCP wiring reads the direct `DIREXIO_*` environment. For OpenClaw and Hermes, prefer native long-process integration. For Hermes passive App-agent replies, use the generated `hermes-gateway/start_gateway.sh` so prompts are routed through `p2p_handler.cjs` into `hermes -z`. For Claude Code, Cursor, Gemini, and Copilot, use MCP-only unless the user supplies a local command for an external `generic-cli` gateway. For Windows-native Codex, launch gateway from Windows PowerShell and use `%USERPROFILE%`, `$env:CODEX_HOME`, `$env:XDG_CONFIG_HOME`, and a discovered `DIREXIO_CODEX_COMMAND`; never publish or template a machine-specific user path.
 
 ## References
 

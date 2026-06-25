@@ -169,7 +169,7 @@ Workaround (use when the health check is the only blocker and the rate limit is 
 
 Prevention:
 
-- Use a separate subdomain per deployment cycle (e.g. `test1.example.com`, `test2.example.com`) when doing repeated test deployments within 7 days.
+- Use a separate subdomain per deployment cycle (e.g. `__DOMAIN_A__`, `__DOMAIN_B__`) when doing repeated test deployments within 7 days.
 - Preserve the old `caddy-data` Docker volume on redeploy to carry forward the existing certificate.
 
 ## Route53 Duplicate Zone Detection
