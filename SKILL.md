@@ -88,29 +88,31 @@ Step-by-step onboarding flow:
 2. **Access key file.**
    - Ask: "Do you already have an AWS access key CSV file for deployment?"
    - If yes, ask only for the local file path.
-   - If no, guide them through creating one with specific step-by-step
-     instructions. Do NOT say "go create one" — tell them exactly what to
-     click. Example for a root access key:
-     1. Open `https://console.aws.amazon.com/iam/` and sign in as root user.
-     2. Click the account name (top-right) → **Security credentials**.
-     3. Scroll to **Access keys (access key ID and secret access key)**.
-     4. Click **Create access key**.
-     5. In the dialog, select **Root user access key** → acknowledge the
-        warning → **Create access key**.
-     6. Click **Download .csv file** to save the credentials file.
-     7. Return the local file path to the agent.
-   - For a dedicated IAM deployment user (recommended over root):
-     1. User opens `https://console.aws.amazon.com/iam/` → **Users** →
-        **Create user** with name like `p2p-matrix`.
-     2. Attach the policy from `references/iam-policy.json` (or `AdministratorAccess` for simplicity).
-     3. **Create user** → select the user → **Security credentials** →
-        **Create access key** → **Command Line Interface (CLI)** →
-        download the CSV.
-   - Prefer a dedicated deployment user or role over root access keys. If the
-     user insists on root keys, warn: "Root keys have unrestricted access to
-     your entire AWS account. Use them only if you understand the risk."
-   - If they need a permission policy, point to `references/iam-policy.json`.
-     Do not explain the policy line by line unless asked.
+   - If no, default to the shortest CSV download path first. Explain in one
+     sentence: "This key lets the deployment tool create AWS resources, so keep
+     the CSV private and delete or rotate the key when you no longer need it."
+   - Do not say "go create one" or start with IAM policy JSON. Guide only one
+     or two clicks at a time:
+     1. Open `https://console.aws.amazon.com` and sign in.
+     2. Click the account/user menu in the upper right.
+     3. Open `Security credentials`.
+     4. In `Access keys`, choose `Create access key`.
+     5. Select `Command Line Interface (CLI)`, confirm the warning, then
+        continue.
+     6. Choose `Create access key`, download the `.csv` file, and provide only
+        the local file path.
+   - Do not open with the longer IAM user and custom policy flow. Offer that
+     safer dedicated-user path only when the user asks for a production
+     least-privilege setup, the current account cannot create an access key, or
+     the user is clearly operating inside an organization that requires
+     separate deployment users.
+   - If the dedicated-user path is needed, still guide it screen by screen.
+     Point to `references/iam-policy.json` only when the user reaches the
+     policy creation step, and do not explain the policy line by line unless
+     asked.
+   - Do not recommend root access keys. If the user is signed in as the root
+     account and chooses the quick path anyway, warn once that this is powerful
+     and should be temporary, then continue if they explicitly accept.
    - **Reading the CSV file:** On some platforms, terminal output-level
      redaction may truncate credential values (e.g. `AKIAQ6...W47B` instead of
      the full key). In that case, use Python to read the raw CSV bytes and
