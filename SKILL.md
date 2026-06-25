@@ -70,8 +70,8 @@ Step-by-step onboarding flow:
      1. Open one official registrar URL in the browser.
      2. Search for a domain name.
      3. Buy the domain.
-     4. Return with the domain name, such as `im.example.com` or
-        `example.com`.
+     4. Return with the domain name. In examples and templates, represent it
+        as `__DOMAIN__`.
    - Use plain official URLs instead of complex Markdown links. Do not invent
      deep links or wrap one URL inside another.
    - Suggested official registrar URLs:
@@ -197,7 +197,7 @@ For repeated test refreshes, rerun `scripts/orchestrate.sh` normally. S6 only re
 
 ```bash
 AWS_DEFAULT_REGION=us-east-1 \
-DOMAIN=im.example.com \
+DOMAIN=__DOMAIN__ \
 DOMAIN_MODE=user \
 CONFIRM_DOMAIN_BINDING=1 \
 INSTANCE_TYPE=t3.small \

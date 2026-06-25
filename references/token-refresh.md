@@ -9,13 +9,13 @@ EC2 机器内 `/opt/p2p/bootstrap.json`:
 ```json
 {
   "version": 1,
-  "owner_user_id": "@owner:im.example.com",
-  "user_id": "@owner:im.example.com",
-  "homeserver": "https://im.example.com",
+  "owner_user_id": "__OWNER_USER_ID__",
+  "user_id": "__OWNER_USER_ID__",
+  "homeserver": "https://__DOMAIN__",
   "access_token": "<ACCESS_TOKEN>",
   "agent_token": "<AGENT_TOKEN>",
   "password": "<LOGIN_PASSWORD>",
-  "agent_room_id": "!agent:im.example.com"
+  "agent_room_id": "__ROOM_ID__"
 }
 ```
 
@@ -35,10 +35,10 @@ ssh -i <key.pem> ubuntu@<ip> 'sudo cat /opt/p2p/bootstrap.json' > bootstrap.json
     "default": {
       "password": "<LOGIN_PASSWORD>",
       "access_token": "<ACCESS_TOKEN>",
-      "agent_room_id": "!agent:im.example.com",
-      "direxio_domain": "https://im.example.com",
+      "agent_room_id": "__ROOM_ID__",
+      "direxio_domain": "https://__DOMAIN__",
       "direxio_agent_token": "<AGENT_TOKEN>",
-      "direxio_agent_room_id": "!agent:im.example.com",
+      "direxio_agent_room_id": "__ROOM_ID__",
       "direxio_agent_node_id": "<agent_node_id>"
     }
   }

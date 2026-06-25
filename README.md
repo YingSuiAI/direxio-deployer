@@ -38,7 +38,7 @@ Run from the repository root:
 
 ```bash
 AWS_DEFAULT_REGION=us-east-1 \
-DOMAIN=im.example.com \
+DOMAIN=__DOMAIN__ \
 DOMAIN_MODE=user \
 CONFIRM_DOMAIN_BINDING=1 \
 INSTANCE_TYPE=t3.small \

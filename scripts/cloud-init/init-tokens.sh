@@ -4,7 +4,7 @@ set -euo pipefail
 
 P2P_DIR=${P2P_DIR:-/opt/p2p}
 COMPOSE="docker compose -f ${P2P_DIR}/docker-compose.yml --env-file ${P2P_DIR}/.env"
-DOMAIN=${DOMAIN:?DOMAIN is required (e.g. im.example.com)}
+DOMAIN=${DOMAIN:?DOMAIN is required (e.g. __DOMAIN__)}
 CONTAINER_BOOTSTRAP_FILE=${CONTAINER_BOOTSTRAP_FILE:-/var/direxio-message-server/p2p/bootstrap.json}
 BOOTSTRAP_FILE=${BOOTSTRAP_FILE:-/opt/p2p/bootstrap.json}
 WELLKNOWN_DIR=${WELLKNOWN_DIR:-/opt/p2p/wellknown}

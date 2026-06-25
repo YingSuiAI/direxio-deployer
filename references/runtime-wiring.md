@@ -7,7 +7,7 @@ After deployment, ops writes:
 ~/.direxio/nodes/<service_id>/env
 ```
 
-`service_id` is derived from the deployed service domain, for example `im.example.com` or `im.example.com-8443`.
+`service_id` is derived from the deployed service domain, for example `__DOMAIN__` or `__SERVICE_ID__`.
 
 Expected shape:
 
@@ -17,11 +17,11 @@ Expected shape:
     "default": {
       "password": "<login-password>",
       "access_token": "<access-token>",
-      "agent_room_id": "!agent:im.example.com",
-      "direxio_domain": "https://im.example.com",
+      "agent_room_id": "__ROOM_ID__",
+      "direxio_domain": "https://__DOMAIN__",
       "direxio_agent_token": "<token>",
-      "direxio_agent_room_id": "!agent:im.example.com",
-      "direxio_agent_node_id": "codex-im-example-com-<hash>"
+      "direxio_agent_room_id": "__ROOM_ID__",
+      "direxio_agent_node_id": "__AGENT_NODE_ID__"
     }
   }
 }
@@ -65,10 +65,10 @@ agent_install_target_summary
 S6 persists these user environment variables from deployment outputs:
 
 ```bash
-DIREXIO_DOMAIN=https://im.example.com
+DIREXIO_DOMAIN=https://__DOMAIN__
 DIREXIO_AGENT_TOKEN=<agent_token>
-DIREXIO_AGENT_ROOM_ID=!agent:im.example.com
-DIREXIO_AGENT_NODE_ID=codex-im-example-com-<hash>
+DIREXIO_AGENT_ROOM_ID=__ROOM_ID__
+DIREXIO_AGENT_NODE_ID=__AGENT_NODE_ID__
 ```
 
 `DIREXIO_*` is the only local integration contract for current MCP and plugin wiring. S6 does not write shell profiles, Windows user environment variables, or root-level compatibility env files; callers should source the service-specific env file explicitly.
@@ -82,10 +82,10 @@ Use `@direxio/local-mcp` as a stdio MCP server:
   "command": "npx",
   "args": ["-y", "-p", "@direxio/local-mcp@latest", "direxio-mcp"],
   "env": {
-    "DIREXIO_DOMAIN": "https://im.example.com",
+    "DIREXIO_DOMAIN": "https://__DOMAIN__",
     "DIREXIO_AGENT_TOKEN": "<agent-token>",
-    "DIREXIO_AGENT_ROOM_ID": "!agent:im.example.com",
-    "DIREXIO_AGENT_NODE_ID": "codex-im-example-com-<hash>"
+    "DIREXIO_AGENT_ROOM_ID": "__ROOM_ID__",
+    "DIREXIO_AGENT_NODE_ID": "__AGENT_NODE_ID__"
   }
 }
 ```

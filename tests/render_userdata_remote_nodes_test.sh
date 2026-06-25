@@ -6,8 +6,8 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
 bash "$ROOT/scripts/render/render-userdata.sh" \
-  --domain im2.direxio.ai \
-  --acme ops@example.com \
+  --domain service.example.test \
+  --acme ops@example.test \
   --message-server-image direxio/message-server:test \
   > "$tmp/user-data.yaml"
 

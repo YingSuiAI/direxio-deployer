@@ -12,7 +12,7 @@
 #   export MESSAGE_SERVER_IMAGE=direxio/message-server:latest
 #   # First run asks for region, production domain, instance size, and existing-state handling.
 #   # Non-interactive:
-#   #   DOMAIN=im.example.com DOMAIN_MODE=user CONFIRM_DOMAIN_BINDING=1 INSTANCE_TYPE=t3.small
+#   #   DOMAIN=__DOMAIN__ DOMAIN_MODE=user CONFIRM_DOMAIN_BINDING=1 INSTANCE_TYPE=t3.small
 #   bash orchestrate.sh                 # run or resume until completion
 #   bash orchestrate.sh status          # show current state only
 #   bash orchestrate.sh reset           # archive state.json; destroy will no longer know the resources
@@ -183,18 +183,18 @@ precheck_new_deploy_domain_env() {
   [ -f "$STATE_JSON" ] && return 0
   if [ "${DOMAIN_MODE:-}" = "ec2" ]; then
     warn "Deployment blocked: DOMAIN_MODE=ec2 temporary-domain mode has been removed."
-    warn "Prepare a production domain and use DOMAIN=im.example.com DOMAIN_MODE=user CONFIRM_DOMAIN_BINDING=1."
+    warn "Prepare a production domain and use DOMAIN=__DOMAIN__ DOMAIN_MODE=user CONFIRM_DOMAIN_BINDING=1."
     return 2
   fi
   if [ -z "$domain" ]; then
     warn "Deployment blocked: DOMAIN is missing. P2P-IM requires a confirmed production Matrix server_name."
     warn "Use this skill to prepare domain/DNS, then rerun:"
-    warn "  DOMAIN=im.example.com DOMAIN_MODE=user CONFIRM_DOMAIN_BINDING=1 bash $0"
+    warn "  DOMAIN=__DOMAIN__ DOMAIN_MODE=user CONFIRM_DOMAIN_BINDING=1 bash $0"
     return 2
   fi
   if ! domain_is_formal_name "$domain"; then
     warn "Deployment blocked: DOMAIN=$domain is not a valid production domain."
-    warn "Use a long-lived domain you own and can manage in DNS, such as im.example.com. IPs, localhost, wildcards, and temporary resolver domains are not accepted."
+    warn "Use a long-lived domain you own and can manage in DNS, such as __DOMAIN__. IPs, localhost, wildcards, and temporary resolver domains are not accepted."
     return 2
   fi
   if [ "${CONFIRM_DOMAIN_BINDING:-0}" != "1" ]; then
@@ -230,18 +230,18 @@ ensure_production_domain_selected() {
 
   if [ "$mode" = "ec2" ]; then
     warn "Deployment blocked: DOMAIN_MODE=ec2 temporary-domain mode has been removed."
-    warn "Prepare a production domain and use DOMAIN=im.example.com DOMAIN_MODE=user CONFIRM_DOMAIN_BINDING=1."
+    warn "Prepare a production domain and use DOMAIN=__DOMAIN__ DOMAIN_MODE=user CONFIRM_DOMAIN_BINDING=1."
     return 2
   fi
   if [ -z "$domain" ]; then
     warn "Deployment blocked: DOMAIN is missing. P2P-IM requires a confirmed production Matrix server_name."
     warn "Use this skill to prepare domain/DNS, then rerun:"
-    warn "  DOMAIN=im.example.com DOMAIN_MODE=user CONFIRM_DOMAIN_BINDING=1 bash $0"
+    warn "  DOMAIN=__DOMAIN__ DOMAIN_MODE=user CONFIRM_DOMAIN_BINDING=1 bash $0"
     return 2
   fi
   if ! domain_is_formal_name "$domain"; then
     warn "Deployment blocked: DOMAIN=$domain is not a valid production domain."
-    warn "Use a long-lived domain you own and can manage in DNS, such as im.example.com. IPs, localhost, wildcards, and temporary resolver domains are not accepted."
+    warn "Use a long-lived domain you own and can manage in DNS, such as __DOMAIN__. IPs, localhost, wildcards, and temporary resolver domains are not accepted."
     return 2
   fi
   if [ "$confirmed" != "true" ] && [ "${CONFIRM_DOMAIN_BINDING:-0}" != "1" ]; then
@@ -263,7 +263,7 @@ guard_existing_state() {
     warn "Found legacy temporary-domain deployment state (domain_mode=ec2). Production deployment no longer supports resuming this mode."
     warn "Destroy and rebuild, or use a new P2P_WORKDIR:"
     warn "  P2P_EXISTING_STATE_ACTION=destroy bash $0"
-    warn "  P2P_WORKDIR=~/.direxio/deploy-new DOMAIN=im.example.com DOMAIN_MODE=user CONFIRM_DOMAIN_BINDING=1 bash $0"
+    warn "  P2P_WORKDIR=~/.direxio/deploy-new DOMAIN=__DOMAIN__ DOMAIN_MODE=user CONFIRM_DOMAIN_BINDING=1 bash $0"
     return 2
   fi
   confirmed=$(jq -r '.existing_state_confirmed // false' "$STATE_JSON")

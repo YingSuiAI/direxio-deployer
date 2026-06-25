@@ -15,22 +15,22 @@ source "$ROOT/scripts/phases/s6_wire_local.sh"
 unset DIREXIO_HOME
 [ "$(_direxio_home)" = "$HOME/.direxio" ]
 [ "$(DIREXIO_HOME="$tmp/custom-direxio" _direxio_home)" = "$tmp/custom-direxio" ]
-[ "$(_direxio_service_id "https://IM.Example.com:8443/_p2p")" = "im.example.com-8443" ]
-[ "$(_direxio_service_dir "https://IM.Example.com:8443/_p2p")" = "$HOME/.direxio/nodes/im.example.com-8443" ]
+[ "$(_direxio_service_id "https://IM.Example.test:8443/_p2p")" = "im.example.test-8443" ]
+[ "$(_direxio_service_dir "https://IM.Example.test:8443/_p2p")" = "$HOME/.direxio/nodes/im.example.test-8443" ]
 
-envfile=$(_write_agent_env_file "https://im.example.com" "agent-token" "access-token" "!agent:im.example.com")
+envfile=$(_write_agent_env_file "https://im.example.test" "agent-token" "access-token" "!agent:im.example.test")
 
 [ "$envfile" = "$HOME/.direxio/env" ]
-grep -q 'DIREXIO_DOMAIN=https://im.example.com' "$envfile"
+grep -q 'DIREXIO_DOMAIN=https://im.example.test' "$envfile"
 grep -q 'DIREXIO_AGENT_TOKEN=agent-token' "$envfile"
-grep -q 'DIREXIO_AGENT_ROOM_ID=\\!agent:im.example.com' "$envfile"
+grep -q 'DIREXIO_AGENT_ROOM_ID=\\!agent:im.example.test' "$envfile"
 ! grep -q '^export P2P_' "$envfile"
 ! grep -q 'P2P_ADMIN_ACCESS_TOKEN' "$envfile"
 ! grep -q 'P2P_MATRIX_ACCESS_TOKEN' "$envfile"
 
 # shellcheck disable=SC1090
 source "$envfile"
-[ "$DIREXIO_AGENT_ROOM_ID" = "!agent:im.example.com" ]
+[ "$DIREXIO_AGENT_ROOM_ID" = "!agent:im.example.test" ]
 
 if grep -R 'P2P_MATRIX_AS_URL\|P2P_MATRIX_AGENT_TOKEN\|P2P_AGENT_RUNTIME\|p2p-agent-skill\|p2p-matrix-agent' "$ROOT/scripts" "$ROOT/SKILL.md" "$ROOT/references/runtime-wiring.md"; then
   echo "deprecated Matrix-AS env names or old agent skill wiring must not be used by deployer wiring" >&2
@@ -135,9 +135,9 @@ copilot_summary=$(_agent_install_target_summary copilot "$(_agent_mcp_config_pat
 [[ "$copilot_summary" == *"PROJECT_ROOT/.github/copilot/mcp.json"* ]]
 [[ "$copilot_summary" == *"PROJECT_ROOT/.github/copilot/skills/direxio-deployer"* ]]
 
-install_command=$(_agent_install_command hermes native "$HOME/.direxio/nodes/im.example.com/credentials.json")
+install_command=$(_agent_install_command hermes native "$HOME/.direxio/nodes/im.example.test/credentials.json")
 case "$install_command" in
-  *"direxio-agent-install"*"--platform hermes"*"--mode native"*"--credentials-file"*"im.example.com/credentials.json"*"--write"*) ;;
+  *"direxio-agent-install"*"--platform hermes"*"--mode native"*"--credentials-file"*"im.example.test/credentials.json"*"--write"*) ;;
   *)
     echo "install command did not include expected platform/mode/credentials/write flags: $install_command" >&2
     exit 1
@@ -151,7 +151,7 @@ matching_node_id=$(DIREXIO_AGENT_NODE_ID=codex-new.example.test-123 _agent_node_
 [ "$matching_node_id" = "codex-new.example.test-123" ]
 
 guidance=$(
-  _print_mcp_plugin_guidance codex https://im.example.com "$HOME/.direxio/nodes/im.example.com/credentials.json" "$HOME/.direxio/nodes/im.example.com/env" recommend gateway "install command" codex-im 2>&1 >/dev/null
+  _print_mcp_plugin_guidance codex https://im.example.test "$HOME/.direxio/nodes/im.example.test/credentials.json" "$HOME/.direxio/nodes/im.example.test/env" recommend gateway "install command" codex-im 2>&1 >/dev/null
 )
 [[ "$guidance" == *"DIREXIO_DOMAIN"* ]]
 [[ "$guidance" == *"DIREXIO_AGENT_TOKEN"* ]]

@@ -21,7 +21,7 @@ These skill clone paths are project-tracking locations for agent handoff and rep
 
 ## Deployment Wiring Targets
 
-S6 writes service-specific credentials to `~/.direxio/nodes/<service_id>/credentials.json` and `~/.direxio/nodes/<service_id>/env`, where `service_id` is derived from the deployed domain such as `im.example.com`. Runtime-specific MCP/plugin payloads are node-scoped by `<agent_node_id>` and written only when `DIREXIO_AGENT_INSTALL=auto`; otherwise S6 records and prints the target paths for explicit post-deploy approval.
+S6 writes service-specific credentials to `~/.direxio/nodes/<service_id>/credentials.json` and `~/.direxio/nodes/<service_id>/env`, where `service_id` is derived from the deployed domain such as `__DOMAIN__`. Runtime-specific MCP/plugin payloads are node-scoped by `<agent_node_id>` and written only when `DIREXIO_AGENT_INSTALL=auto`; otherwise S6 records and prints the target paths for explicit post-deploy approval.
 
 | Runtime | Recommended mode | Generated MCP/config payload | Project config target or native step |
 | --- | --- | --- | --- |

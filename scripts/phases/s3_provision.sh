@@ -274,7 +274,7 @@ _require_user_dns_ready() {
   else
     warn "Update DNS so $domain has an A record pointing to this EC2 public IP:"
     warn "  $domain  A  $pubip"
-    warn "Use a subdomain such as im.example.com. If DNS is on Cloudflare, set it to DNS only; do not enable proxying."
+    warn "Use a subdomain such as __DOMAIN__. If DNS is on Cloudflare, set it to DNS only; do not enable proxying."
   fi
   warn "Use this command to confirm DNS now points at the new IP:"
   warn "  dig +short $domain"
