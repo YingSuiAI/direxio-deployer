@@ -39,6 +39,9 @@ fi
 
 [ "$(DIREXIO_AGENT_PLATFORM=hermes _detect_agent_runtime)" = "hermes" ]
 [ "$(DIREXIO_AGENT_PLATFORM=openclaw _detect_agent_runtime)" = "openclaw" ]
+mkdir -p "$HOME/.hermes" "$HOME/.codex"
+[ "$(PATH="/tmp/.codex/tmp/codex-arg123:$PATH" _detect_agent_runtime)" = "codex" ]
+rm -rf "$HOME/.hermes" "$HOME/.codex"
 [ "$(DIREXIO_AGENT_INSTALL=skip _agent_install_policy)" = "skip" ]
 [ "$(DIREXIO_AGENT_INSTALL=recommend _agent_install_policy)" = "recommend" ]
 [ "$(DIREXIO_AGENT_INSTALL=auto _agent_install_policy)" = "auto" ]
@@ -92,5 +95,11 @@ case "$install_command" in
     exit 1
     ;;
 esac
+
+stale_node_id=$(DIREXIO_AGENT_NODE_ID=codex-dm6 _agent_node_id codex dm4.direxio.ai '!agent:dm4.direxio.ai')
+[[ "$stale_node_id" == codex-dm4.direxio.ai-* ]]
+
+matching_node_id=$(DIREXIO_AGENT_NODE_ID=codex-dm4.direxio.ai-123 _agent_node_id codex dm4.direxio.ai '!agent:dm4.direxio.ai')
+[ "$matching_node_id" = "codex-dm4.direxio.ai-123" ]
 
 echo "s6 wire local ok"

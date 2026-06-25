@@ -34,10 +34,9 @@ _detect_agent_runtime() {
     printf '%s\n' "$DIREXIO_AGENT_PLATFORM"
     return 0
   fi
-  # Each agent runtime sets its own *_HOME env var. Check those first —
-  # they are the most reliable signal of which agent is running this
-  # script, regardless of which agent directories happen to exist on
-  # the filesystem from past use.
+  # Active-process signals are stronger than stale config directories from
+  # other agents that have used this WSL home before.
+  if _is_codex_runtime; then printf 'codex\n'; return 0; fi
   if [ -n "${HERMES_HOME:-}" ]; then printf 'hermes\n'; return 0; fi
   if [ -n "${CODEX_HOME:-}" ]; then printf 'codex\n'; return 0; fi
   if [ -n "${CLAUDE_HOME:-}" ]; then printf 'claude-code\n'; return 0; fi
@@ -54,6 +53,14 @@ _detect_agent_runtime() {
   if [ -d "$HOME/.copilot" ]; then printf 'copilot\n'; return 0; fi
   if [ -d "$HOME/.openclaw" ]; then printf 'openclaw\n'; return 0; fi
   printf 'unknown\n'
+}
+
+_is_codex_runtime() {
+  env | grep -Eq '^CODEX_' && return 0
+  case "${PATH:-}:${PWD:-}" in
+    *"/.codex/tmp/"*|*"OpenAI/Codex"*|*"OpenAI.Codex"*|*"/.codex/"*) return 0 ;;
+  esac
+  return 1
 }
 
 _validate_agent_platform() {
@@ -305,13 +312,13 @@ _write_agent_env_file() {
 _agent_node_id() {
   local runtime=$1 domain=$2 room=$3 explicit host digest raw
   explicit=${DIREXIO_AGENT_NODE_ID:-}
-  if [ -n "$explicit" ]; then
+  host=${domain#http://}
+  host=${host#https://}
+  host=${host%%/*}
+  host=${host%%:*}
+  if [ -n "$explicit" ] && { [ "${DIREXIO_AGENT_NODE_ID_FORCE:-}" = "1" ] || _agent_node_id_matches_host "$explicit" "$host"; }; then
     raw=$explicit
   else
-    host=${domain#http://}
-    host=${host#https://}
-    host=${host%%/*}
-    host=${host%%:*}
     if command -v sha256sum >/dev/null 2>&1; then
       digest=$(printf '%s\n%s\n' "$domain" "$room" | sha256sum | awk '{print substr($1,1,10)}')
     else
@@ -320,6 +327,13 @@ _agent_node_id() {
     raw="${runtime:-agent}-${host:-direxio}-$digest"
   fi
   printf '%s\n' "$raw" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9._-]+/-/g; s/^-+//; s/-+$//; s/^$/direxio-agent/'
+}
+
+_agent_node_id_matches_host() {
+  local node_id=$1 host=$2 normalized_node normalized_host
+  normalized_node=$(printf '%s\n' "$node_id" | tr '[:upper:]' '[:lower:]')
+  normalized_host=$(printf '%s\n' "$host" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9._-]+/-/g; s/^-+//; s/-+$//')
+  [ -n "$normalized_host" ] && [[ "$normalized_node" == *"$normalized_host"* ]]
 }
 
 _write_credentials_file() {

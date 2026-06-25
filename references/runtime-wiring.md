@@ -107,6 +107,12 @@ DIREXIO_AGENT_INSTALL=skip|recommend|auto
 DIREXIO_AGENT_INSTALL_MODE=recommended|mcp|native|gateway
 ```
 
+`DIREXIO_AGENT_NODE_ID` is accepted only when it is scoped to the current
+deployment domain, so stale environment from a previous node cannot silently
+reuse the wrong identity. Set `DIREXIO_AGENT_NODE_ID_FORCE=1` only when an
+operator intentionally wants a custom node id that does not contain the current
+domain.
+
 Defaults:
 
 - `DIREXIO_AGENT_PLATFORM=auto` detects Codex, Claude Code, Gemini, Cursor, Copilot, OpenClaw, Hermes, or falls back to `unknown`.
