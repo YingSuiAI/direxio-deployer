@@ -123,13 +123,13 @@ When S6 detects `DIREXIO_AGENT_PLATFORM=hermes`, it writes a per-node helper und
 
 The helper contains:
 
-- `p2p_handler.cjs`: reads an incoming room prompt from stdin and calls `hermes -z <prompt>`.
+- `p2p_handler.cjs`: reads an incoming room prompt from stdin and calls `hermes -c p2p-room <prompt>` so replies stay in one Hermes conversation.
 - `start_gateway.sh`: loads Hermes model-provider environment variables, loads the node's Direxio env file, sets `DIREXIO_GATEWAY_ADAPTER=generic-cli`, and starts `direxio-agent-gateway`.
 
 Use:
 
 ```bash
-hermes -z "Reply with only: ok"
+hermes -c p2p-room "Reply with only: ok"
 bash ~/.direxio/nodes/<service_id>/hermes-gateway/start_gateway.sh
 ```
 

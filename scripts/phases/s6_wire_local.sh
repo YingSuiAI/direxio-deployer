@@ -893,7 +893,7 @@ EOF
 Hermes passive App-agent gateway helper:
   handler:      $service_dir/hermes-gateway/p2p_handler.cjs
   start script: $service_dir/hermes-gateway/start_gateway.sh
-  model check:  hermes -z "Reply with only: ok"
+  model check:  hermes -c p2p-room "Reply with only: ok"
   start:        bash "$service_dir/hermes-gateway/start_gateway.sh"
 
 Do not set DIREXIO_GATEWAY_COMMAND=node by itself. The handler above is required

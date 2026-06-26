@@ -129,7 +129,7 @@ App Agent room when Hermes cannot run a model locally.
 Check Hermes before starting the gateway:
 
 ```powershell
-hermes -z "Reply with only: ok"
+hermes -c p2p-room "Reply with only: ok"
 ```
 
 If Hermes reports a missing provider key, configure a model with `hermes model`
@@ -157,7 +157,7 @@ bash ~/.direxio/nodes/<service_id>/hermes-gateway/start_gateway.sh
 ```
 
 Do not configure `DIREXIO_GATEWAY_COMMAND=node` by itself. The App Agent prompt
-must go through the generated `p2p_handler.cjs`, which calls `hermes -z`; a bare
+must go through the generated `p2p_handler.cjs`, which calls `hermes -c p2p-room`; a bare
 Node process tries to execute the prompt text as JavaScript.
 
 ## OpenClaw Model Keys and Passive Gateway
