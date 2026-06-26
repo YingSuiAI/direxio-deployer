@@ -521,8 +521,8 @@ _create_cc_connect_matrix_session() {
 }
 
 _write_cc_connect_config() {
-  local config_path=$1 data_dir=$2 project=$3 agent=$4 workspace=$5 homeserver=$6 matrix_token=$7 matrix_user=$8 room_id=$9 agent_cmd=${10:-} agent_options_toml=${11:-}
-  local q_data q_project q_agent q_workspace q_homeserver q_token q_user q_room q_agent_cmd
+  local config_path=$1 data_dir=$2 project=$3 agent=$4 workspace=$5 homeserver=$6 matrix_token=$7 matrix_user=$8 room_id=$9 admin_from=${10:-} agent_cmd=${11:-} agent_options_toml=${12:-}
+  local q_data q_project q_agent q_workspace q_homeserver q_token q_user q_room q_admin_from q_agent_cmd
   mkdir -p "$(dirname "$config_path")" "$data_dir"
   q_data=$(_toml_escape "$data_dir")
   q_project=$(_toml_escape "$project")
@@ -532,6 +532,7 @@ _write_cc_connect_config() {
   q_token=$(_toml_escape "$matrix_token")
   q_user=$(_toml_escape "$matrix_user")
   q_room=$(_toml_escape "$room_id")
+  q_admin_from=$(_toml_escape "$admin_from")
   q_agent_cmd=$(_toml_escape "$agent_cmd")
   umask 077
   cat > "$config_path" <<EOF
@@ -540,6 +541,7 @@ data_dir = "$q_data"
 
 [[projects]]
 name = "$q_project"
+admin_from = "$q_admin_from"
 
 [projects.agent]
 type = "$q_agent"
@@ -824,7 +826,7 @@ run_phase() {
   access_token=$(state_get access_token)
   password=$(state_get password)
   agent_room_id=$(state_get agent_room_id)
-  [ -n "$asurl" ] && [ -n "$token" ] || { phase_set S6_WIRE_LOCAL failed "missing as_url/token"; fail "state is missing as_url/agent_token; complete S5 first."; }
+  [ -n "$domain" ] && [ -n "$asurl" ] && [ -n "$token" ] || { phase_set S6_WIRE_LOCAL failed "missing domain/as_url/token"; fail "state is missing domain/as_url/agent_token; complete S5 first."; }
   [ -n "$access_token" ] && [ -n "$password" ] || { phase_set S6_WIRE_LOCAL failed "missing bootstrap credentials"; fail "state is missing password/access_token; complete S5 first."; }
   _validate_real_agent_room_id "$agent_room_id"
 
@@ -838,6 +840,7 @@ run_phase() {
   node_cred="$service_dir/credentials.json"
   envfile="$service_dir/env"
   workspace=${DIREXIO_AGENT_WORKSPACE:-${DIREXIO_AGENT_WORKSPACE_WINDOWS:-${PWD:-$HOME}}}
+  admin_from="@owner:$domain"
   cc_runtime_dir=$(_cc_connect_runtime_dir "$service_dir")
   cc_config=$(_cc_connect_config_path "$service_dir")
   cc_config_local=$(_local_connect_path "$cc_config")
@@ -873,7 +876,7 @@ run_phase() {
     *) warn "agent.matrix_session.create returned non-standard agent user_id: $matrix_user" ;;
   esac
   workspace_local=$(_local_connect_path "$workspace")
-  _write_cc_connect_config "$cc_config" "$cc_data_local" "$node_id" "$cc_agent" "$workspace_local" "$matrix_homeserver" "$matrix_token" "$matrix_user" "$agent_room_id" "$cc_agent_cmd" "$cc_agent_options_toml"
+  _write_cc_connect_config "$cc_config" "$cc_data_local" "$node_id" "$cc_agent" "$workspace_local" "$matrix_homeserver" "$matrix_token" "$matrix_user" "$agent_room_id" "$admin_from" "$cc_agent_cmd" "$cc_agent_options_toml"
   ok "Wrote cc-connect Matrix config $cc_config (0600)."
 
   state_set agent_env_file "$envfile" 2>/dev/null || true
@@ -897,6 +900,7 @@ run_phase() {
   state_set cc_connect_config "$cc_config_local" 2>/dev/null || true
   state_set cc_connect_binary "$cc_binary" 2>/dev/null || true
   state_set cc_connect_data_dir "$cc_data_local" 2>/dev/null || true
+  state_set cc_connect_admin_from "$admin_from" 2>/dev/null || true
   state_set cc_connect_matrix_session_file "$cc_session" 2>/dev/null || true
   state_set cc_connect_matrix_user "$matrix_user" 2>/dev/null || true
   state_set cc_connect_matrix_device "$matrix_device" 2>/dev/null || true

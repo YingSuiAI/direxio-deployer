@@ -57,8 +57,11 @@ The config uses:
 - `homeserver` from the deployed Direxio domain.
 - `access_token`, `device_id`, and `user_id` from `agent.matrix_session.create`.
 - `room_id` from the real backend-created `agent_room_id`.
+- `admin_from = "@owner:<server>"` at the project level, so only the portal owner can run privileged commands such as `/dir` and `/shell`.
 - `share_session_in_channel = true` and `group_reply_all = true` for agent-room conversation continuity.
 - `auto_join = false` and `auto_verify = false`; message-server creates and joins the real room.
+
+`/dir reset` is expected to restore the generated `work_dir` and remove the current project directory override from `cc-connect/data/projects/<project>.state.json`.
 
 ## Install Parameters
 

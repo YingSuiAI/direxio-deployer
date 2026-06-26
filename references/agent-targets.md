@@ -50,6 +50,10 @@ cc-connect/matrix-session.json
 The generated `cc-connect/config.toml` contains exactly one Matrix platform and includes:
 
 ```toml
+[[projects]]
+name = "<agent-node-id>"
+admin_from = "@owner:<server>"
+
 [projects.agent.options]
 work_dir = "<workspace>"
 cmd = "<optional explicit agent executable path>"
@@ -66,6 +70,8 @@ group_reply_all = true
 auto_join = false
 auto_verify = false
 ```
+
+`admin_from` must stay at the `[[projects]]` level. `direxio-connect` uses the full Matrix sender ID, so S6 writes `@owner:<server>`; privileged commands such as `/dir`, `/shell`, `/show`, `/restart`, and `/upgrade` are blocked for other room members. `/dir reset` returns to the generated `work_dir` and clears the runtime override stored under `cc-connect/data/projects/<project>.state.json`.
 
 ## Installation Policy
 

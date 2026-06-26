@@ -155,9 +155,11 @@ matching_node_id=$(DIREXIO_AGENT_NODE_ID=codex-new.example.test-123 _agent_node_
 [ "$matching_node_id" = "codex-new.example.test-123" ]
 
 config_path="$tmp/cc-connect/config.toml"
-_write_cc_connect_config "$config_path" "$tmp/cc-connect/data" "codex-node" "codex" "$tmp/workspace" "https://im.example.test" "matrix-token" "@agent:im.example.test" "!agents-real:im.example.test"
+_write_cc_connect_config "$config_path" "$tmp/cc-connect/data" "codex-node" "codex" "$tmp/workspace" "https://im.example.test" "matrix-token" "@agent:im.example.test" "!agents-real:im.example.test" "@owner:im.example.test"
 grep -q 'type = "matrix"' "$config_path"
 grep -q 'type = "codex"' "$config_path"
+grep -q 'admin_from = "@owner:im.example.test"' "$config_path"
+awk '/^\[projects.agent.options\]/{in_options=1} /^admin_from = / && in_options{exit 1}' "$config_path"
 grep -q 'room_id = "!agents-real:im.example.test"' "$config_path"
 grep -q 'user_id = "@agent:im.example.test"' "$config_path"
 grep -q 'share_session_in_channel = true' "$config_path"
@@ -178,11 +180,11 @@ grep -q 'auto_join = false' "$config_path"
 [ "$(DIREXIO_CC_CONNECT_AGENT_CMD=/custom/agent _cc_connect_agent_command codex)" = "/custom/agent" ]
 
 cmd_config_path="$tmp/cc-connect/config-with-cmd.toml"
-_write_cc_connect_config "$cmd_config_path" "$tmp/cc-connect/data-cmd" "codex-node" "codex" "$tmp/workspace" "https://im.example.test" "matrix-token" "@agent:im.example.test" "!agents-real:im.example.test" "/opt/codex/bin/codex"
+_write_cc_connect_config "$cmd_config_path" "$tmp/cc-connect/data-cmd" "codex-node" "codex" "$tmp/workspace" "https://im.example.test" "matrix-token" "@agent:im.example.test" "!agents-real:im.example.test" "@owner:im.example.test" "/opt/codex/bin/codex"
 grep -q 'cmd = "/opt/codex/bin/codex"' "$cmd_config_path"
 
 options_config_path="$tmp/cc-connect/config-with-extra-options.toml"
-_write_cc_connect_config "$options_config_path" "$tmp/cc-connect/data-options" "reasonix-node" "reasonix" "$tmp/workspace" "https://im.example.test" "matrix-token" "@agent:im.example.test" "!agents-real:im.example.test" "" 'serve_url = "http://127.0.0.1:8080"'
+_write_cc_connect_config "$options_config_path" "$tmp/cc-connect/data-options" "reasonix-node" "reasonix" "$tmp/workspace" "https://im.example.test" "matrix-token" "@agent:im.example.test" "!agents-real:im.example.test" "@owner:im.example.test" "" 'serve_url = "http://127.0.0.1:8080"'
 grep -q 'type = "reasonix"' "$options_config_path"
 grep -q 'serve_url = "http://127.0.0.1:8080"' "$options_config_path"
 
