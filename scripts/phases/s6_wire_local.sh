@@ -487,7 +487,7 @@ process.stdin.on("end", () => {
   }
 
   let settled = false;
-  const child = spawn("hermes", ["-c", "p2p-room", prompt], {
+  const child = spawn("hermes", ["chat", "-c", "-q", prompt], {
     stdio: ["ignore", "pipe", "pipe"],
     env: process.env,
     windowsHide: true
