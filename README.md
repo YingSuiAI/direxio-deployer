@@ -24,6 +24,7 @@ See `references/agent-targets.md` for the full runtime matrix, global fallbacks,
 - Deploy only to a real, long-lived domain.
 - Matrix `server_name` is identity; changing it later is effectively a new homeserver.
 - AWS resources cost money; the user must explicitly confirm before deployment.
+- When presenting the monthly estimate, mention AWS new-customer Free Tier credits conservatively: eligible new customers may receive a $100 sign-up credit and a Free Plan window of up to six months or until credits are exhausted. The AWS Billing Console and AWS official Free Tier terms are the source of truth.
 - User-managed DNS mode pauses after Elastic IP creation until the user updates the A record.
 - The backend image is `direxio/message-server`; Matrix and P2P APIs share port 8008.
 - The backend uses `password` for IM login; local credentials retain `access_token` and agent-specific `agent_token`.

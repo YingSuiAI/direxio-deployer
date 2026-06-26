@@ -30,6 +30,9 @@ grep -q 'DIREXIO_AGENT_ROOM_ID' scripts/phases/s6_wire_local.sh
 grep -q '@direxio/local-mcp' scripts/phases/s6_wire_local.sh
 grep -q '@direxio/agent-plugins' SKILL.md
 grep -q 'npx -y -p @direxio/agent-plugins@latest' scripts/phases/s6_wire_local.sh
+grep -q 'AWS Free Tier' SKILL.md
+grep -q 'AWS official Free Tier' SKILL.md
+grep -q 'six months or when credits are exhausted' SKILL.md
 grep -q 'openclaw_mcp_probe_passed' manifest.json
 grep -q 'agent_chat_round_trip_passed' manifest.json
 grep -q '简体中文](README_zh.md)' README.md

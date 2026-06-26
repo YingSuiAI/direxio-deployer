@@ -22,6 +22,7 @@
 - 只部署到真实、长期域名。
 - Matrix `server_name` 一旦绑定，后续换域名等同新 homeserver。
 - AWS 资源会产生费用，部署前必须让用户明确确认。
+- 说明月成本时，应保守提醒 AWS 新用户 Free Tier credit：符合条件的新用户可能有 100 美金注册 credit，Free Plan 通常最长 6 个月或 credit 用完先到为止。最终以 AWS Billing Console 和 AWS 官方 Free Tier 条款为准。
 - 用户侧 DNS 模式会在 Elastic IP 创建后暂停，等待用户更新 A 记录。
 - 当前后端是 `direxio/message-server` 单体服务，Matrix 与 P2P API 共用 8008。
 - 当前后端使用 `password` 作为 IM 登录信息；本地凭据保留统一的 `access_token` 和 agent 专用的 `agent_token`。

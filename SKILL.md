@@ -223,6 +223,16 @@ Step-by-step onboarding flow:
      Replace `<Region Name>` with the AWS Pricing API region name
      (e.g. `Asia Pacific (Tokyo)`, `Europe (Frankfurt)`). The on-demand
      hourly rate times 730 gives the approximate monthly CPU cost.
+   - After giving the monthly estimate, mention the AWS new-customer credit
+     policy conservatively: new AWS customers may receive AWS Free Tier
+     credits, currently described by AWS as a $100 sign-up credit plus
+     optional additional credits, and the Free account plan ends after
+     six months or when credits are exhausted, whichever comes first. Do
+     not present this as a guaranteed discount for every resource, region,
+     account, or plan. Tell the user to verify the current rule, remaining
+     credit balance, expiration, and eligible services in the AWS Billing
+     Console and AWS official Free Tier pages; AWS official Free Tier terms
+     and the user's own account are the source of truth.
    - If the user asks what is billed, mention EC2/server, fixed IP, storage,
      DNS, network traffic, and call relay traffic.
 
@@ -393,6 +403,7 @@ Ask once, plainly and in the user's language. The confirmation message must summ
 - Instance type: default `t3.small`.
 - Message-server image: default `direxio/message-server:latest`; override with `MESSAGE_SERVER_IMAGE`.
 - AWS credentials source and any elevated-risk credential choice such as root access keys.
+- AWS Free Tier/new-customer credit note when discussing monthly cost: possible $100 sign-up credit for eligible new customers, Free Plan up to six months or until credits are exhausted, and final interpretation subject to AWS official Free Tier terms and the user's Billing Console.
 - AWS/domain onboarding status: active AWS account, real long-lived domain, access key CSV or AWS profile, DNS authority, and billing/deletion acknowledgement.
 - Existing state action: `continue`, `destroy`, or new `P2P_WORKDIR`.
 - Network/system installs: package managers, AWS CLI, jq, Git Bash/MSYS2/WSL, Homebrew, apt/dnf/yum/pacman/zypper.
