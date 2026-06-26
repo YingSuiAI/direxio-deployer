@@ -73,13 +73,18 @@ Check status:
 
 ```bash
 bash scripts/orchestrate.sh status
+DOMAIN=<domain> bash scripts/orchestrate.sh status
 ```
 
 Destroy recorded resources:
 
 ```bash
-bash scripts/destroy.sh
+DOMAIN=<domain> bash scripts/destroy.sh
 ```
+
+Destroy stops the local `direxio-connect` daemon only when its reported `WorkDir`
+matches the current service's `~/.direxio/nodes/<service_id>/cc-connect`
+directory, then removes that service directory.
 
 ## Local Bridge
 
@@ -121,7 +126,9 @@ make build AGENTS=<cc-connect-agent> PLATFORMS_INCLUDE=matrix
 
 ```bash
 bash tests/skill_structure_test.sh
+bash tests/default_paths_test.sh
 bash tests/s6_wire_local_test.sh
+bash tests/destroy_local_bridge_test.sh
 bash tests/render_userdata_remote_nodes_test.sh
 find scripts -name '*.sh' -print0 | xargs -0 -n1 bash -n
 git diff --check

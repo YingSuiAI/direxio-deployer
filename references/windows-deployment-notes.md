@@ -15,12 +15,12 @@ The wrapper finds Git Bash and uses it for the Bash state machine, but sets `DIR
 
 ## Background Process Output Buffering
 
-When running `orchestrate.sh` as a background process, bash may buffer stdout because it is not connected to a terminal. The process still writes state to `~/.direxio/deploy/state.json`.
+When running `orchestrate.sh` as a background process, bash may buffer stdout because it is not connected to a terminal. The process still writes state to `~/.direxio/nodes/<service_id>/state.json`.
 
 Poll progress with:
 
 ```bash
-cat ~/.direxio/deploy/state.json | jq '{phase, phases}'
+cat ~/.direxio/nodes/<service_id>/state.json | jq '{phase, phases}'
 ```
 
 For real-time tailing, use `stdbuf` when available:

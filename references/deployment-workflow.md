@@ -10,6 +10,7 @@
 
 ```bash
 bash scripts/orchestrate.sh status
+DOMAIN=__DOMAIN__ bash scripts/orchestrate.sh status
 ```
 
 If state has resources, require one:
@@ -17,7 +18,7 @@ If state has resources, require one:
 ```bash
 P2P_EXISTING_STATE_ACTION=continue
 P2P_EXISTING_STATE_ACTION=destroy
-P2P_WORKDIR=$HOME/.direxio/deploy-new
+DOMAIN=<different-domain>
 ```
 
 ## Destroy
@@ -25,12 +26,12 @@ P2P_WORKDIR=$HOME/.direxio/deploy-new
 From the repository root:
 
 ```bash
-bash scripts/destroy.sh
+DOMAIN=__DOMAIN__ bash scripts/destroy.sh
 ```
 
-Destroy terminates the recorded EC2 instance, releases the Elastic IP, deletes the security group and key pair, then removes the corresponding local deploy workdir under `~/.direxio`. This prevents stale `state.json` files from being treated as active deployments later.
+Destroy stops the local `direxio-connect` daemon only when `direxio-connect daemon status` reports a `WorkDir` matching the current service directory, `~/.direxio/nodes/<service_id>/cc-connect`. It then terminates the recorded EC2 instance, releases the Elastic IP, deletes the security group and key pair, and removes the corresponding local service directory under `~/.direxio/nodes/<service_id>`. This prevents stale credentials and `state.json` files from being treated as active deployments later.
 
-Use `P2P_KEEP_WORKDIR=1 bash scripts/destroy.sh` only when preserving local state files for debugging; if used, report that the workdir still exists.
+Use `P2P_KEEP_WORKDIR=1 DOMAIN=__DOMAIN__ bash scripts/destroy.sh` only when preserving local state files for debugging; if used, report that the service directory still exists.
 
 ## Run
 

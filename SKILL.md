@@ -310,7 +310,8 @@ IP-derived, localhost, wildcard, or disposable domains.
 
    ```bash
    # Check local deploy state for any active/in-progress deployment
-   ls ~/.direxio/nodes/ 2>/dev/null && cat ~/.direxio/deploy/state.json 2>/dev/null | jq '{phase, phases}'
+   bash scripts/orchestrate.sh status
+   DOMAIN=<DOMAIN> bash scripts/orchestrate.sh status
 
    # Check Route53 A records to see which domains already have a server
    for zid in $(aws route53 list-hosted-zones --query "HostedZones[].Id" --output text); do
@@ -326,7 +327,7 @@ IP-derived, localhost, wildcard, or disposable domains.
    first. If the domain was deployed multiple times recently, warn about
    Let's Encrypt rate limits (max 5 certificates per domain per 7 days).
 4. Present one complete deployment configuration and request one consolidated confirmation covering the final domain and irreversible binding, DNS mode, AWS region and billing, credentials source, instance type, message-server image, required installs, and existing-state action.
-5. Apply the approved existing-state action for `${P2P_WORKDIR:-$HOME/.direxio/deploy}/state.json`: continue, destroy, or use a new workdir.
+5. Apply the approved existing-state action for `${DIREXIO_HOME:-$HOME/.direxio}/nodes/<service_id>/state.json`: continue, destroy, or use a different domain/service directory.
 6. Run `scripts/orchestrate.sh` with the confirmed environment. Let the state machine own AWS calls, state, polling, cloud-init, token/password handling, verification, and destroy behavior.
    **Runtime detection note:** S6 checks active-process signals before stale
    config directories, so current-session markers, environment variables, and
@@ -358,13 +359,13 @@ IP-derived, localhost, wildcard, or disposable domains.
 
 ## Destroy Flow
 
-Use `scripts/destroy.sh` for teardown. After AWS resources are terminated and released, destroy removes the corresponding local deploy workdir under `~/.direxio` so stale state cannot block or mislead the next deployment. It leaves unrelated node credential directories intact.
+Use `scripts/destroy.sh` for teardown. Destroy first checks the local `direxio-connect` daemon status and stops it only when the reported `WorkDir` matches the current service directory, `~/.direxio/nodes/<service_id>/cc-connect`. After AWS resources are terminated and released, destroy removes the corresponding local service directory under `~/.direxio/nodes/<service_id>` so stale state, credentials, and bridge files cannot block or mislead the next deployment. It leaves unrelated node credential directories intact.
 
-If an operator needs to preserve local state files for debugging, run destroy with `P2P_KEEP_WORKDIR=1` and explicitly report that the stale workdir remains.
+If an operator needs to preserve local state files for debugging, run destroy with `P2P_KEEP_WORKDIR=1` and explicitly report that the stale service directory remains.
 
 ### Full reset / "treat me as a brand new user"
 
-When the user asks for a complete fresh start — "destroy everything", "start over from zero", "treat me as a brand new user" — running `scripts/destroy.sh` alone is **not sufficient**. The destroy script only handles infrastructure and local workdir cleanup. The agent should also clear any runtime-supported persistent memory about the old deployment. Specifically:
+When the user asks for a complete fresh start — "destroy everything", "start over from zero", "treat me as a brand new user" — running `scripts/destroy.sh` alone is **not sufficient**. The destroy script only handles infrastructure and local service directory cleanup. The agent should also clear any runtime-supported persistent memory about the old deployment. Specifically:
 
 1. **Run `scripts/destroy.sh` first** (infra teardown).
 2. **Clear agent memory entries only through capabilities available in the current runtime.** If the runtime provides an explicit memory-management tool, remove entries referencing the old domain, deployment URLs, credentials, passwords, tokens, node IDs, room IDs, service IDs, AWS account info, cc-connect config paths, and skill install/update history. If no such capability exists, say that memory cleanup cannot be automated in this runtime and avoid inventing tool calls.
@@ -408,7 +409,7 @@ Ask once, plainly and in the user's language. The confirmation message must summ
 - Message-server image: default `direxio/message-server:latest`; override with `MESSAGE_SERVER_IMAGE`.
 - AWS credentials source and any elevated-risk credential choice such as root access keys.
 - AWS/domain onboarding status: active AWS account, real long-lived domain, access key CSV or AWS profile, DNS authority, and billing/deletion acknowledgement.
-- Existing state action: `continue`, `destroy`, or new `P2P_WORKDIR`.
+- Existing state action: `continue`, `destroy`, or different `DOMAIN`/service directory.
 - Network/system installs: package managers, AWS CLI, jq, Git Bash/MSYS2/WSL, Homebrew, apt/dnf/yum/pacman/zypper.
 
 After the user confirms the summary, proceed without re-confirming individual fields. Ask again only when the configuration materially changes, an unapproved destructive action becomes necessary, or an external action such as DNS must be completed by the user.
@@ -442,7 +443,7 @@ state.json   : <state path>
 Destroy      : bash scripts/destroy.sh
 ```
 
-Mention that AWS resources keep billing until destroyed. User-managed DNS and purchased domains are not removed by destroy. After destroy, report which `~/.direxio` deploy workdir was removed or, if `P2P_KEEP_WORKDIR=1` was used, which one remains.
+Mention that AWS resources keep billing until destroyed. User-managed DNS and purchased domains are not removed by destroy. After destroy, report which `~/.direxio/nodes/<service_id>` service directory was removed or, if `P2P_KEEP_WORKDIR=1` was used, which local directory remains.
 
 If `DIREXIO_AGENT_INSTALL=auto` was not used, give the manual command:
 

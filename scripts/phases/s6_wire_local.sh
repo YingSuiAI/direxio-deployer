@@ -7,25 +7,20 @@
 #
 # Tokens change on every rebuild, so local credentials and cc-connect env must be refreshed.
 
+S6_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1090
+source "$S6_DIR/../lib/paths.sh"
+
 _direxio_home() {
-  printf '%s\n' "${DIREXIO_HOME:-$HOME/.direxio}"
+  direxio_home
 }
 
 _direxio_service_id() {
-  local raw=$1 host
-  host=${raw#http://}
-  host=${host#https://}
-  host=${host%%/*}
-  case "$host" in
-    *:*) host="${host%%:*}-${host#*:}" ;;
-  esac
-  printf '%s\n' "$host" | tr '[:upper:]' '[:lower:]' | sed -E 's/:/-/g; s/[^a-z0-9._-]+/-/g; s/^-+//; s/-+$//; s/^$/direxio-service/'
+  direxio_service_id "$1"
 }
 
 _direxio_service_dir() {
-  local service_id
-  service_id=$(_direxio_service_id "$1")
-  printf '%s/nodes/%s\n' "$(_direxio_home)" "$service_id"
+  direxio_service_dir "$1"
 }
 
 _cc_connect_supported_agents() {

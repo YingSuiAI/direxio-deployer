@@ -2,16 +2,19 @@
 # destroy.sh - remove AWS resources recorded by deployment state.
 #
 # Source:
-#   1. $P2P_WORKDIR/state.json written by orchestrate.sh; default ~/.direxio/deploy/
+#   1. $P2P_WORKDIR/state.json written by orchestrate.sh; by default
+#      DOMAIN=__DOMAIN__ maps to ~/.direxio/nodes/<service_id>/state.json.
 #   2. explicit argument: bash destroy.sh /path/to/state.json
 #
 # Order: terminate instance -> release EIP -> delete security group -> delete key pair
-# -> remove the corresponding local deploy workdir.
+# -> remove the corresponding local service directory.
 # Each cloud step is tolerant of already-removed resources.
 set -uo pipefail
 
 HERE=$(cd "$(dirname "$0")" && pwd)
-P2P_WORKDIR=${P2P_WORKDIR:-${DIREXIO_WORKDIR:-$HOME/.direxio/deploy}}
+# shellcheck disable=SC1090
+source "$HERE/lib/paths.sh"
+P2P_WORKDIR=$(direxio_default_workdir)
 
 log() { echo -e "\033[33m[destroy]\033[0m $*"; }
 
@@ -19,11 +22,10 @@ log() { echo -e "\033[33m[destroy]\033[0m $*"; }
 SRC=${1:-}
 if [ -z "$SRC" ]; then
   if   [ -f "$P2P_WORKDIR/state.json" ]; then SRC="$P2P_WORKDIR/state.json"
-  else echo "state.json not found; cannot determine which resources to destroy."; exit 1
+  else echo "state.json not found; set DOMAIN=<service domain> or P2P_WORKDIR=<service dir> to destroy a specific deployment."; exit 1
   fi
 fi
 [ -f "$SRC" ] || { echo "$SRC not found."; exit 1; }
-SRC_DIR=$(cd "$(dirname "$SRC")" && pwd -P)
 P2P_ROOT=$(cd "${DIREXIO_HOME:-$HOME/.direxio}" 2>/dev/null && pwd -P || printf '%s' "${DIREXIO_HOME:-$HOME/.direxio}")
 
 command -v jq >/dev/null 2>&1 || { echo "jq is required to parse state.json."; exit 1; }
@@ -35,7 +37,12 @@ KEY_NAME=$(jq -r '.resources.key_name // empty' "$SRC")
 KEY_FILE=$(jq -r '.resources.key_file // empty' "$SRC")
 DOMAIN_MODE=$(jq -r '.domain_mode // empty' "$SRC")
 DOMAIN=$(jq -r '.domain // empty' "$SRC")
+AS_URL=$(jq -r '.as_url // empty' "$SRC")
 PUBLIC_IP=$(jq -r '.resources.public_ip // empty' "$SRC")
+CC_CONNECT_CONFIG=$(jq -r '.cc_connect_config // empty' "$SRC")
+CC_CONNECT_BINARY=$(jq -r '.cc_connect_binary // empty' "$SRC")
+CC_CONNECT_RUNTIME_DIR=$(jq -r '.cc_connect_runtime_dir // empty' "$SRC")
+AGENT_SERVICE_DIR=$(jq -r '.agent_service_dir // empty' "$SRC")
 
 export NO_PROXY="*"; export no_proxy="*"
 unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy 2>/dev/null || true
@@ -112,41 +119,201 @@ EOF
   rm -f "$change_file"
 }
 
-cleanup_local_workdir() {
-  local src_dir=$1 root=$2
+normalize_local_path() {
+  local path=$1 drive rest
+  path=$(printf '%s' "$path" | sed 's#\\#/#g')
+  case "$path" in
+    /mnt/[A-Za-z]/*)
+      drive=${path#/mnt/}
+      drive=${drive%%/*}
+      rest=${path#/mnt/$drive/}
+      printf '%s:/%s\n' "$(printf '%s' "$drive" | tr '[:lower:]' '[:upper:]')" "$rest"
+      return 0
+      ;;
+    /cygdrive/[A-Za-z]/*)
+      drive=${path#/cygdrive/}
+      drive=${drive%%/*}
+      rest=${path#/cygdrive/$drive/}
+      printf '%s:/%s\n' "$(printf '%s' "$drive" | tr '[:lower:]' '[:upper:]')" "$rest"
+      return 0
+      ;;
+    /[A-Za-z]/*)
+      drive=${path#/}
+      drive=${drive%%/*}
+      rest=${path#/$drive/}
+      printf '%s:/%s\n' "$(printf '%s' "$drive" | tr '[:lower:]' '[:upper:]')" "$rest"
+      return 0
+      ;;
+  esac
+  while [ "${#path}" -gt 1 ] && [ "${path%/}" != "$path" ]; do
+    case "$path" in [A-Za-z]:/) break ;; esac
+    path=${path%/}
+  done
+  printf '%s\n' "$path"
+}
 
-  if [ "${P2P_KEEP_WORKDIR:-0}" = "1" ]; then
-    log "keeping local workdir because P2P_KEEP_WORKDIR=1: $src_dir"
+local_dirname() {
+  local path
+  path=$(normalize_local_path "$1")
+  case "$path" in
+    */*) printf '%s\n' "${path%/*}" ;;
+    *) printf '.\n' ;;
+  esac
+}
+
+paths_equal() {
+  local left right
+  left=$(normalize_local_path "$1")
+  right=$(normalize_local_path "$2")
+  case "$left:$right" in
+    [A-Za-z]:/*:[A-Za-z]:/*)
+      [ "$(printf '%s' "$left" | tr '[:upper:]' '[:lower:]')" = "$(printf '%s' "$right" | tr '[:upper:]' '[:lower:]')" ]
+      ;;
+    *)
+      [ "$left" = "$right" ]
+      ;;
+  esac
+}
+
+current_service_dir() {
+  local recorded=$1 asurl=$2 domain=$3 config=${4:-}
+  if [ -n "$recorded" ]; then
+    printf '%s\n' "$recorded"
+    return 0
+  fi
+  if [ -n "$asurl" ] || [ -n "$domain" ]; then
+    direxio_service_dir "${asurl:-$domain}"
+    return 0
+  fi
+  if [ -n "$config" ]; then
+    local_dirname "$(local_dirname "$config")"
+  fi
+}
+
+cc_connect_stop_binary() {
+  local binary=$1 runtime_dir=$2 candidate
+  if [ -n "$runtime_dir" ]; then
+    candidate="$runtime_dir/bin/direxio-connect"
+    if [ -x "$candidate" ]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+    candidate="$runtime_dir/bin/direxio-connect.exe"
+    if [ -x "$candidate" ]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  fi
+  if [ -n "$binary" ]; then
+    printf '%s\n' "$binary"
+    return 0
+  fi
+  printf 'direxio-connect\n'
+}
+
+cc_connect_target_work_dir() {
+  local config=$1 runtime_dir=$2 service_dir=$3
+  if [ -n "$config" ]; then
+    local_dirname "$config"
+    return 0
+  fi
+  if [ -n "$runtime_dir" ]; then
+    normalize_local_path "$runtime_dir"
+    return 0
+  fi
+  if [ -n "$service_dir" ]; then
+    normalize_local_path "$service_dir/cc-connect"
+  fi
+}
+
+cc_connect_status_work_dir() {
+  local binary=$1 out
+  out=$("$binary" daemon status 2>/dev/null) || return 1
+  printf '%s\n' "$out" | sed -nE 's/^[[:space:]]*WorkDir:[[:space:]]*//p' | head -n 1
+}
+
+stop_current_cc_connect_daemon() {
+  local config=$1 binary=$2 runtime_dir=$3 service_dir=$4 target_work_dir running_work_dir stop_binary
+  target_work_dir=$(cc_connect_target_work_dir "$config" "$runtime_dir" "$service_dir")
+  if [ -z "$target_work_dir" ]; then
+    log "cc-connect service directory not recorded; skipping local daemon stop"
     return 0
   fi
 
-  [ -n "$src_dir" ] && [ -d "$src_dir" ] || return 0
-  [ -n "$root" ] && [ -d "$root" ] || {
-    log "local workdir root not found; leaving $src_dir untouched"
+  stop_binary=$(cc_connect_stop_binary "$binary" "$runtime_dir")
+  case "$stop_binary" in
+    */*|[A-Za-z]:/*|[A-Za-z]:\\*) ;;
+    *)
+      if ! command -v "$stop_binary" >/dev/null 2>&1; then
+        log "cc-connect binary not found on PATH; skipping local daemon stop"
+        return 0
+      fi
+      ;;
+  esac
+
+  running_work_dir=$(cc_connect_status_work_dir "$stop_binary")
+  if [ -z "$running_work_dir" ]; then
+    log "cc-connect daemon status has no WorkDir; skipping local daemon stop"
+    return 0
+  fi
+
+  if ! paths_equal "$target_work_dir" "$running_work_dir"; then
+    log "cc-connect daemon belongs to another service; leaving daemon running"
+    return 0
+  fi
+
+  log "stopping cc-connect daemon for current service ..."
+  if "$stop_binary" daemon stop >/dev/null 2>&1; then
+    log "cc-connect daemon stopped"
+  else
+    log "cc-connect daemon stop failed or service was not installed; continuing destroy"
+  fi
+}
+
+cleanup_local_service_dir() {
+  local service_dir=$1 root=$2 nodes_root src_real nodes_real src_norm nodes_norm name
+
+  if [ "${P2P_KEEP_WORKDIR:-0}" = "1" ]; then
+    log "keeping local service dir because P2P_KEEP_WORKDIR=1: $service_dir"
+    return 0
+  fi
+
+  [ -n "$service_dir" ] && [ -d "$service_dir" ] || return 0
+  [ -n "$root" ] || return 0
+
+  nodes_root="$root/nodes"
+  [ -d "$nodes_root" ] || {
+    log "local service root not found; leaving $service_dir untouched"
     return 0
   }
-
-  case "$src_dir" in
-    "$root"/*) ;;
+  src_real=$(cd "$service_dir" 2>/dev/null && pwd -P) || return 0
+  nodes_real=$(cd "$nodes_root" 2>/dev/null && pwd -P) || return 0
+  src_norm=$(normalize_local_path "$src_real")
+  nodes_norm=$(normalize_local_path "$nodes_real")
+  case "$src_norm" in
+    "$nodes_norm"/*) ;;
     *)
-      log "refusing to remove local workdir outside $root: $src_dir"
+      log "refusing to remove local service dir outside $nodes_norm: $service_dir"
       return 0
       ;;
   esac
 
-  case "$(basename "$src_dir")" in
-    deploy|deploy-*) ;;
-    *)
-      log "refusing to remove unexpected local workdir name: $src_dir"
+  name=$(basename "$src_norm")
+  case "$name" in
+    ""|"."|".."|"nodes"|"cc-connect")
+      log "refusing to remove unexpected local service dir: $service_dir"
       return 0
       ;;
   esac
 
-  log "removing local deploy workdir $src_dir ..."
-  rm -rf -- "$src_dir"
+  log "removing local service dir $src_real ..."
+  rm -rf -- "$src_real"
 }
 
 # 0. Remove DNS record if ops created it through Route53 mode.
+CURRENT_SERVICE_DIR=$(current_service_dir "$AGENT_SERVICE_DIR" "$AS_URL" "$DOMAIN" "$CC_CONNECT_CONFIG")
+stop_current_cc_connect_daemon "$CC_CONNECT_CONFIG" "$CC_CONNECT_BINARY" "$CC_CONNECT_RUNTIME_DIR" "$CURRENT_SERVICE_DIR"
+
 if [ "${DOMAIN_MODE:-}" = "route53" ]; then
   delete_route53_record "$DOMAIN" "$PUBLIC_IP"
 fi
@@ -183,4 +350,4 @@ fi
 
 log "Done. Processed resources recorded in $SRC."
 log "User-managed DNS and domain purchases are outside automatic destroy scope; handle them manually if needed."
-cleanup_local_workdir "$SRC_DIR" "$P2P_ROOT"
+cleanup_local_service_dir "$CURRENT_SERVICE_DIR" "$P2P_ROOT"

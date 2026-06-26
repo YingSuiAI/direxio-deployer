@@ -14,7 +14,7 @@
 #   # Non-interactive:
 #   #   DOMAIN=__DOMAIN__ DOMAIN_MODE=user CONFIRM_DOMAIN_BINDING=1 INSTANCE_TYPE=t3.small
 #   bash orchestrate.sh                 # run or resume until completion
-#   bash orchestrate.sh status          # show current state only
+#   DOMAIN=__DOMAIN__ bash orchestrate.sh status   # show current service state only
 #   bash orchestrate.sh reset           # archive state.json; destroy will no longer know the resources
 #
 # Exit codes: 0=DONE / 1=phase failed / 2=waiting for user action.
@@ -31,6 +31,9 @@ if [ -d "$REPO_ROOT/.tools/bin" ]; then
   PATH="$REPO_ROOT/.tools/bin:$PATH"
   export PATH
 fi
+
+P2P_WORKDIR_WAS_SET=${P2P_WORKDIR+x}
+DIREXIO_WORKDIR_WAS_SET=${DIREXIO_WORKDIR+x}
 
 source "$HERE/lib/state.sh"
 source "$HERE/lib/aws.sh"
@@ -90,8 +93,48 @@ run_one_phase() {
 }
 
 # Print current state summary.
+cmd_status_inventory() {
+  local nodes state found=0 domain phase current instance service_dir
+  nodes="${DIREXIO_HOME:-$HOME/.direxio}/nodes"
+  if [ ! -d "$nodes" ]; then
+    warn "No local service directory found: $nodes"
+    warn "Set DOMAIN=<service domain> when running or inspecting a specific deployment."
+    return 0
+  fi
+
+  echo "local services: $nodes"
+  for state in "$nodes"/*/state.json; do
+    [ -f "$state" ] || continue
+    found=1
+    service_dir=${state%/state.json}
+    domain=$(jq -r '.domain // empty' "$state")
+    phase=$(jq -r '.phase // empty' "$state")
+    instance=$(jq -r '.resources.instance_id // empty' "$state")
+    if STATE_JSON="$state" first_unfinished_phase >/dev/null 2>&1; then
+      current=$(STATE_JSON="$state" first_unfinished_phase)
+    else
+      current=${phase:-unknown}
+    fi
+    printf "  %-32s current=%-18s instance=%s\n" "${domain:-$(basename "$service_dir")}" "${current:-unknown}" "${instance:-none}"
+    printf "    service_dir=%s\n" "$service_dir"
+    printf "    state_json=%s\n" "$state"
+  done
+
+  if [ "$found" -eq 0 ]; then
+    warn "No service state files found under $nodes"
+  fi
+}
+
 cmd_status() {
-  state_ensure
+  if [ ! -f "$STATE_JSON" ]; then
+    if [ -z "${DOMAIN:-}" ] && [ -z "$P2P_WORKDIR_WAS_SET" ] && [ -z "$DIREXIO_WORKDIR_WAS_SET" ]; then
+      cmd_status_inventory
+      return 0
+    fi
+    warn "state.json not found: $STATE_JSON"
+    warn "Set DOMAIN=<service domain> or explicit P2P_WORKDIR=<service dir> to inspect a specific deployment."
+    return 0
+  fi
   echo "run_id     : $(state_get run_id)"
 	  echo "region     : $(state_get region)"
 	  echo "domain_mode: $(state_get domain_mode)"
@@ -218,12 +261,12 @@ ensure_production_domain_selected() {
 
   if [ -n "$env_domain" ] && [ -n "$state_domain" ] && [ "$env_domain" != "$state_domain" ]; then
     warn "Deployment blocked: current state is bound to DOMAIN=$state_domain, but this run passed DOMAIN=${env_domain}."
-    warn "Do not switch Matrix server_name inside the same deployment state. Continue with the old domain, destroy and rebuild, or use a new P2P_WORKDIR."
+    warn "Do not switch Matrix server_name inside the same service state. Continue with the old domain, destroy and rebuild, or use a different DOMAIN/service directory."
     return 2
   fi
   if [ -n "${DOMAIN_MODE:-}" ] && [ -n "$state_mode" ] && [ "$DOMAIN_MODE" != "$state_mode" ]; then
     warn "Deployment blocked: current state is bound to DOMAIN_MODE=$state_mode, but this run passed DOMAIN_MODE=${DOMAIN_MODE}."
-    warn "Continue with the old mode, destroy and rebuild, or use a new P2P_WORKDIR."
+    warn "Continue with the old mode, destroy and rebuild, or use a different DOMAIN/service directory."
     return 2
   fi
 
@@ -263,9 +306,9 @@ guard_existing_state() {
   [ "$resources_count" -eq 0 ] && return 0
   if [ "$(jq -r '.domain_mode // empty' "$STATE_JSON")" = "ec2" ]; then
     warn "Found legacy temporary-domain deployment state (domain_mode=ec2). Production deployment no longer supports resuming this mode."
-    warn "Destroy and rebuild, or use a new P2P_WORKDIR:"
+    warn "Destroy and rebuild, or use a new service directory:"
     warn "  P2P_EXISTING_STATE_ACTION=destroy bash $0"
-    warn "  P2P_WORKDIR=~/.direxio/deploy-new DOMAIN=__DOMAIN__ DOMAIN_MODE=user CONFIRM_DOMAIN_BINDING=1 bash $0"
+    warn "  DOMAIN=__DOMAIN__ DOMAIN_MODE=user CONFIRM_DOMAIN_BINDING=1 bash $0"
     return 2
   fi
   confirmed=$(jq -r '.existing_state_confirmed // false' "$STATE_JSON")
@@ -291,10 +334,10 @@ guard_existing_state() {
       bash "$HERE/destroy.sh" "$STATE_JSON" || return 1
       return 0 ;;
     ""|abort)
-      warn "Existing state must be handled explicitly to avoid accidental reuse or duplicate EC2 creation."
+      warn "Existing service state must be handled explicitly to avoid accidental reuse or duplicate EC2 creation."
       warn "Resume:  P2P_EXISTING_STATE_ACTION=continue bash $0"
       warn "Rebuild: P2P_EXISTING_STATE_ACTION=destroy bash $0"
-      warn "New dir: P2P_WORKDIR=~/.direxio/deploy-new bash $0"
+      warn "New service: DOMAIN=__DOMAIN__ DOMAIN_MODE=user CONFIRM_DOMAIN_BINDING=1 bash $0"
       return 2 ;;
     *)
       warn "Unknown P2P_EXISTING_STATE_ACTION=$action (expected continue|destroy|abort)."

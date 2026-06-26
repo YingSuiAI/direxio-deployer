@@ -1,6 +1,6 @@
 # 部署状态机
 
-`scripts/orchestrate.sh` 是可续跑状态机。它读取 `$P2P_WORKDIR/state.json`，从第一个未完成阶段继续。
+`scripts/orchestrate.sh` 是可续跑状态机。默认情况下，`DOMAIN=<domain>` 会把状态和本地桥接文件统一放在 `~/.direxio/nodes/<service_id>/`，状态机读取该目录下的 `state.json`，从第一个未完成阶段继续。不带 `DOMAIN` 运行 `bash scripts/orchestrate.sh status` 会扫描 `~/.direxio/nodes/*/state.json` 并列出所有本地服务。
 
 ## 阶段
 

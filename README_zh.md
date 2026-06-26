@@ -71,13 +71,18 @@ bash scripts/orchestrate.sh
 
 ```bash
 bash scripts/orchestrate.sh status
+DOMAIN=<domain> bash scripts/orchestrate.sh status
 ```
 
 销毁已记录资源：
 
 ```bash
-bash scripts/destroy.sh
+DOMAIN=<domain> bash scripts/destroy.sh
 ```
+
+销毁时只会在 `direxio-connect daemon status` 返回的 `WorkDir` 等于当前服务的
+`~/.direxio/nodes/<service_id>/cc-connect` 目录时停止本地 daemon，然后删除该
+service 目录。
 
 ## 本地 Bridge
 
@@ -119,7 +124,9 @@ make build AGENTS=<cc-connect-agent> PLATFORMS_INCLUDE=matrix
 
 ```bash
 bash tests/skill_structure_test.sh
+bash tests/default_paths_test.sh
 bash tests/s6_wire_local_test.sh
+bash tests/destroy_local_bridge_test.sh
 bash tests/render_userdata_remote_nodes_test.sh
 find scripts -name '*.sh' -print0 | xargs -0 -n1 bash -n
 git diff --check

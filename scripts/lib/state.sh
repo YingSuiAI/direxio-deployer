@@ -4,9 +4,14 @@
 # Sourced by orchestrate.sh and phases/*.sh. All state.json reads/writes go
 # through this file to keep structure and fields consistent. Requires jq.
 #
-# state.json path: $P2P_WORKDIR/state.json (default ~/.direxio/deploy/).
+# state.json path: $P2P_WORKDIR/state.json.
+# By default, DOMAIN=__DOMAIN__ maps to ~/.direxio/nodes/<service_id>/state.json.
 #
 # PHASES order is the state-machine execution order.
+
+STATE_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1090
+source "$STATE_LIB_DIR/paths.sh"
 
 # Phase list; order matters.
 PHASES=(
@@ -21,7 +26,7 @@ PHASES=(
 )
 
 # Paths.
-P2P_WORKDIR=${P2P_WORKDIR:-${DIREXIO_WORKDIR:-$HOME/.direxio/deploy}}
+P2P_WORKDIR=$(direxio_default_workdir)
 STATE_JSON="$P2P_WORKDIR/state.json"
 
 # Timestamp helper.
