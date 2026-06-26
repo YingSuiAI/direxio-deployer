@@ -1,7 +1,7 @@
 # docker-compose.yml - cloud-side Direxio message-server stack.
 #
 # Layers: Caddy (public 443/TLS) -> Direxio message-server (Matrix + P2P API).
-# PostgreSQL 18 persists Matrix and P2P business tables. The local agent/MCP
+# PostgreSQL 18 persists Matrix and P2P business tables. The local agent bridge
 # process is not started in the cloud by default.
 
 networks:

@@ -3,7 +3,7 @@
 #
 # Checks: healthz, Matrix versions, Matrix federation well-known, owner.json+CORS,
 # token-authenticated /_p2p command, and non-empty TURN turnServer.
-# MCP message send/read is left to the agent via MCP tools; this script checks HTTP.
+# Local bridge message send/read is validated separately; this script checks HTTP actions.
 
 run_phase() {
   phase_set S7_VERIFY_E2E in_progress "running end-to-end acceptance"

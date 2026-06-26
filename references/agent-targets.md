@@ -1,6 +1,6 @@
 # Agent Targets
 
-Use this file whenever installing or updating this skill itself, or when wiring Direxio MCP/plugin access after S6. Do not assume Codex paths apply to other agent runtimes.
+Use this file when installing or updating this skill and when reviewing S6 local bridge output. Direxio no longer ships extra chat-platform adapters from this deployer; the only post-deploy local bridge is `direxio-connect`.
 
 ## Project-Local Skill Clones
 
@@ -15,29 +15,63 @@ Prefer a project-local Git clone when a project or workspace exists. Create the 
 | GitHub Copilot | `PROJECT_ROOT/.github/copilot/skills/direxio-deployer` | `$HOME/.github/copilot/skills/direxio-deployer` |
 | OpenClaw | `PROJECT_ROOT/.openclaw/skills/direxio-deployer` | `${OPENCLAW_HOME:-$HOME/.openclaw}/skills/direxio-deployer` |
 | Hermes | `PROJECT_ROOT/.hermes/skills/direxio-deployer` | `${HERMES_HOME:-$HOME/.hermes}/skills/direxio-deployer` |
+| ACP-compatible | `PROJECT_ROOT/.agents/skills/direxio-deployer` | `$HOME/.agents/skills/direxio-deployer` |
+| Antigravity | `PROJECT_ROOT/.antigravity/skills/direxio-deployer` | `${ANTIGRAVITY_HOME:-$HOME/.antigravity}/skills/direxio-deployer` |
+| Devin | `PROJECT_ROOT/.devin/skills/direxio-deployer` | `${DEVIN_HOME:-$HOME/.devin}/skills/direxio-deployer` |
+| iFlow | `PROJECT_ROOT/.iflow/skills/direxio-deployer` | `${IFLOW_HOME:-$HOME/.iflow}/skills/direxio-deployer` |
+| Kimi | `PROJECT_ROOT/.kimi/skills/direxio-deployer` | `${KIMI_HOME:-$HOME/.kimi}/skills/direxio-deployer` |
+| OpenCode | `PROJECT_ROOT/.opencode/skills/direxio-deployer` | `${OPENCODE_HOME:-$HOME/.opencode}/skills/direxio-deployer` |
+| Pi | `PROJECT_ROOT/.pi/agent/skills/direxio-deployer` | `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/skills/direxio-deployer` |
+| Qoder | `PROJECT_ROOT/.qoder/skills/direxio-deployer` | `${QODER_HOME:-$HOME/.qoder}/skills/direxio-deployer` |
+| Reasonix | `PROJECT_ROOT/.reasonix/skills/direxio-deployer` | `${REASONIX_HOME:-$HOME/.reasonix}/skills/direxio-deployer` |
+| tmux | `PROJECT_ROOT/.agent/skills/direxio-deployer` | `$HOME/.agent/skills/direxio-deployer` |
 | Generic or unknown | `PROJECT_ROOT/.agent/skills/direxio-deployer` | `$HOME/.agent/skills/direxio-deployer` |
 
-These skill clone paths are project-tracking locations for agent handoff and reproducibility. If a runtime has its own official discovery or plugin import flow, follow that runtime's native flow after cloning.
+## Direxio Connect Target
 
-## Deployment Wiring Targets
+The bridge agent type is selected independently from the host operating system. `DIREXIO_CC_CONNECT_AGENT` may be any agent supported by connent/connect:
 
-S6 writes service-specific credentials to `~/.direxio/nodes/<service_id>/credentials.json` and `~/.direxio/nodes/<service_id>/env`, where `service_id` is derived from the deployed domain such as `__DOMAIN__`. Runtime-specific MCP/plugin payloads are node-scoped by `<agent_node_id>` and written only when `DIREXIO_AGENT_INSTALL=auto`; otherwise S6 records and prints the target paths for explicit post-deploy approval.
+```text
+acp antigravity claudecode codex copilot cursor devin gemini iflow kimi opencode pi qoder reasonix tmux
+```
 
-| Runtime | Recommended mode | Generated MCP/config payload | Project config target or native step |
-| --- | --- | --- | --- |
-| Codex | `gateway` | `${CODEX_HOME:-$HOME/.codex}/direxio-agent/nodes/<agent_node_id>/mcp.json` | Use `@direxio/agent-plugins` Codex gateway with `codex-app-server` plus MCP payload. In WSL, infer Windows Codex home only from active `.codex/tmp` paths or set `CODEX_HOME=/mnt/c/Users/<user>/.codex`; do not use a project-local `.codex/skills` clone as user config. |
-| Claude Code | `mcp` | `$HOME/.claude/direxio-agent/nodes/<agent_node_id>/mcp.json` | Use `platforms/claude-code/direxio-agent`, for example `claude --plugin-dir ./platforms/claude-code/direxio-agent`. |
-| Gemini | `mcp` | `$HOME/.gemini/direxio/nodes/<agent_node_id>/settings.json` | Merge `platforms/gemini/settings.json` into Gemini settings. |
-| Cursor | `mcp` | `${XDG_CONFIG_HOME:-$HOME/.config}/direxio-agent/nodes/<agent_node_id>/cursor.mcp.json` | Copy or merge into `PROJECT_ROOT/.cursor/mcp.json`. |
-| GitHub Copilot | `mcp` | `${XDG_CONFIG_HOME:-$HOME/.config}/direxio-agent/nodes/<agent_node_id>/copilot.mcp.json` | Use read-only MCP by default at `PROJECT_ROOT/.github/copilot/mcp.json`; use full-chat only with repository owner approval. |
-| OpenClaw | `native` | `$HOME/.openclaw/direxio/nodes/<agent_node_id>/mcp.json` | Run `openclaw plugins install ./platforms/openclaw`; mount MCP payload in OpenClaw's MCP registry. |
-| Hermes | `native` | `$HOME/.hermes/direxio/nodes/<agent_node_id>/mcp.json` | Merge into `~/.hermes/config.yaml` and use a Hermes-native long process for passive listening. |
-| Generic or unknown | `mcp` | `${XDG_CONFIG_HOME:-$HOME/.config}/direxio-agent/nodes/<agent_node_id>/mcp.json` | Mount MCP manually; use `DIREXIO_GATEWAY_COMMAND` only when an agent CLI reads stdin and writes stdout. |
+`DIREXIO_AGENT_PLATFORM=auto` is a convenience detector only. If detection is ambiguous or the detected host runtime is not a cc-connect agent, set `DIREXIO_CC_CONNECT_AGENT` explicitly.
+
+S6 writes service-specific files to `~/.direxio/nodes/<service_id>/`, where `service_id` is derived from the deployed domain:
+
+```text
+credentials.json
+env
+cc-connect/config.toml
+cc-connect/data/
+cc-connect/matrix-session.json
+```
+
+The generated `cc-connect/config.toml` contains exactly one Matrix platform and includes:
+
+```toml
+[projects.agent.options]
+work_dir = "<workspace>"
+cmd = "<optional explicit agent executable path>"
+
+[[projects.platforms]]
+type = "matrix"
+
+[projects.platforms.options]
+homeserver = "https://<domain>"
+user_id = "@agent:<server>"
+room_id = "!<real-agent-room>:<server>"
+share_session_in_channel = true
+group_reply_all = true
+auto_join = false
+auto_verify = false
+```
 
 ## Installation Policy
 
-- `DIREXIO_AGENT_INSTALL=skip`: write credentials/env only.
-- `DIREXIO_AGENT_INSTALL=recommend`: write credentials/env, record target paths, and print commands without mutating agent config.
-- `DIREXIO_AGENT_INSTALL=auto`: run `npx -y -p @direxio/agent-plugins@latest direxio-agent-install --platform <runtime> --mode <mode> --node-id <agent_node_id> --workspace <agent_workspace> --credentials-file ~/.direxio/nodes/<service_id>/credentials.json --write`. Gateway mode restarts only the matching node gateway and leaves other nodes alone. Generated MCP payloads must launch `@direxio/local-mcp` with direct `DIREXIO_DOMAIN`, `DIREXIO_AGENT_TOKEN`, `DIREXIO_AGENT_ROOM_ID`, and `DIREXIO_AGENT_NODE_ID` environment variables, or through a wrapper that exports those variables.
+- `DIREXIO_AGENT_INSTALL=skip`: write credentials/env and cc-connect config only.
+- `DIREXIO_AGENT_INSTALL=recommend`: write files, record state, and print the install command.
+- `DIREXIO_AGENT_INSTALL=auto`: run `npm install -g @direxio/connent` and then `direxio-connect daemon install --config ~/.direxio/nodes/<service_id>/cc-connect/config.toml --force`.
 
-Use `DIREXIO_AGENT_PLATFORM=<runtime>` to override detection, and `DIREXIO_AGENT_INSTALL_MODE=mcp|native|gateway` only when the user chooses a non-default runtime mode.
+Prefer `DIREXIO_CC_CONNECT_AGENT=<agent>` to choose the local agent that `direxio-connect` should run. Keep `DIREXIO_AGENT_PLATFORM=<runtime>` for auto-detection overrides and legacy host-runtime naming. Use `DIREXIO_AGENT_INSTALL_MODE=cc-connect` only when overriding the default `recommended` mapping explicitly.
+Use `DIREXIO_CC_CONNECT_AGENT_OPTIONS_TOML` for agent-specific options that cannot be represented by `work_dir` or `cmd`; for example `reasonix` requires `serve_url`, `tmux` requires `session`, and generic `acp` requires a command when `DIREXIO_CC_CONNECT_AGENT_CMD` is not enough.

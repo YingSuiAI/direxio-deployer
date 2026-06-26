@@ -16,13 +16,13 @@ clear_runtime_env() {
   local env_name
   while IFS='=' read -r env_name _; do
     case "$env_name" in
-      CODEX_*|CLAUDECODE|CLAUDECODE_*|CLAUDE_CODE_*|GEMINI_CLI|GEMINI_CLI_*|GEMINI_AGENT_*|GOOGLE_GEMINI_CLI_*|CURSOR_*|COPILOT_*|GITHUB_COPILOT_*|OPENCLAW_*|HERMES_*)
+      ACP_*|ANTIGRAVITY_*|GOOGLE_ANTIGRAVITY_*|AGY_*|CODEX_*|CLAUDECODE|CLAUDECODE_*|CLAUDE_CODE_*|GEMINI_CLI|GEMINI_CLI_*|GEMINI_AGENT_*|GOOGLE_GEMINI_CLI_*|CURSOR_*|COPILOT_*|GITHUB_COPILOT_*|DEVIN_*|IFLOW_*|KIMI_*|OPENCODE_*|OPEN_CODE_*|PI_CODING_AGENT_*|PI_AGENT_*|QODER_*|REASONIX_*|TMUX*|OPENCLAW_*|HERMES_*)
         unset "$env_name"
         ;;
     esac
   done < <(env)
-  unset HERMES_HOME CODEX_HOME CLAUDE_HOME GEMINI_HOME CURSOR_HOME COPILOT_HOME OPENCLAW_HOME
-  unset HERMES_SESSION CODEX_SANDBOX CLAUDECODE GEMINI_CLI CURSOR_TRACE_ID GITHUB_COPILOT_TOKEN OPENCLAW_SESSION
+  unset ACP_HOME ANTIGRAVITY_HOME AGY_HOME HERMES_HOME CODEX_HOME CLAUDE_HOME CLAUDECODE_HOME GEMINI_HOME CURSOR_HOME COPILOT_HOME DEVIN_HOME IFLOW_HOME KIMI_HOME OPENCODE_HOME OPEN_CODE_HOME PI_CODING_AGENT_DIR PI_HOME QODER_HOME REASONIX_HOME TMUX_HOME OPENCLAW_HOME
+  unset HERMES_SESSION CODEX_SANDBOX CLAUDECODE GEMINI_CLI CURSOR_TRACE_ID GITHUB_COPILOT_TOKEN DEVIN_SESSION IFLOW_SESSION KIMI_SESSION OPENCODE_SESSION QODER_SESSION PI_AGENT_SESSION ANTIGRAVITY_SESSION OPENCLAW_SESSION
 }
 
 clear_runtime_env
@@ -34,19 +34,19 @@ unset DIREXIO_HOME
 [ "$(_direxio_service_id "https://IM.Example.test:8443/_p2p")" = "im.example.test-8443" ]
 [ "$(_direxio_service_dir "https://IM.Example.test:8443/_p2p")" = "$HOME/.direxio/nodes/im.example.test-8443" ]
 
-envfile=$(_write_agent_env_file "https://im.example.test" "agent-token" "access-token" "!agent:im.example.test")
+envfile=$(_write_agent_env_file "https://im.example.test" "agent-token" "access-token" "!agents-real:im.example.test")
 
 [ "$envfile" = "$HOME/.direxio/env" ]
 grep -q 'DIREXIO_DOMAIN=https://im.example.test' "$envfile"
 grep -q 'DIREXIO_AGENT_TOKEN=agent-token' "$envfile"
-grep -q 'DIREXIO_AGENT_ROOM_ID=\\!agent:im.example.test' "$envfile"
+grep -q 'DIREXIO_AGENT_ROOM_ID=\\!agents-real:im.example.test' "$envfile"
 ! grep -q '^export P2P_' "$envfile"
 ! grep -q 'P2P_ADMIN_ACCESS_TOKEN' "$envfile"
 ! grep -q 'P2P_MATRIX_ACCESS_TOKEN' "$envfile"
 
 # shellcheck disable=SC1090
 source "$envfile"
-[ "$DIREXIO_AGENT_ROOM_ID" = "!agent:im.example.test" ]
+[ "$DIREXIO_AGENT_ROOM_ID" = "!agents-real:im.example.test" ]
 
 if grep -R 'P2P_MATRIX_AS_URL\|P2P_MATRIX_AGENT_TOKEN\|P2P_AGENT_RUNTIME\|p2p-agent-skill\|p2p-matrix-agent' "$ROOT/scripts" "$ROOT/SKILL.md" "$ROOT/references/runtime-wiring.md"; then
   echo "deprecated Matrix-AS env names or old agent skill wiring must not be used by deployer wiring" >&2
@@ -55,12 +55,15 @@ fi
 
 [ "$(DIREXIO_AGENT_PLATFORM=hermes _detect_agent_runtime)" = "hermes" ]
 [ "$(DIREXIO_AGENT_PLATFORM=openclaw _detect_agent_runtime)" = "openclaw" ]
+[ "$(DIREXIO_AGENT_PLATFORM=claude-code _detect_agent_runtime)" = "claude-code" ]
+[ "$(DIREXIO_AGENT_PLATFORM=opencode _detect_agent_runtime)" = "opencode" ]
+[ "$(DIREXIO_CC_CONNECT_AGENT=qodercli _detect_agent_runtime)" = "qoder" ]
 assert_active_runtime() {
   local expected=$1 signal=$2
   shift 2
   (
     clear_runtime_env
-    mkdir -p "$HOME/.hermes" "$HOME/.codex" "$HOME/.claude" "$HOME/.gemini" "$HOME/.cursor" "$HOME/.copilot" "$HOME/.openclaw" "$tmp/neutral"
+    mkdir -p "$HOME/.hermes" "$HOME/.codex" "$HOME/.claude" "$HOME/.gemini" "$HOME/.cursor" "$HOME/.copilot" "$HOME/.devin" "$HOME/.iflow" "$HOME/.kimi" "$HOME/.opencode" "$HOME/.qoder" "$HOME/.pi/agent" "$HOME/.antigravity" "$HOME/.openclaw" "$tmp/neutral"
     cd "$tmp/neutral"
     PATH="/usr/bin:/bin"
     local kv
@@ -76,10 +79,17 @@ assert_active_runtime() {
 }
 
 assert_active_runtime codex CODEX_SANDBOX CODEX_SANDBOX=1
-assert_active_runtime claude-code CLAUDECODE CLAUDECODE=1
+assert_active_runtime claudecode CLAUDECODE CLAUDECODE=1
 assert_active_runtime gemini GEMINI_CLI GEMINI_CLI=1
 assert_active_runtime cursor CURSOR_TRACE_ID CURSOR_TRACE_ID=1
 assert_active_runtime copilot GITHUB_COPILOT_TOKEN GITHUB_COPILOT_TOKEN=1
+assert_active_runtime devin DEVIN_SESSION DEVIN_SESSION=1
+assert_active_runtime iflow IFLOW_SESSION IFLOW_SESSION=1
+assert_active_runtime kimi KIMI_SESSION KIMI_SESSION=1
+assert_active_runtime opencode OPENCODE_SESSION OPENCODE_SESSION=1
+assert_active_runtime qoder QODER_SESSION QODER_SESSION=1
+assert_active_runtime pi PI_AGENT_SESSION PI_AGENT_SESSION=1
+assert_active_runtime antigravity ANTIGRAVITY_SESSION ANTIGRAVITY_SESSION=1
 assert_active_runtime openclaw OPENCLAW_SESSION OPENCLAW_SESSION=1
 assert_active_runtime hermes HERMES_SESSION HERMES_SESSION=1
 assert_active_runtime codex .codex/tmp PATH="/tmp/.codex/tmp/codex-arg123:/usr/bin:/bin"
@@ -89,92 +99,108 @@ assert_active_runtime codex .codex/tmp PATH="/tmp/.codex/tmp/codex-arg123:/usr/b
   cd "$tmp/neutral"
   PATH="/usr/bin:/bin"
   export CLAUDE_API_KEY=test GEMINI_API_KEY=test
-  [ "$(_detect_agent_runtime)" = "hermes" ]
+  [ "$(_detect_agent_runtime)" = "unknown" ]
 )
 [ "$(DIREXIO_AGENT_INSTALL=skip _agent_install_policy)" = "skip" ]
 [ "$(DIREXIO_AGENT_INSTALL=recommend _agent_install_policy)" = "recommend" ]
 [ "$(DIREXIO_AGENT_INSTALL=auto _agent_install_policy)" = "auto" ]
-[ "$(_agent_install_mode hermes)" = "native" ]
-[ "$(_agent_install_mode openclaw)" = "native" ]
-[ "$(_agent_install_mode codex)" = "gateway" ]
-[ "$(_agent_install_mode cursor)" = "mcp" ]
-[ "$(DIREXIO_AGENT_INSTALL_MODE=gateway _agent_install_mode hermes)" = "gateway" ]
+[ "$(_agent_install_mode hermes)" = "cc-connect" ]
+[ "$(_agent_install_mode openclaw)" = "cc-connect" ]
+[ "$(_agent_install_mode codex)" = "cc-connect" ]
+[ "$(_agent_install_mode cursor)" = "cc-connect" ]
+[ "$(_agent_install_mode opencode)" = "cc-connect" ]
+[ "$(DIREXIO_AGENT_INSTALL_MODE=cc-connect _agent_install_mode hermes)" = "cc-connect" ]
+if DIREXIO_AGENT_INSTALL_MODE=gateway _agent_install_mode hermes >/dev/null 2>&1; then
+  echo "legacy install mode should be rejected" >&2
+  exit 1
+fi
 
 [ "$(_agent_skill_install_path codex)" = "PROJECT_ROOT/.codex/skills/direxio-deployer" ]
 [ "$(_agent_skill_install_path claude-code)" = "PROJECT_ROOT/.claude/skills/direxio-deployer" ]
+[ "$(_agent_skill_install_path claudecode)" = "PROJECT_ROOT/.claude/skills/direxio-deployer" ]
 [ "$(_agent_skill_install_path gemini)" = "PROJECT_ROOT/.gemini/skills/direxio-deployer" ]
 [ "$(_agent_skill_install_path cursor)" = "PROJECT_ROOT/.cursor/skills/direxio-deployer" ]
 [ "$(_agent_skill_install_path copilot)" = "PROJECT_ROOT/.github/copilot/skills/direxio-deployer" ]
+[ "$(_agent_skill_install_path devin)" = "PROJECT_ROOT/.devin/skills/direxio-deployer" ]
+[ "$(_agent_skill_install_path opencode)" = "PROJECT_ROOT/.opencode/skills/direxio-deployer" ]
+[ "$(_agent_skill_install_path qoder)" = "PROJECT_ROOT/.qoder/skills/direxio-deployer" ]
+[ "$(_agent_skill_install_path pi)" = "PROJECT_ROOT/.pi/agent/skills/direxio-deployer" ]
 [ "$(_agent_skill_install_path openclaw)" = "PROJECT_ROOT/.openclaw/skills/direxio-deployer" ]
 [ "$(_agent_skill_install_path hermes)" = "PROJECT_ROOT/.hermes/skills/direxio-deployer" ]
 [ "$(_agent_skill_install_path unknown)" = "PROJECT_ROOT/.agent/skills/direxio-deployer" ]
 
 [ "$(_agent_global_skill_install_path codex)" = '${CODEX_HOME:-$HOME/.codex}/skills/direxio-deployer' ]
-[ "$(_agent_global_skill_install_path claude-code)" = '${CLAUDE_HOME:-$HOME/.claude}/skills/direxio-deployer' ]
+[ "$(_agent_global_skill_install_path claude-code)" = '${CLAUDE_HOME:-${CLAUDECODE_HOME:-$HOME/.claude}}/skills/direxio-deployer' ]
+[ "$(_agent_global_skill_install_path claudecode)" = '${CLAUDE_HOME:-${CLAUDECODE_HOME:-$HOME/.claude}}/skills/direxio-deployer' ]
 [ "$(_agent_global_skill_install_path generic)" = '$HOME/.agent/skills/direxio-deployer' ]
 
-codex_mcp_fallback=$(
-  unset CODEX_HOME
-  PATH="/usr/bin:/bin"
-  mkdir -p "$tmp/neutral"
-  cd "$tmp/neutral"
-  _agent_mcp_config_path codex codex-im
-)
-[ "$codex_mcp_fallback" = "$HOME/.codex/direxio-agent/nodes/codex-im/mcp.json" ]
-[ "$(CODEX_HOME=/mnt/c/Users/alice/.codex _agent_mcp_config_path codex codex-im)" = "/mnt/c/Users/alice/.codex/direxio-agent/nodes/codex-im/mcp.json" ]
-codex_mcp_from_active_path=$(
-  unset CODEX_HOME
-  cd "$tmp/neutral"
-  PATH="/mnt/c/Users/alice/.codex/tmp/arg0:/usr/bin:/bin" _agent_mcp_config_path codex codex-im
-)
-[ "$codex_mcp_from_active_path" = "/mnt/c/Users/alice/.codex/direxio-agent/nodes/codex-im/mcp.json" ]
-[ "$(_agent_mcp_config_path claude-code codex-im)" = "$HOME/.claude/direxio-agent/nodes/codex-im/mcp.json" ]
-[ "$(_agent_mcp_config_path openclaw codex-im)" = "$HOME/.openclaw/direxio/nodes/codex-im/mcp.json" ]
-[ "$(_agent_mcp_config_path hermes codex-im)" = "$HOME/.hermes/direxio/nodes/codex-im/mcp.json" ]
-[ "$(_agent_mcp_config_path cursor codex-im)" = "$XDG_CONFIG_HOME/direxio-agent/nodes/codex-im/cursor.mcp.json" ]
-[ "$(_agent_mcp_config_path copilot codex-im)" = "$XDG_CONFIG_HOME/direxio-agent/nodes/codex-im/copilot.mcp.json" ]
-[ "$(_agent_mcp_config_path gemini codex-im)" = "$HOME/.gemini/direxio/nodes/codex-im/settings.json" ]
-[ "$(_agent_mcp_config_path unknown codex-im)" = "$XDG_CONFIG_HOME/direxio-agent/nodes/codex-im/mcp.json" ]
-
-[ "$(_agent_project_mcp_target cursor)" = "PROJECT_ROOT/.cursor/mcp.json" ]
-[ "$(_agent_project_mcp_target copilot)" = "PROJECT_ROOT/.github/copilot/mcp.json" ]
-[ -z "$(_agent_project_mcp_target codex)" ]
-
-cursor_summary=$(_agent_install_target_summary cursor "$(_agent_mcp_config_path cursor)")
-[[ "$cursor_summary" == *"PROJECT_ROOT/.cursor/mcp.json"* ]]
-[[ "$cursor_summary" == *"PROJECT_ROOT/.cursor/skills/direxio-deployer"* ]]
-
-copilot_summary=$(_agent_install_target_summary copilot "$(_agent_mcp_config_path copilot)")
-[[ "$copilot_summary" == *"read-only"* ]]
-[[ "$copilot_summary" == *"PROJECT_ROOT/.github/copilot/mcp.json"* ]]
-[[ "$copilot_summary" == *"PROJECT_ROOT/.github/copilot/skills/direxio-deployer"* ]]
-
-install_command=$(_agent_install_command hermes native "$HOME/.direxio/nodes/im.example.test/credentials.json")
+install_command=$(_agent_install_command "direxio-connect" "$HOME/.direxio/nodes/im.example.test/cc-connect/config.toml")
 case "$install_command" in
-  *"direxio-agent-install"*"--platform hermes"*"--mode native"*"--credentials-file"*"im.example.test/credentials.json"*"--write"*) ;;
+  *"npm install -g"*"@direxio/connent"*"direxio-connect"*"daemon install"*"--config"*"im.example.test/cc-connect/config.toml"*"--force"*) ;;
   *)
-    echo "install command did not include expected platform/mode/credentials/write flags: $install_command" >&2
+    echo "install command did not include expected cc-connect daemon flags: $install_command" >&2
     exit 1
     ;;
 esac
 
-stale_node_id=$(DIREXIO_AGENT_NODE_ID=codex-old.example.test _agent_node_id codex new.example.test '!agent:new.example.test')
+[ "$(DIREXIO_LOCAL_PATH_STYLE=windows _local_connect_path '/mnt/c/Users/alice/.direxio/nodes/im/cc-connect/config.toml')" = "C:/Users/alice/.direxio/nodes/im/cc-connect/config.toml" ]
+[ "$(DIREXIO_LOCAL_PATH_STYLE=windows _local_connect_path '/c/Users/alice/.direxio/nodes/im/cc-connect/config.toml')" = "C:/Users/alice/.direxio/nodes/im/cc-connect/config.toml" ]
+windows_install_command=$(DIREXIO_LOCAL_PATH_STYLE=windows _agent_install_command "direxio-connect" "/mnt/c/Users/alice/.direxio/nodes/im/cc-connect/config.toml")
+[[ "$windows_install_command" == *"C:/Users/alice/.direxio/nodes/im/cc-connect/config.toml"* ]]
+
+stale_node_id=$(DIREXIO_AGENT_NODE_ID=codex-old.example.test _agent_node_id codex new.example.test '!agents-real:new.example.test')
 [[ "$stale_node_id" == codex-new.example.test-* ]]
 
-matching_node_id=$(DIREXIO_AGENT_NODE_ID=codex-new.example.test-123 _agent_node_id codex new.example.test '!agent:new.example.test')
+matching_node_id=$(DIREXIO_AGENT_NODE_ID=codex-new.example.test-123 _agent_node_id codex new.example.test '!agents-real:new.example.test')
 [ "$matching_node_id" = "codex-new.example.test-123" ]
 
+config_path="$tmp/cc-connect/config.toml"
+_write_cc_connect_config "$config_path" "$tmp/cc-connect/data" "codex-node" "codex" "$tmp/workspace" "https://im.example.test" "matrix-token" "@agent:im.example.test" "!agents-real:im.example.test"
+grep -q 'type = "matrix"' "$config_path"
+grep -q 'type = "codex"' "$config_path"
+grep -q 'room_id = "!agents-real:im.example.test"' "$config_path"
+grep -q 'user_id = "@agent:im.example.test"' "$config_path"
+grep -q 'share_session_in_channel = true' "$config_path"
+grep -q 'group_reply_all = true' "$config_path"
+grep -q 'auto_join = false' "$config_path"
+
+[ "$(_cc_connect_agent_type codex)" = "codex" ]
+[ "$(_cc_connect_agent_type claude-code)" = "claudecode" ]
+[ "$(_cc_connect_agent_type claudecode)" = "claudecode" ]
+[ "$(_cc_connect_agent_type opencode)" = "opencode" ]
+[ "$(_cc_connect_agent_type qodercli)" = "qoder" ]
+[ "$(_cc_connect_agent_type antigravity)" = "antigravity" ]
+[ "$(DIREXIO_CC_CONNECT_AGENT=gemini _cc_connect_agent_type unknown)" = "gemini" ]
+[ "$(DIREXIO_CODEX_COMMAND=/opt/codex/bin/codex _cc_connect_agent_command codex)" = "/opt/codex/bin/codex" ]
+[ "$(DIREXIO_GEMINI_COMMAND=/opt/gemini/bin/gemini _cc_connect_agent_command gemini)" = "/opt/gemini/bin/gemini" ]
+[ "$(DIREXIO_CLAUDE_CODE_COMMAND=/opt/claude/bin/claude _cc_connect_agent_command claudecode)" = "/opt/claude/bin/claude" ]
+[ "$(DIREXIO_QODERCLI_COMMAND=/opt/qoder/qodercli _cc_connect_agent_command qoder)" = "/opt/qoder/qodercli" ]
+[ "$(DIREXIO_CC_CONNECT_AGENT_CMD=/custom/agent _cc_connect_agent_command codex)" = "/custom/agent" ]
+
+cmd_config_path="$tmp/cc-connect/config-with-cmd.toml"
+_write_cc_connect_config "$cmd_config_path" "$tmp/cc-connect/data-cmd" "codex-node" "codex" "$tmp/workspace" "https://im.example.test" "matrix-token" "@agent:im.example.test" "!agents-real:im.example.test" "/opt/codex/bin/codex"
+grep -q 'cmd = "/opt/codex/bin/codex"' "$cmd_config_path"
+
+options_config_path="$tmp/cc-connect/config-with-extra-options.toml"
+_write_cc_connect_config "$options_config_path" "$tmp/cc-connect/data-options" "reasonix-node" "reasonix" "$tmp/workspace" "https://im.example.test" "matrix-token" "@agent:im.example.test" "!agents-real:im.example.test" "" 'serve_url = "http://127.0.0.1:8080"'
+grep -q 'type = "reasonix"' "$options_config_path"
+grep -q 'serve_url = "http://127.0.0.1:8080"' "$options_config_path"
+
 guidance=$(
-  _print_mcp_plugin_guidance codex https://im.example.test "$HOME/.direxio/nodes/im.example.test/credentials.json" "$HOME/.direxio/nodes/im.example.test/env" recommend gateway "install command" codex-im 2>&1 >/dev/null
+  _print_cc_connect_guidance codex https://im.example.test "$HOME/.direxio/nodes/im.example.test/credentials.json" "$HOME/.direxio/nodes/im.example.test/env" recommend cc-connect "install command" codex-im "$config_path" "$HOME/.direxio/nodes/im.example.test/cc-connect/bin/direxio-connect" codex "/opt/codex/bin/codex" 2>&1 >/dev/null
 )
 [[ "$guidance" == *"DIREXIO_DOMAIN"* ]]
 [[ "$guidance" == *"DIREXIO_AGENT_TOKEN"* ]]
 [[ "$guidance" == *"DIREXIO_AGENT_ROOM_ID"* ]]
 [[ "$guidance" == *"DIREXIO_AGENT_NODE_ID"* ]]
-[[ "$guidance" == *"DIREXIO_CODEX_COMMAND"* ]]
-bad_mcp_env_name="DIREXIO_CREDENTIALS""_FILE"
-if [[ "$guidance" == *"$bad_mcp_env_name"* ]]; then
-  echo "MCP guidance must not use $bad_mcp_env_name; @direxio/local-mcp expects direct DIREXIO_* env" >&2
+[[ "$guidance" == *"cc-connect config"* ]]
+[[ "$guidance" == *"/opt/codex/bin/codex"* ]]
+[[ "$guidance" == *"daemon install"* ]]
+[[ "$guidance" == *"@direxio/connent"* || "$install_command" == *"@direxio/connent"* ]]
+[[ "$guidance" == *"type = \"matrix\""* || "$guidance" == *"cc-connect will use Matrix"* ]]
+bad_credentials_env_name="DIREXIO_CREDENTIALS""_FILE"
+if [[ "$guidance" == *"$bad_credentials_env_name"* ]]; then
+  echo "cc-connect guidance must not use $bad_credentials_env_name; it writes direct Matrix config" >&2
   exit 1
 fi
 

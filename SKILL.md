@@ -1,6 +1,6 @@
 ---
 name: direxio-deployer
-description: Deploy, resume, verify, destroy, and locally wire a production P2P-IM Matrix server on AWS for Claude, Codex/OpenAI, Gemini, Cursor, Copilot, OpenClaw, Hermes, and other agent runtimes. Use when installing or updating this skill itself; if a current project or workspace exists, prefer the runtime-specific project-local Git clone path from references/agent-targets.md and use global skill directories only when no project target exists or the user explicitly asks for global installation.
+description: Deploy, resume, verify, destroy, and locally wire a production P2P-IM Matrix server on AWS for any connent/connect-supported local agent runtime. Use when installing or updating this skill itself; if a current project or workspace exists, prefer the runtime-specific project-local Git clone path from references/agent-targets.md and use global skill directories only when no project target exists or the user explicitly asks for global installation.
 ---
 
 # Direxio Deployer
@@ -11,6 +11,7 @@ Agents should treat this repository root as the execution engine. The runnable e
 
 ```text
 scripts/orchestrate.sh
+scripts/orchestrate.ps1
 scripts/destroy.sh
 ```
 
@@ -36,10 +37,7 @@ URL once and use it as the latest deployment guidance when reachable. If GitHub
 or the private repository is unreachable, say so briefly and continue with this
 local copy.
 
-Do not fall back to older P2P-IM skill repositories, copied skill bundles, or
-`Public-skills-and-mcp` unless the user explicitly asks for one of those
-repositories. Never print or commit AWS credentials, IM passwords, agent tokens,
-or local credential files while refreshing the Skill.
+Do not fall back to older P2P-IM skill repositories or copied skill bundles unless the user explicitly asks for one of those repositories. Never print or commit AWS credentials, IM passwords, agent tokens, or local credential files while refreshing the Skill.
 
 ## Cloud Account And Domain Onboarding
 
@@ -237,15 +235,15 @@ specific step before running `scripts/orchestrate.sh`.
 
 ## Skill And Runtime Targets
 
-When the user asks to install or update this skill itself, or asks to wire Direxio into a local agent runtime, read `references/agent-targets.md` first. It is the source of truth for Codex, Claude Code, Gemini, Cursor, GitHub Copilot, OpenClaw, Hermes, generic, and unknown targets.
+When the user asks to install or update this skill itself, or asks to wire Direxio into a local agent runtime, read `references/agent-targets.md` first. It is the source of truth for connent/connect agent targets, legacy host-runtime aliases, generic targets, and unknown targets.
 
-For this skill repository itself, first determine whether the current working directory belongs to a project or workspace. Treat an explicit workspace root, project files, or an existing agent-specific directory such as `.codex/`, `.claude/`, `.gemini/`, `.cursor/`, `.github/copilot/`, `.openclaw/`, or `.hermes/` as a project target.
+For this skill repository itself, first determine whether the current working directory belongs to a project or workspace. Treat an explicit workspace root, project files, or an existing agent-specific directory such as `.codex/`, `.claude/`, `.gemini/`, `.cursor/`, `.github/copilot/`, `.devin/`, `.opencode/`, `.qoder/`, `.pi/`, `.openclaw/`, or `.hermes/` as a project target.
 
 If a project target exists, install or update this skill as a Git clone at the runtime-specific project-local path from `references/agent-targets.md`. Create the parent directory if needed. Do not use copy-based skill installation for a project-local install because it drops `.git` and prevents normal tracking, `git pull`, and commit inspection. Use global runtime skill directories only when the user explicitly asks for a global install or no project target exists. If a global copy was created by mistake, remove it and replace it with the project-local clone.
 
 ## Agent Recognition
 
-Use this skill when the user asks to deploy, resume, verify, destroy, repair, or wire a P2P-IM Matrix server. The instructions are runtime-neutral and can be followed by Claude, Codex/OpenAI, Gemini, Cursor, Copilot, OpenClaw, Hermes, or another agent that can run shell commands and read files.
+Use this skill when the user asks to deploy, resume, verify, destroy, repair, or wire a P2P-IM Matrix server. The instructions are runtime-neutral and can be followed by any agent that can run shell commands and read files. The local bridge target must be one of the connent/connect agents unless the user explicitly supplies compatible custom TOML.
 
 For local agent integration after deployment, S6 writes service-specific credentials and environment files under `~/.direxio/nodes/<service_id>/`, where `service_id` is derived from the deployed domain. It does not write root-level compatibility credentials, shell profiles, or Windows user environment variables.
 
@@ -256,18 +254,20 @@ DIREXIO_AGENT_ROOM_ID=<agent_room_id>
 DIREXIO_AGENT_NODE_ID=<agent_node_id>
 ```
 
-The current integration targets are `@direxio/local-mcp` for stdio MCP and `@direxio/agent-plugins` for runtime-specific plugins and gateway binaries.
-The gateway in `direxio-agent-plugins` has native send support: it calls `/_p2p/command` action `mcp.messages.send` directly and does not require MCP to send room replies.
-
 Post-deploy agent wiring is controlled by:
 
 ```bash
 DIREXIO_AGENT_PLATFORM=auto
+DIREXIO_CC_CONNECT_AGENT=<optional connect agent>
 DIREXIO_AGENT_INSTALL=recommend
 DIREXIO_AGENT_INSTALL_MODE=recommended
 ```
 
-`DIREXIO_AGENT_INSTALL` may be `skip`, `recommend`, or `auto`. Only `auto` attempts to run `npx -y -p @direxio/agent-plugins@latest direxio-agent-install --node-id <agent_node_id> --credentials-file ~/.direxio/nodes/<service_id>/credentials.json --write`; the default `recommend` records and prints the command without mutating agent config. Gateway installs restart only the process for the same node id; other local Direxio nodes keep running.
+The only supported local conversation bridge is `direxio-connect`, installed from `@direxio/connent` or built from `https://github.com/YingSuiAI/connect.git`. S6 creates a Matrix session for `@agent:<server>`, writes `~/.direxio/nodes/<service_id>/cc-connect/config.toml`, and restricts the bridge to the real `agent_room_id`.
+
+`DIREXIO_CC_CONNECT_AGENT` is the preferred explicit selector. Supported values match connent/connect: `acp`, `antigravity`, `claudecode`, `codex`, `copilot`, `cursor`, `devin`, `gemini`, `iflow`, `kimi`, `opencode`, `pi`, `qoder`, `reasonix`, and `tmux`. Use `DIREXIO_CC_CONNECT_AGENT_CMD`, `DIREXIO_<AGENT>_COMMAND`, and when needed `DIREXIO_CC_CONNECT_AGENT_OPTIONS_TOML` for agent-specific launch details.
+
+`DIREXIO_AGENT_INSTALL` may be `skip`, `recommend`, or `auto`. Only `auto` attempts to run `npm install -g @direxio/connent` and `direxio-connect daemon install --config ~/.direxio/nodes/<service_id>/cc-connect/config.toml --force`; the default `recommend` records and prints the command without mutating local daemon state.
 
 ## Core Rule
 
@@ -327,10 +327,10 @@ IP-derived, localhost, wildcard, or disposable domains.
 5. Apply the approved existing-state action for `${P2P_WORKDIR:-$HOME/.direxio/deploy}/state.json`: continue, destroy, or use a new workdir.
 6. Run `scripts/orchestrate.sh` with the confirmed environment. Let the state machine own AWS calls, state, polling, cloud-init, token/password handling, verification, and destroy behavior.
    **Runtime detection note:** S6 checks active-process signals before stale
-   config directories, so current-session markers such as Codex `.codex/tmp`
-   paths, Hermes environment variables, and process names win over historical
-   runtime directories. If a session still appears ambiguous, set
-   `DIREXIO_AGENT_PLATFORM=<runtime>` explicitly before deployment. Also see
+   config directories, so current-session markers, environment variables, and
+   process names win over historical runtime directories. If a session still
+   appears ambiguous, set `DIREXIO_CC_CONNECT_AGENT=<agent>` explicitly before
+   deployment. Also see
    `references/windows-deployment-notes.md`.
    **⚠️ Route53 pre-requisite for domains at other registrars:** The script's `_find_route53_zone()` looks up existing hosted zones only — it does NOT create one. If the domain is registered at Alibaba, GoDaddy, Cloudflare, etc. and the user chose Route53 management, the agent must pre-create the hosted zone (see Step 4 DNS control) BEFORE running orchestrate.sh. Do not rely on the script to create the zone.
    **⚠️ Let's Encrypt certificate rate limit:** A single domain can get at most
@@ -351,8 +351,8 @@ IP-derived, localhost, wildcard, or disposable domains.
    pre-created and delegated before step 6.
 
 8. After authoritative DNS resolves, rerun the same command with `DNS_READY=1`.
-9. After S7 passes, read `references/runtime-wiring.md` and `references/agent-targets.md`, then report the URL, `password`, agent token status, `agent_room_id`, persistent Direxio MCP/plugin env status, runtime-specific target paths, resources, SSH command, state path, and destroy command.
-10. Detect the current agent runtime from S6 state (`agent_runtime`) and the active environment. If `DIREXIO_AGENT_INSTALL=auto` was explicitly set, S6 may run the detected install command. Otherwise ask the user whether to automatically install/configure the Direxio plugin and MCP service for that runtime. Do not mutate Codex, Claude Code, Gemini, Cursor, Copilot, OpenClaw, Hermes, or other agent config without explicit post-deploy confirmation or `DIREXIO_AGENT_INSTALL=auto`.
+9. After S7 passes, read `references/runtime-wiring.md` and `references/agent-targets.md`, then report the URL, `password`, agent token status, real `agent_room_id`, persistent Direxio env status, cc-connect config path, Matrix bridge user/device, resources, SSH command, state path, and destroy command.
+10. Read the selected connect agent from S6 state (`cc_connect_agent`) and report the recorded `agent_install_command`. If `DIREXIO_AGENT_INSTALL=auto` was explicitly set, S6 may have installed the daemon already; otherwise leave installation as an explicit operator action.
 
 ## Destroy Flow
 
@@ -365,8 +365,8 @@ If an operator needs to preserve local state files for debugging, run destroy wi
 When the user asks for a complete fresh start — "destroy everything", "start over from zero", "treat me as a brand new user" — running `scripts/destroy.sh` alone is **not sufficient**. The destroy script only handles infrastructure and local workdir cleanup. The agent should also clear any runtime-supported persistent memory about the old deployment. Specifically:
 
 1. **Run `scripts/destroy.sh` first** (infra teardown).
-2. **Clear agent memory entries only through capabilities available in the current runtime.** If the runtime provides an explicit memory-management tool, remove entries referencing the old domain, deployment URLs, credentials, passwords, tokens, node IDs, room IDs, service IDs, AWS account info, MCP config paths, and skill install/update history. If no such capability exists, say that memory cleanup cannot be automated in this runtime and avoid inventing tool calls.
-3. **Verify runtime-specific memory stores only when they are known and accessible.** For Hermes, check the documented Hermes memory location. For Codex or other agents, use their native memory/config mechanism if exposed; otherwise report the limitation.
+2. **Clear agent memory entries only through capabilities available in the current runtime.** If the runtime provides an explicit memory-management tool, remove entries referencing the old domain, deployment URLs, credentials, passwords, tokens, node IDs, room IDs, service IDs, AWS account info, cc-connect config paths, and skill install/update history. If no such capability exists, say that memory cleanup cannot be automated in this runtime and avoid inventing tool calls.
+3. **Verify runtime-specific memory stores only when they are known and accessible.** Use the current agent's native memory/config mechanism if exposed; otherwise report the limitation.
 4. **Then start from Step 1** of the Cloud Account And Domain Onboarding section — ask about AWS account first, don't assume anything carried over.
 
 > ⚠️ Do not skip step 2. Stale credentials (URLs, passwords, tokens) in agent memory can leak into the new deployment's Delivery report or cause the agent to skip onboarding steps by referencing facts that no longer apply. A true fresh start requires both infra cleanup **and** agent memory cleanup.
@@ -392,6 +392,8 @@ bash scripts/orchestrate.sh
 ```
 
 Use `AWS_PROFILE=p2p-matrix` or temporary `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`. Do not write AWS secrets, IM passwords, or agent tokens into skill files or the repository.
+
+On Windows, prefer `.\scripts\orchestrate.ps1` from PowerShell. It selects Git Bash for the Bash phases and writes Windows-compatible local `direxio-connect` paths.
 
 ## Required Confirmation
 
@@ -421,14 +423,16 @@ service_id   : <service_id>
 service_dir  : ~/.direxio/nodes/<service_id>
 agent_token  : written to ~/.direxio/nodes/<service_id>/credentials.json
 agent_room_id: written to ~/.direxio/nodes/<service_id>/credentials.json
-mcp package  : @direxio/local-mcp
-plugins pkg  : @direxio/agent-plugins
 env vars      : DIREXIO_DOMAIN, DIREXIO_AGENT_TOKEN, DIREXIO_AGENT_ROOM_ID, DIREXIO_AGENT_NODE_ID persisted
-install mode  : policy=<skip|recommend|auto> mode=<mcp|native|gateway> status=<...>
-mcp config    : <agent_mcp_config_path>
+connect pkg   : @direxio/connent
+connect agent : <cc_connect_agent>
+connect config: <cc_connect_config>
+connect user  : <cc_connect_matrix_user>
+connect device: <cc_connect_matrix_device>
+agent command : <cc_connect_agent_cmd or default PATH lookup>
+install mode  : policy=<skip|recommend|auto> mode=<cc-connect> status=<...>
+install cmd   : <agent_install_command>
 skill clone   : <agent_skill_install_path>
-target summary: <agent_install_target_summary>
-gateway send  : npx -y -p @direxio/agent-plugins@latest direxio-agent-gateway send --room "$DIREXIO_AGENT_ROOM_ID" --message "hello"
 AWS region   : <region>
 EC2          : <instance-id> (<public-ip>)
 SSH          : ssh -i <key-file> ubuntu@<public-ip>
@@ -438,29 +442,21 @@ Destroy      : bash scripts/destroy.sh
 
 Mention that AWS resources keep billing until destroyed. User-managed DNS and purchased domains are not removed by destroy. After destroy, report which `~/.direxio` deploy workdir was removed or, if `P2P_KEEP_WORKDIR=1` was used, which one remains.
 
-Then ask one concise follow-up in the user's language:
+If `DIREXIO_AGENT_INSTALL=auto` was not used, give the manual command:
 
-```text
-Detected <runtime>. Do you want me to automatically install/configure the Direxio plugin and MCP service for this agent using the persisted DIREXIO_* environment and the recorded runtime target paths?
+```bash
+npm install -g @direxio/connent
+direxio-connect daemon install --config <cc_connect_config> --force
+direxio-connect daemon status
 ```
-
-If the user agrees, use the runtime's native configuration path where available. The MCP server command is always:
-
-```text
-command: npx
-args: ["-y", "-p", "@direxio/local-mcp@latest", "direxio-mcp"]
-env: DIREXIO_DOMAIN, DIREXIO_AGENT_TOKEN, DIREXIO_AGENT_ROOM_ID, DIREXIO_AGENT_NODE_ID
-```
-
-Do not configure `@direxio/local-mcp` through credential-file indirection unless the package version being installed documents that support. Current published local MCP wiring reads the direct `DIREXIO_*` environment. For OpenClaw and Hermes, prefer native long-process integration. For Claude Code, Cursor, Gemini, and Copilot, use MCP-only unless the user supplies a local command for an external `generic-cli` gateway. For Windows-native Codex, launch gateway from Windows PowerShell and use `%USERPROFILE%`, `$env:CODEX_HOME`, `$env:XDG_CONFIG_HOME`, and a discovered `DIREXIO_CODEX_COMMAND`; never publish or template a machine-specific user path.
 
 ## References
 
 - Tool setup by OS: `references/tooling.md`
-- Agent-specific skill and MCP/plugin targets: `references/agent-targets.md`
+- Agent-specific skill and cc-connect targets: `references/agent-targets.md`
 - Deployment and resume workflow: `references/deployment-workflow.md`
 - Runtime and agent wiring: `references/runtime-wiring.md`
 - Verification and recovery: `references/verification-recovery.md`
 - State machine details: `references/state-machine.md`
 - Architecture and troubleshooting: `references/architecture.md`, `references/troubleshooting.md`
-- Windows deployment notes: `references/windows-deployment-notes.md` — bash prerequisites, credential setup, MCP arg format, known background-buffer gotcha, and Route53 DNS tips for Git Bash / Windows 10+.
+- Windows deployment notes: `references/windows-deployment-notes.md` — bash prerequisites, credential setup, direxio-connect install checks, background-buffer notes, and Route53 DNS tips for Git Bash / Windows 10+.

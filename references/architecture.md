@@ -35,7 +35,7 @@ coturn         -> TURN 3478 + 49160-49200/udp
 
 - `password`: 前端 IM 登录密码。
 - `access_token`: 当前用户的统一 bearer token，可用于 Matrix `/_matrix/client/*` 和需要用户身份的 P2P 调用。
-- `agent_token`: agent/MCP 调用 `/_p2p/*` 的 bearer token。
+- `agent_token`: 本地服务凭据中的 agent bearer token；`direxio-connect` 对话桥接使用 S6 创建的 `@agent:<server>` Matrix session。
 
 ## 域名模型
 

@@ -39,7 +39,11 @@ run_phase() {
     fail "bootstrap.json does not contain password, access_token, and agent_token."
   fi
   asurl=$(jq -r --arg domain "$domain" '.as_url // ("https://" + $domain)' "$out")
-  agent_room_id=$(jq -r --arg domain "$domain" '.agent_room_id // ("!agent:" + $domain)' "$out")
+  agent_room_id=$(jq -r '.agent_room_id // empty' "$out")
+  if [ -z "$agent_room_id" ] || [[ "$agent_room_id" == \!agent:* ]]; then
+    phase_set S5_INIT_TOKENS failed "bootstrap.json missing real agent_room_id"
+    fail "bootstrap.json must contain a real Matrix agent_room_id; legacy !agent:<domain> ids are not supported."
+  fi
 
   # Store tokens in state for S6. state.json is local-only and chmod 0600.
   state_set as_url "$asurl"
@@ -81,7 +85,7 @@ _normalize_bootstrap_output() {
       bot_mxid: (.bot_mxid // .owner_user_id // .user_id // ("@owner:" + $domain)),
       access_token: (.access_token // ""),
       agent_token: (.agent_token // ""),
-      agent_room_id: (.agent_room_id // ("!agent:" + $domain))
+      agent_room_id: (.agent_room_id // "")
     }
   ' "$src" > "$tmp"; then
     rm -f "$tmp"

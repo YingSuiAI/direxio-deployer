@@ -2,22 +2,14 @@
 
 [简体中文](README_zh.md)
 
-`direxio-deployer` is a runtime-neutral agent skill for deploying a production Direxio message server. Claude Code, Codex/OpenAI, Gemini, Cursor, GitHub Copilot, OpenClaw, Hermes, and other shell-capable agents can use the same repository to deploy, resume, verify, destroy, and wire a server.
-
-It combines deployment confirmation, cross-platform tooling checks, AWS infrastructure orchestration, DNS waiting, message-server bootstrap, credential delivery, local Direxio MCP/plugin environment setup, runtime-specific target recording, and final verification.
+`direxio-deployer` deploys a production Direxio message server and wires the local agent room through Direxio's Matrix bridge. The supported local bridge is `direxio-connect`, installed from the npm package `@direxio/connent` or built from `YingSuiAI/connect`.
 
 ## Contents
 
 - `SKILL.md`: Agent entrypoint, confirmation rules, deployment/destroy flow, and delivery format.
 - `scripts/`: State machine, AWS/EC2/DNS/cloud-init/verification/destroy scripts.
-- `references/`: Tooling, deployment resume flow, agent target paths, runtime wiring, state machine, architecture, troubleshooting, and recovery notes.
+- `references/`: Tooling, deployment resume flow, cc-connect wiring, state machine, architecture, troubleshooting, and recovery notes.
 - `agents/`: Runtime metadata and recognition notes for agent hosts.
-
-## Skill Installation
-
-When installing this skill inside an existing project or workspace, prefer a runtime-specific project-local Git clone. For example, Codex uses `PROJECT_ROOT/.codex/skills/direxio-deployer`, Claude Code uses `PROJECT_ROOT/.claude/skills/direxio-deployer`, and Cursor uses `PROJECT_ROOT/.cursor/skills/direxio-deployer`. Do not use copy-based installation for project-local installs because it drops `.git` and prevents normal `git pull`, commit inspection, and local patch tracking.
-
-See `references/agent-targets.md` for the full runtime matrix, global fallbacks, and MCP/plugin configuration targets. Use global skill directories only when no project target exists or the user explicitly asks for a global install.
 
 ## Deployment Rules
 
@@ -26,11 +18,11 @@ See `references/agent-targets.md` for the full runtime matrix, global fallbacks,
 - AWS resources cost money; the user must explicitly confirm before deployment.
 - User-managed DNS mode pauses after Elastic IP creation until the user updates the A record.
 - The backend image is `direxio/message-server`; Matrix and P2P APIs share port 8008.
-- The backend uses `password` for IM login; local credentials retain `access_token` and agent-specific `agent_token`.
-- Public multi-node channel routing is client-provided through target `_p2p` base URLs; the deployer no longer writes a fixed remote-node table.
-- After deployment, S6 persists `DIREXIO_DOMAIN`, `DIREXIO_AGENT_TOKEN`, `DIREXIO_AGENT_ROOM_ID`, and `DIREXIO_AGENT_NODE_ID` under the domain-derived `~/.direxio/nodes/<service_id>/`, then records `@direxio/local-mcp`, `@direxio/agent-plugins`, runtime-specific skill clone paths, and node-scoped MCP/config payload targets.
-- Post-deploy agent installation is controlled by `DIREXIO_AGENT_INSTALL=skip|recommend|auto`; the default is `recommend`. Only `auto` attempts to run `npx -y -p @direxio/agent-plugins@latest direxio-agent-install --node-id <agent_node_id> --credentials-file ~/.direxio/nodes/<service_id>/credentials.json --write`. Gateway mode restarts only the matching node gateway.
-- The gateway has native `mcp.messages.send` support through `/_p2p/command`; it does not require `@direxio/local-mcp` for room replies.
+- S6 rejects legacy pseudo agent rooms such as `!agent:<domain>` and requires the real Matrix `agent_room_id` created by message-server.
+- S6 creates an `@agent:<server>` Matrix session through `agent.matrix_session.create`, writes a Matrix-only `cc-connect/config.toml`, and restricts the bridge to the current `agent_room_id`.
+- `DIREXIO_CC_CONNECT_AGENT` selects the local `direxio-connect` agent type. Supported values match connent/connect: `acp`, `antigravity`, `claudecode`, `codex`, `copilot`, `cursor`, `devin`, `gemini`, `iflow`, `kimi`, `opencode`, `pi`, `qoder`, `reasonix`, and `tmux`.
+- Set `DIREXIO_CC_CONNECT_AGENT_CMD` or `DIREXIO_<AGENT>_COMMAND` when a local agent executable is not discoverable from PATH. Codex also supports `DIREXIO_CODEX_COMMAND` for Windows Desktop installs.
+- `DIREXIO_AGENT_INSTALL=auto` installs `@direxio/connent` and runs `direxio-connect daemon install --config <config> --force`. The default `recommend` mode only records and prints the command.
 
 ## Minimal Command
 
@@ -46,24 +38,36 @@ MESSAGE_SERVER_IMAGE=direxio/message-server:latest \
 bash scripts/orchestrate.sh
 ```
 
-Recommendation-only post-deploy agent wiring:
+On Windows, use the PowerShell entrypoint so the deployer selects Git Bash for the cloud phases while writing Windows-compatible local `direxio-connect` paths:
+
+```powershell
+$env:AWS_DEFAULT_REGION = "us-east-1"
+$env:DOMAIN = "__DOMAIN__"
+$env:DOMAIN_MODE = "user"
+$env:CONFIRM_DOMAIN_BINDING = "1"
+$env:INSTANCE_TYPE = "t3.small"
+$env:MESSAGE_SERVER_IMAGE = "direxio/message-server:latest"
+.\scripts\orchestrate.ps1
+```
+
+Recommendation-only local bridge wiring:
 
 ```bash
 DIREXIO_AGENT_INSTALL=recommend bash scripts/orchestrate.sh
 ```
 
-Automatic post-deploy install/write for the detected agent:
+Automatic local bridge install:
 
 ```bash
 DIREXIO_AGENT_INSTALL=auto \
 DIREXIO_AGENT_PLATFORM=auto \
+DIREXIO_CC_CONNECT_AGENT=claudecode \
 DIREXIO_AGENT_INSTALL_MODE=recommended \
 bash scripts/orchestrate.sh
 ```
 
-Supported platforms: `auto`, `codex`, `claude-code`, `gemini`, `cursor`, `copilot`, `openclaw`, `hermes`, `generic`.
-
-Supported install modes: `recommended`, `mcp`, `native`, `gateway`. OpenClaw and Hermes default to `native`; Codex defaults to `gateway`; runtimes without managed local long processes use `mcp`.
+Supported install modes: `recommended` and `cc-connect`.
+If `DIREXIO_AGENT_PLATFORM=auto` cannot identify a single supported runtime, set `DIREXIO_CC_CONNECT_AGENT` explicitly.
 
 Check status:
 
@@ -77,19 +81,38 @@ Destroy recorded resources:
 bash scripts/destroy.sh
 ```
 
-## Agent Recognition
+## Local Bridge
 
-Agents should read `SKILL.md` first. Use this skill when the user asks to deploy, resume, debug, verify, destroy, refresh agent credentials, or install Direxio MCP/plugin access.
+S6 writes these service-scoped files under `~/.direxio/nodes/<service_id>/`:
 
-After deployment, S6 detects the current runtime, such as Codex, Claude Code, Gemini, Cursor, GitHub Copilot, OpenClaw, or Hermes. After S7 passes, the executing agent must ask before automatically installing/configuring Direxio plugin and MCP access for the detected runtime. Non-interactive deployment can opt in with `DIREXIO_AGENT_INSTALL=auto`.
+```text
+credentials.json
+env
+cc-connect/config.toml
+cc-connect/data/
+cc-connect/matrix-session.json
+```
 
-OpenClaw and Hermes should prefer native long-process integration. Claude Code, Cursor, Gemini, and GitHub Copilot use MCP-only unless the user provides a local command for an external gateway. S6 records `agent_skill_install_path`, `agent_global_skill_install_path`, `agent_mcp_config_path`, and `agent_install_target_summary`; agents must follow those fields and `references/agent-targets.md` instead of defaulting to Codex paths.
-
-Gateway native send test:
+Manual install:
 
 ```bash
-source ~/.direxio/nodes/<service_id>/env
-npx -y -p @direxio/agent-plugins@latest direxio-agent-gateway send --room "$DIREXIO_AGENT_ROOM_ID" --message "hello"
+npm install -g @direxio/connent
+direxio-connect daemon install --config ~/.direxio/nodes/<service_id>/cc-connect/config.toml --force
+direxio-connect daemon status
+```
+
+Homebrew documentation should use:
+
+```bash
+brew install direxio-connect
+```
+
+Source builds use:
+
+```bash
+git clone https://github.com/YingSuiAI/connect.git
+cd connect
+make build AGENTS=<cc-connect-agent> PLATFORMS_INCLUDE=matrix
 ```
 
 ## Validation

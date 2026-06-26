@@ -1,137 +1,109 @@
 # Windows Deployment Notes
 
-Tested on Windows 10 (Git Bash / MSYS2). These notes capture quirks and gotchas that differ from Linux/macOS deployments.
+Tested on Windows 10+ with Git Bash / MSYS2. These notes capture quirks that differ from Linux/macOS deployments.
 
-## Skill Installation
+## Entry Point
 
-Hermes skills live under `~/AppData/Local/hermes/skills/`, not `~/.hermes/skills/`. When cloning the skill repo:
+Use the PowerShell wrapper from the repository root:
 
-```bash
-cd ~/AppData/Local/hermes/skills/
-git clone https://github.com/YingSuiAI/direxio-deployer.git
+```powershell
+.\scripts\orchestrate.ps1 status
+.\scripts\orchestrate.ps1
 ```
 
-After cloning, reload skills via `/reload-skills` or start a new session.
+The wrapper finds Git Bash and uses it for the Bash state machine, but sets `DIREXIO_LOCAL_PATH_STYLE=windows` so S6 writes Windows-compatible `direxio-connect` config paths and daemon install commands.
 
 ## Background Process Output Buffering
 
-When running `orchestrate.sh` as a background process (e.g. terminal background mode), bash buffers stdout because it's not connected to a terminal. The process runs correctly and writes state to `~/.direxio/deploy/state.json`, but **no live output appears** in the background log.
+When running `orchestrate.sh` as a background process, bash may buffer stdout because it is not connected to a terminal. The process still writes state to `~/.direxio/deploy/state.json`.
 
-To monitor progress, poll the state file instead:
+Poll progress with:
 
 ```bash
 cat ~/.direxio/deploy/state.json | jq '{phase, phases}'
 ```
 
-For real-time tailing of what the script is printing, use `stdbuf` to
-disable buffering if supported:
+For real-time tailing, use `stdbuf` when available:
 
 ```bash
-cd ~/AppData/Local/hermes/skills/direxio-deployer
-AWS_PROFILE=p2p-matrix \
-...
 stdbuf -oL bash scripts/orchestrate.sh 2>&1
 ```
 
-Note: `stdbuf` is available in Git Bash (coreutils) but may not work in all
-MSYS2 environments. When it fails, fall back to polling `state.json`.
+## DNS Diagnostics
 
-## DNS Diagnostics (Windows Git Bash)
+- `dig` is not always available in Git Bash. Use `nslookup` or Route53 API output.
+- Chinese locale can garble `nslookup` text; DNS resolution still works.
+- When local DNS cache is stale but the record is correct, pin the IP:
 
-Windows Git Bash has some DNS tooling quirks:
-
-- **`dig` is NOT available** in standard Git Bash. Use `nslookup` or the
-  AWS Route53 API instead.
-- **`nslookup` output is garbled in Chinese locale** — output text may appear
-  as garbled characters. This is cosmetic; DNS resolution still works.
-  To avoid garbled output, query Route53 directly:
-  ```bash
-  aws route53 list-resource-record-sets \
-    --hosted-zone-id Z... \
-    --query "ResourceRecordSets[?Type=='A']" \
-    --profile p2p-matrix
-  ```
-- **curl `--resolve` bypass** — when local DNS cache is stale but Route53
-  has the correct A record, use `--resolve` to pin the domain to the right IP:
-  ```bash
-  curl -sk --resolve __DOMAIN__:443:__EIP__ https://__DOMAIN__/healthz
-  ```
-- **Public DNS fallback** — if `nslookup` returns wrong cached results, try
-  a direct public resolver:
-  ```bash
-  nslookup __DOMAIN__ 8.8.8.8
-  ```
+```bash
+curl -sk --resolve __DOMAIN__:443:__EIP__ https://__DOMAIN__/healthz
+```
 
 ## AWS Proxy Bypass
 
-The `aws_env_prep()` function in `lib/aws.sh` already handles proxy bypass by setting `NO_PROXY=*` and unsetting `HTTP_PROXY`/`HTTPS_PROXY`. If AWS CLI still fails with proxy errors, check:
+`lib/aws.sh` sets `NO_PROXY=*` and unsets proxy variables for AWS CLI calls. If AWS still fails with proxy errors, check:
 
 ```bash
-# Verify no stale proxy env vars
 echo "HTTP_PROXY=$HTTP_PROXY"
 echo "HTTPS_PROXY=$HTTPS_PROXY"
-
-# Check aws config for proxy settings
 cat ~/.aws/config
 ```
 
-## Reading AWS Credential CSVs (Redaction Bypass)
+## Reading AWS Credential CSVs
 
-On Windows, both `read_file` and `terminal` (git-bash) may **automatically redact** AWS Access Key ID / Secret Access Key values from output, replacing characters with `...`. If the actual file contents appear truncated when using these tools, use `execute_code` (Python) to read the CSV and configure AWS CLI:
+Windows terminal output may redact AWS keys. If a CSV appears truncated in output, read it without printing secrets and configure AWS CLI directly. Never print or log credential values.
 
-```python
-import csv, subprocess
+## Runtime Detection
 
-with open(r"C:\Users\...\Downloads\rootkey.csv", newline='', encoding='utf-8-sig') as f:
-    reader = csv.reader(f)
-    for row in reader:
-        if len(row) >= 2 and row[0] != "Access key ID":
-            access_key = row[0].strip()
-            secret_key = row[1].strip()
-
-subprocess.run(["aws", "configure", "set", "aws_access_key_id", access_key, "--profile", "p2p-matrix"], check=True)
-subprocess.run(["aws", "configure", "set", "aws_secret_access_key", secret_key, "--profile", "p2p-matrix"], check=True)
-
-# Verify
-subprocess.run(["aws", "sts", "get-caller-identity", "--profile", "p2p-matrix"], check=True)
-```
-
-This reads the raw CSV bytes without triggering the output-level redaction, then writes credentials directly to `~/.aws/credentials` via the AWS CLI. Never print or log the credential values in messages.
-
-## MCP Server Config (args format)
-
-`hermes config set mcp_servers.X.args` stores the value as a **YAML string**, not a list. This causes Pydantic validation errors when testing:
-
-```
-Input should be a valid list [type=list_type, input_value='["-y","@direxio/local-mcp@latest"]', input_type=str]
-```
-
-**Fix:** Use `hermes mcp add --args` which writes a proper YAML list:
+S6 checks active runtime signals before historical config directories. If detection is ambiguous on Windows, set:
 
 ```bash
-hermes mcp add direxio \
-  --command npx \
-  --args -y -p @direxio/local-mcp@latest direxio-mcp \
-  --env DIREXIO_DOMAIN="https://__DOMAIN__" \
-  --env DIREXIO_AGENT_TOKEN="__AGENT_TOKEN__" \
-  --env DIREXIO_AGENT_ROOM_ID="__ROOM_ID__" \
-  --env DIREXIO_AGENT_NODE_ID="__AGENT_NODE_ID__"
+DIREXIO_CC_CONNECT_AGENT=claudecode
 ```
 
-Or remove and re-add with `--args` as the last positional option.
+or another supported connent/connect agent before running `scripts/orchestrate.sh`. Supported bridge agents are `acp`, `antigravity`, `claudecode`, `codex`, `copilot`, `cursor`, `devin`, `gemini`, `iflow`, `kimi`, `opencode`, `pi`, `qoder`, `reasonix`, and `tmux`.
 
-## Runtime Detection on Windows
+## direxio-connect
 
-The `_detect_agent_runtime()` function checks active-process signals before stale config directories. On Windows, Hermes home is `~/AppData/Local/hermes/` (set via `$HERMES_HOME`), while Codex Desktop commonly exposes active `.codex/tmp` paths.
+The npm path is the default local install:
 
-The env-var check `[ -n "${HERMES_HOME:-}" ]` is a reliable fallback after active-process detection.
+```bash
+npm install -g @direxio/connent
+direxio-connect daemon install --config "$HOME/.direxio/nodes/<service_id>/cc-connect/config.toml" --force
+direxio-connect daemon status
+```
 
-Also: `~/.codex` may exist from past Codex usage even when the current session is Hermes. Current S6 treats active runtime signals and runtime-specific `*_HOME` variables as stronger than historical directories. If a session still appears ambiguous, set `DIREXIO_AGENT_PLATFORM=<runtime>` explicitly before running deployment.
+If the command is not found after install, check the npm global bin directory:
+
+```bash
+npm bin -g
+```
+
+If an agent executable cannot be spawned from PATH, set a generic or agent-specific command before running S6:
+
+```powershell
+$env:DIREXIO_CC_CONNECT_AGENT = "gemini"
+$env:DIREXIO_GEMINI_COMMAND = "C:\Tools\gemini.cmd"
+```
+
+For Codex Desktop, the wrapper also tries to find the real bundled `codex.exe` because WindowsApps aliases cannot always be spawned by child processes:
+
+```powershell
+$codex = Get-ChildItem (Join-Path $env:LOCALAPPDATA 'OpenAI\Codex\bin') -Filter codex.exe -Recurse |
+  Select-Object -First 1 -ExpandProperty FullName
+$env:DIREXIO_CODEX_COMMAND = $codex
+```
+
+Use the Git Bash `$HOME` path for files generated by the deployer. If running `direxio-connect` from PowerShell, translate the config path to the Windows user profile path.
 
 ## EC2 SSH Key Paths
 
-SSH key files are written with Windows paths (e.g. `C:/Users/.../.direxio/deploy/p2p-*.pem`). The SSH command printed in the delivery summary works in Git Bash. If using PowerShell or cmd, convert forward slashes to backslashes.
+SSH key files are written with Windows-compatible paths such as `C:/Users/.../.direxio/deploy/p2p-*.pem`. The SSH command printed in the delivery summary works in Git Bash. If using PowerShell or cmd, convert forward slashes to backslashes.
 
 ## Verifying Deployment
 
-The `list_messages` MCP tool shows message timing using Unix millisecond timestamps. The `_matrix/client/versions` endpoint returns HTTP 200 when the Matrix service is healthy.
+The Matrix endpoint returns HTTP 200 when the service is healthy:
+
+```bash
+curl -sk https://<domain>/_matrix/client/versions
+```

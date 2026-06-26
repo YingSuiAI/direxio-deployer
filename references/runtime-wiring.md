@@ -1,25 +1,26 @@
 # Runtime Wiring
 
-After deployment, ops writes:
+After deployment, S6 writes service-scoped files under:
 
 ```text
-~/.direxio/nodes/<service_id>/credentials.json
-~/.direxio/nodes/<service_id>/env
+~/.direxio/nodes/<service_id>/
 ```
 
-`service_id` is derived from the deployed service domain, for example `__DOMAIN__` or `__SERVICE_ID__`.
+`service_id` is derived from the deployed service domain.
 
-Expected shape:
+## Credentials
+
+`credentials.json` keeps the IM login password, owner access token, agent token, and room identity:
 
 ```json
 {
   "profiles": {
     "default": {
       "password": "<login-password>",
-      "access_token": "<access-token>",
+      "access_token": "<owner-access-token>",
       "agent_room_id": "__ROOM_ID__",
       "direxio_domain": "https://__DOMAIN__",
-      "direxio_agent_token": "<token>",
+      "direxio_agent_token": "<agent-token>",
       "direxio_agent_room_id": "__ROOM_ID__",
       "direxio_agent_node_id": "__AGENT_NODE_ID__"
     }
@@ -27,42 +28,7 @@ Expected shape:
 }
 ```
 
-Use the client login `password` for the IM UI. Use `agent_token` only for Direxio MCP/plugin access.
-
-## Integration Targets
-
-```text
-MCP package : @direxio/local-mcp
-Agent plugins package : @direxio/agent-plugins
-```
-
-Read `references/agent-targets.md` for the runtime-specific skill clone paths, MCP/config payload paths, and native plugin targets. Do not assume Codex paths apply to Claude Code, Gemini, Cursor, Copilot, OpenClaw, Hermes, or generic agents.
-
-S6 does not install plugins or mutate an agent's MCP config unless `DIREXIO_AGENT_INSTALL=auto` is set. It detects the current runtime and records enough state for the executing agent to ask for explicit post-deploy approval before configuring Codex, Claude Code, Gemini, Cursor, Copilot, OpenClaw, Hermes, or another runtime.
-Set `DIREXIO_AGENT_INSTALL=auto` to explicitly authorize non-interactive installation; otherwise S6 defaults to `recommend`.
-
-S6 records these runtime target fields in `state.json`:
-
-```text
-agent_runtime
-agent_install_policy
-agent_install_mode
-agent_install_command
-agent_node_id
-agent_service_id
-agent_service_dir
-agent_credentials_file
-agent_env_file
-agent_workspace
-agent_skill_install_path
-agent_global_skill_install_path
-agent_mcp_config_path
-agent_install_target_summary
-```
-
-## Persistent Agent Environment
-
-S6 persists these user environment variables from deployment outputs:
+`env` contains the same service-scoped environment values for shell usage:
 
 ```bash
 DIREXIO_DOMAIN=https://__DOMAIN__
@@ -71,104 +37,104 @@ DIREXIO_AGENT_ROOM_ID=__ROOM_ID__
 DIREXIO_AGENT_NODE_ID=__AGENT_NODE_ID__
 ```
 
-`DIREXIO_*` is the only local integration contract for current MCP and plugin wiring. S6 does not write shell profiles, Windows user environment variables, or root-level compatibility env files; callers should source the service-specific env file explicitly.
+## cc-connect Matrix Bridge
 
-## MCP Server
+S6 calls `agent.matrix_session.create` with the owner token. Current message-server builds must return a Matrix session for `@agent:<server>`, not for `@owner:<server>`. The resulting session is stored at:
 
-Use `@direxio/local-mcp` as a stdio MCP server:
-
-```json
-{
-  "command": "npx",
-  "args": ["-y", "-p", "@direxio/local-mcp@latest", "direxio-mcp"],
-  "env": {
-    "DIREXIO_DOMAIN": "https://__DOMAIN__",
-    "DIREXIO_AGENT_TOKEN": "<agent-token>",
-    "DIREXIO_AGENT_ROOM_ID": "__ROOM_ID__",
-    "DIREXIO_AGENT_NODE_ID": "__AGENT_NODE_ID__"
-  }
-}
+```text
+~/.direxio/nodes/<service_id>/cc-connect/matrix-session.json
 ```
 
-Current published local MCP wiring reads direct `DIREXIO_*` environment
-variables. Do not generate a credential-file-only MCP payload unless the
-installed `@direxio/local-mcp` version explicitly documents that contract. If an
-agent config should not contain the token, use a small launcher wrapper that
-loads the service-scoped credentials/env file and then exports the same direct
-`DIREXIO_*` variables before executing the MCP server.
+S6 then writes:
 
-For Windows-native agents, prefer `%USERPROFILE%\.direxio\nodes\<service_id>`
-and `%USERPROFILE%\.codex` style paths in templates and scripts. Deployment
-docs may show `%USERPROFILE%` or `$env:USERPROFILE`; they must not publish a
-specific operator's home directory.
-
-## Gateway Native Send
-
-`direxio-agent-gateway` can send without MCP. It calls `/_p2p/command` action `mcp.messages.send` directly:
-
-```bash
-source ~/.direxio/nodes/<service_id>/env
-npx -y -p @direxio/agent-plugins@latest direxio-agent-gateway send --room "$DIREXIO_AGENT_ROOM_ID" --message "hello"
+```text
+~/.direxio/nodes/<service_id>/cc-connect/config.toml
 ```
 
-MCP is for active tools mounted into an agent. Gateway passive replies and manual `send` do not depend on `@direxio/local-mcp`.
+The config uses:
 
-Windows-native Codex should start gateway from Windows PowerShell, not WSL, when
-the current Codex app is a Windows process. Use environment-derived paths:
-
-```powershell
-$env:HOME = $env:USERPROFILE
-$env:CODEX_HOME = Join-Path $env:USERPROFILE '.codex'
-$env:XDG_CONFIG_HOME = Join-Path $env:USERPROFILE '.config'
-$codexBin = Get-ChildItem (Join-Path $env:LOCALAPPDATA 'OpenAI\Codex\bin') -Filter codex.exe -Recurse -ErrorAction SilentlyContinue |
-  Select-Object -First 1 -ExpandProperty FullName
-if ($codexBin) { $env:DIREXIO_CODEX_COMMAND = $codexBin }
-```
-
-Set `DIREXIO_CODEX_COMMAND` when `codex` resolves to a restricted WindowsApps
-alias or any path that cannot be spawned by the gateway process.
+- `type = "matrix"` only.
+- `homeserver` from the deployed Direxio domain.
+- `access_token`, `device_id`, and `user_id` from `agent.matrix_session.create`.
+- `room_id` from the real backend-created `agent_room_id`.
+- `share_session_in_channel = true` and `group_reply_all = true` for agent-room conversation continuity.
+- `auto_join = false` and `auto_verify = false`; message-server creates and joins the real room.
 
 ## Install Parameters
 
 ```bash
 DIREXIO_AGENT_PLATFORM=auto
+DIREXIO_CC_CONNECT_AGENT=<optional cc-connect agent>
 DIREXIO_AGENT_INSTALL=skip|recommend|auto
-DIREXIO_AGENT_INSTALL_MODE=recommended|mcp|native|gateway
+DIREXIO_AGENT_INSTALL_MODE=recommended|cc-connect
+DIREXIO_LOCAL_PATH_STYLE=posix|windows
+DIREXIO_CC_CONNECT_AGENT_CMD=<optional agent executable path>
+DIREXIO_<AGENT>_COMMAND=<optional agent-specific executable path>
+DIREXIO_CC_CONNECT_AGENT_OPTIONS_TOML=<optional extra TOML under projects.agent.options>
+DIREXIO_CC_CONNECT_NPM_PACKAGE=@direxio/connent
+DIREXIO_CC_CONNECT_REPO=https://github.com/YingSuiAI/connect.git
 ```
-
-`DIREXIO_AGENT_NODE_ID` is accepted only when it is scoped to the current
-deployment domain, so stale environment from a previous node cannot silently
-reuse the wrong identity. Set `DIREXIO_AGENT_NODE_ID_FORCE=1` only when an
-operator intentionally wants a custom node id that does not contain the current
-domain.
 
 Defaults:
 
-- `DIREXIO_AGENT_PLATFORM=auto` detects Codex, Claude Code, Gemini, Cursor, Copilot, OpenClaw, Hermes, or falls back to `unknown`.
-- Active runtime signals are evaluated before historical config directories:
-  runtime-specific process environment markers, current `PATH`/`PWD`
-  fingerprints, and current process names win over stale `~/.codex`,
-  `~/.hermes`, `~/.claude`, and similar directories. Generic API key variables
-  such as model-provider credentials are not treated as active runtime markers.
+- `DIREXIO_CC_CONNECT_AGENT` is the preferred explicit selector. It accepts every connent/connect agent: `acp`, `antigravity`, `claudecode`, `codex`, `copilot`, `cursor`, `devin`, `gemini`, `iflow`, `kimi`, `opencode`, `pi`, `qoder`, `reasonix`, and `tmux`.
+- `DIREXIO_AGENT_PLATFORM=auto` detects the local agent runtime and maps it to a `direxio-connect` agent type only when it can identify one unambiguously.
+- `DIREXIO_LOCAL_PATH_STYLE=windows` writes Windows-compatible `data_dir`, `work_dir`, config paths, and install commands. `scripts/orchestrate.ps1` sets this automatically.
+- `DIREXIO_CC_CONNECT_AGENT_CMD` writes `cmd = "<path>"` into `[projects.agent.options]`. Agent-specific forms such as `DIREXIO_CODEX_COMMAND`, `DIREXIO_CLAUDE_CODE_COMMAND`, `DIREXIO_GEMINI_COMMAND`, `DIREXIO_OPENCODE_COMMAND`, and `DIREXIO_QODERCLI_COMMAND` are also accepted.
+- `DIREXIO_CC_CONNECT_AGENT_OPTIONS_TOML` appends agent-specific options under `[projects.agent.options]`; use it for agents with required non-command options such as `reasonix` (`serve_url`) or `tmux` (`session`).
 - `DIREXIO_AGENT_INSTALL=recommend` prints and records the command only.
-- `DIREXIO_AGENT_INSTALL=auto` runs `npx -y -p @direxio/agent-plugins@latest direxio-agent-install --platform <runtime> --mode <mode> --node-id <agent_node_id> --workspace <agent_workspace> --credentials-file ~/.direxio/nodes/<service_id>/credentials.json --write`.
-- `DIREXIO_AGENT_INSTALL_MODE=recommended` maps OpenClaw/Hermes to `native`, Codex/generic to `gateway`, and non-long-process platforms to `mcp`.
+- `DIREXIO_AGENT_INSTALL=auto` runs `npm install -g @direxio/connent` and then installs the `direxio-connect` daemon with the generated config.
+- `DIREXIO_AGENT_INSTALL_MODE=recommended` maps every supported local runtime to `cc-connect`.
 
-Platform guidance:
+Manual command:
 
-- OpenClaw and Hermes: prefer native long-process integration using `/_p2p/events` and `mcp.messages.send`.
-- Codex: prefer gateway with `codex-app-server`; when Codex runs from Windows and the deployer is invoked through WSL, infer the Windows Codex home from active `.codex/tmp` paths or set `CODEX_HOME=/mnt/c/Users/<user>/.codex` explicitly. Do not treat a project-local `PROJECT_ROOT/.codex/skills` clone as the Codex user config home.
-- Claude Code, Cursor, Gemini, and Copilot: use MCP-only unless the user supplies a local prompt command for `generic-cli`.
-- Cursor repository target: copy or merge the generated MCP payload into `PROJECT_ROOT/.cursor/mcp.json`.
-- Copilot repository target: use read-only MCP by default at `PROJECT_ROOT/.github/copilot/mcp.json`; enable write-capable tools only with repository owner approval.
-- Gemini target: merge the generated settings payload into Gemini settings.
-
-## Plugin Install Prompt
-
-After S7 succeeds, ask the user whether to configure the detected runtime automatically:
-
-```text
-Detected <runtime>. Do you want me to automatically install/configure the Direxio plugin and MCP service for this agent using the persisted DIREXIO_* environment and the recorded runtime target paths?
+```bash
+npm install -g @direxio/connent
+direxio-connect daemon install --config ~/.direxio/nodes/<service_id>/cc-connect/config.toml --force
+direxio-connect daemon status
 ```
 
-Only proceed after the user agrees or after `DIREXIO_AGENT_INSTALL=auto` was set before deployment. Use the runtime-specific plugin under `@direxio/agent-plugins`, the MCP server configuration above, and the native gateway-send contract when passive replies are needed.
+Source fallback:
+
+```bash
+git clone https://github.com/YingSuiAI/connect.git
+cd connect
+make build AGENTS=<cc-connect-agent> PLATFORMS_INCLUDE=matrix
+./direxio-connect daemon install --config ~/.direxio/nodes/<service_id>/cc-connect/config.toml --force
+```
+
+## State Fields
+
+S6 records these bridge-related fields in `state.json`:
+
+```text
+agent_runtime
+agent_install_policy
+agent_install_mode
+agent_install_command
+agent_install_status
+agent_node_id
+agent_service_id
+agent_service_dir
+agent_credentials_file
+agent_env_file
+agent_workspace
+agent_skill_install_path
+agent_global_skill_install_path
+direxio_agent_bridge
+cc_connect_agent
+cc_connect_agent_cmd
+cc_connect_agent_options_toml_present
+cc_connect_npm_package
+cc_connect_repo
+cc_connect_ref
+cc_connect_source_dir
+cc_connect_runtime_dir
+cc_connect_config
+cc_connect_binary
+cc_connect_data_dir
+cc_connect_matrix_session_file
+cc_connect_matrix_user
+cc_connect_matrix_device
+cc_connect_matrix_homeserver
+```

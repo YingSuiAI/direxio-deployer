@@ -1,6 +1,6 @@
-# token 回填
+# Token Refresh
 
-每次重部署或清空数据卷后，`password` 和 token 都会变化。状态机 S6 会自动回填；手动恢复时按这里检查。
+每次重部署或清空数据卷后，`password`、owner `access_token`、`agent_token` 和 cc-connect Matrix session 都会变化。状态机 S6 会自动回填；手动恢复时按这里检查。
 
 ## 远端凭据
 
@@ -51,15 +51,25 @@ ssh -i <key.pem> ubuntu@<ip> 'sudo cat /opt/p2p/bootstrap.json' > bootstrap.json
 chmod 600 ~/.direxio/nodes/<service_id>/credentials.json
 ```
 
-S6 也会写 `~/.direxio/nodes/<service_id>/env`，当前 MCP/plugin 变量为 `DIREXIO_DOMAIN`、`DIREXIO_AGENT_TOKEN`、`DIREXIO_AGENT_ROOM_ID` 和 `DIREXIO_AGENT_NODE_ID`。
+S6 也会写：
+
+```text
+~/.direxio/nodes/<service_id>/env
+~/.direxio/nodes/<service_id>/cc-connect/matrix-session.json
+~/.direxio/nodes/<service_id>/cc-connect/config.toml
+```
+
+刷新后重新安装或重启本地 bridge：
+
+```bash
+direxio-connect daemon install --config ~/.direxio/nodes/<service_id>/cc-connect/config.toml --force
+direxio-connect daemon status
+```
 
 ## 验证
 
 ```bash
 curl -skf https://<domain>/healthz && echo OK
 curl -sk https://<domain>/.well-known/portal/owner.json
-curl -sk -X POST https://<domain>/_p2p/query \
-  -H "Authorization: Bearer <AGENT_TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{"action":"apis.list","params":{}}'
+curl -sk https://<domain>/_matrix/client/versions
 ```

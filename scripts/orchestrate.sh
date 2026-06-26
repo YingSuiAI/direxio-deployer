@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # orchestrate.sh - p2p-matrix deployment state-machine engine.
 #
-# Turns "one AWS credential -> working IM server -> local MCP" into 8 phases
+# Turns "one AWS credential -> working IM server -> local direxio-connect bridge" into 8 phases
 # (S0..S7). State is persisted to $P2P_WORKDIR/state.json and supports:
 #   - resume: continue from the first unfinished phase
 #   - checkpoints: wait for user/AWS actions without losing progress
@@ -110,8 +110,8 @@ cmd_status() {
 
 # Delivery summary.
 print_delivery() {
-  local domain asurl password keyfile pubip iid region statejson envfile agent_room_id runtime mcp_package plugin_pkg install_policy install_mode install_status install_command
-  local agent_node_id agent_service_dir agent_cred
+  local domain asurl password keyfile pubip iid region statejson envfile agent_room_id runtime install_policy install_mode install_status install_command
+  local agent_node_id agent_service_dir agent_cred cc_config cc_binary cc_agent cc_user cc_pkg
   domain=$(state_get domain); asurl=$(state_get as_url)
   password=$(state_get password)
   keyfile=$(res_get key_file); pubip=$(res_get public_ip)
@@ -122,9 +122,11 @@ print_delivery() {
   agent_cred=$(state_get agent_credentials_file)
   agent_room_id=$(state_get agent_room_id)
   runtime=$(state_get agent_runtime)
-  mcp_package=$(state_get direxio_mcp_package)
-  plugin_pkg=$(state_get direxio_agent_plugins_package)
-  [ -n "$plugin_pkg" ] || plugin_pkg=$(state_get direxio_plugin_repo)
+  cc_config=$(state_get cc_connect_config)
+  cc_binary=$(state_get cc_connect_binary)
+  cc_agent=$(state_get cc_connect_agent)
+  cc_user=$(state_get cc_connect_matrix_user)
+  cc_pkg=$(state_get cc_connect_npm_package)
   install_policy=$(state_get agent_install_policy)
   install_mode=$(state_get agent_install_mode)
   install_status=$(state_get agent_install_status)
@@ -137,12 +139,12 @@ print_delivery() {
   echo "  service dir  : ${agent_service_dir:-not recorded}"
   echo "  tokens       : password, access_token, and agent_token written to ${agent_cred:-~/.direxio/nodes/<service_id>/credentials.json}"
   echo "  agent room   : ${agent_room_id:-written to credentials.json}"
-  echo "  MCP package  : ${mcp_package:-@direxio/local-mcp}"
-  echo "  plugins pkg  : ${plugin_pkg:-@direxio/agent-plugins}"
+  echo "  cc-connect   : package=${cc_pkg:-@direxio/connent} config=${cc_config:-not recorded} command=${cc_binary:-direxio-connect}"
+  echo "  matrix user  : ${cc_user:-created during S6}"
   echo "  agent runtime: ${runtime:-unknown}"
-  echo "  install mode : policy=${install_policy:-recommend} mode=${install_mode:-recommended} status=${install_status:-recommend}"
+  echo "  install mode : policy=${install_policy:-recommend} mode=${install_mode:-cc-connect} agent=${cc_agent:-codex} status=${install_status:-recommend}"
   [ -n "$install_command" ] && echo "  install cmd  : $install_command"
-  echo "  gateway send : npx -y -p @direxio/agent-plugins@latest direxio-agent-gateway send --room \"\$DIREXIO_AGENT_ROOM_ID\" --message \"hello\""
+  echo "  daemon       : ${cc_binary:-direxio-connect} daemon status"
   echo "  env vars     : DIREXIO_DOMAIN, DIREXIO_AGENT_TOKEN, DIREXIO_AGENT_ROOM_ID persisted${envfile:+ via $envfile}"
   echo "  AWS region   : $region"
   echo "  EC2          : $iid ($pubip)"
