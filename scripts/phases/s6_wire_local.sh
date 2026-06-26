@@ -449,7 +449,7 @@ _write_agent_env_file() {
     [ -n "$node_id" ] && printf 'export DIREXIO_AGENT_NODE_ID=%q\n' "$node_id"
     printf 'export DIREXIO_DOMAIN=%q\n' "$asurl"
     printf 'export DIREXIO_AGENT_TOKEN=%q\n' "$token"
-    printf 'export DIREXIO_AGENT_ROOM_ID=%q\n' "$agent_room_id"
+    printf 'export DIREXIO_AGENT_ROOM_ID=%s\n' "$(printf '%s' "$agent_room_id" | sed "s/'/'\\\\''/g")"
   } > "$envfile"
   chmod 600 "$envfile"
   echo "$envfile"
