@@ -23,7 +23,8 @@
 - S6 rejects legacy pseudo agent rooms such as `!agent:<domain>` and requires the real Matrix `agent_room_id` created by message-server.
 - S6 creates an `@agent:<server>` Matrix session through `agent.matrix_session.create`, writes a Matrix-only `cc-connect/config.toml`, and restricts the bridge to the current `agent_room_id`.
 - `DIREXIO_CC_CONNECT_AGENT` selects the local `direxio-connect` agent type. Supported values match connent/connect: `acp`, `antigravity`, `claudecode`, `codex`, `copilot`, `cursor`, `devin`, `gemini`, `iflow`, `kimi`, `opencode`, `pi`, `qoder`, `reasonix`, and `tmux`.
-- Set `DIREXIO_CC_CONNECT_AGENT_CMD` or `DIREXIO_<AGENT>_COMMAND` when a local agent executable is not discoverable from PATH. Codex also supports `DIREXIO_CODEX_COMMAND` for Windows Desktop installs.
+- Detected OpenClaw and Hermes runtimes are wired through the generic `acp` agent, not native `type = "openclaw"` or `type = "hermes"` connect agents. S6 writes `cmd = "openclaw"` or `cmd = "hermes"` with default `args = ["acp"]`.
+- Set `DIREXIO_CC_CONNECT_AGENT_CMD` or `DIREXIO_<AGENT>_COMMAND` when a local agent executable is not discoverable from PATH. Codex also supports `DIREXIO_CODEX_COMMAND` for Windows Desktop installs; OpenClaw and Hermes support `DIREXIO_OPENCLAW_COMMAND` and `DIREXIO_HERMES_COMMAND`.
 - `DIREXIO_AGENT_INSTALL=auto` installs `@direxio/connent` and runs `direxio-connect daemon install --config <config> --force`. The default `recommend` mode only records and prints the command.
 
 ## Minimal Command
@@ -70,6 +71,7 @@ bash scripts/orchestrate.sh
 
 Supported install modes: `recommended` and `cc-connect`.
 If `DIREXIO_AGENT_PLATFORM=auto` cannot identify a single supported runtime, set `DIREXIO_CC_CONNECT_AGENT` explicitly.
+For OpenClaw or Hermes defaults, force the host runtime with `DIREXIO_AGENT_PLATFORM=openclaw` or `DIREXIO_AGENT_PLATFORM=hermes`; setting only `DIREXIO_CC_CONNECT_AGENT=acp` selects generic ACP and requires manual options. For OpenClaw Gateway ACP, set `DIREXIO_OPENCLAW_ACP_URL` and complete OpenClaw pairing before starting the daemon. Use `DIREXIO_OPENCLAW_ACP_ARGS_TOML` or `DIREXIO_HERMES_ACP_ARGS_TOML` for custom ACP argument arrays.
 
 Check status:
 

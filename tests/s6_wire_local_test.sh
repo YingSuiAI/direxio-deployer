@@ -199,12 +199,18 @@ grep -q 'model = "whisper-test"' "$speech_config_path"
 [ "$(_cc_connect_agent_type opencode)" = "opencode" ]
 [ "$(_cc_connect_agent_type qodercli)" = "qoder" ]
 [ "$(_cc_connect_agent_type antigravity)" = "antigravity" ]
+[ "$(_cc_connect_agent_type openclaw)" = "acp" ]
+[ "$(_cc_connect_agent_type hermes)" = "acp" ]
 [ "$(DIREXIO_CC_CONNECT_AGENT=gemini _cc_connect_agent_type unknown)" = "gemini" ]
 [ "$(DIREXIO_CODEX_COMMAND=/opt/codex/bin/codex _cc_connect_agent_command codex)" = "/opt/codex/bin/codex" ]
 [ "$(DIREXIO_GEMINI_COMMAND=/opt/gemini/bin/gemini _cc_connect_agent_command gemini)" = "/opt/gemini/bin/gemini" ]
 [ "$(DIREXIO_CLAUDE_CODE_COMMAND=/opt/claude/bin/claude _cc_connect_agent_command claudecode)" = "/opt/claude/bin/claude" ]
 [ "$(DIREXIO_QODERCLI_COMMAND=/opt/qoder/qodercli _cc_connect_agent_command qoder)" = "/opt/qoder/qodercli" ]
 [ "$(DIREXIO_CC_CONNECT_AGENT_CMD=/custom/agent _cc_connect_agent_command codex)" = "/custom/agent" ]
+[ "$(_cc_connect_agent_command acp openclaw)" = "openclaw" ]
+[ "$(_cc_connect_agent_command acp hermes)" = "hermes" ]
+[ "$(DIREXIO_OPENCLAW_COMMAND=/opt/openclaw/bin/openclaw _cc_connect_agent_command acp openclaw)" = "/opt/openclaw/bin/openclaw" ]
+[ "$(DIREXIO_HERMES_COMMAND=/opt/hermes/bin/hermes _cc_connect_agent_command acp hermes)" = "/opt/hermes/bin/hermes" ]
 
 cmd_config_path="$tmp/cc-connect/config-with-cmd.toml"
 _write_cc_connect_config "$cmd_config_path" "$tmp/cc-connect/data-cmd" "codex-node" "codex" "$tmp/workspace" "https://im.example.test" "matrix-token" "@agent:im.example.test" "!agents-real:im.example.test" "@owner:im.example.test" "/opt/codex/bin/codex"
@@ -214,6 +220,37 @@ options_config_path="$tmp/cc-connect/config-with-extra-options.toml"
 _write_cc_connect_config "$options_config_path" "$tmp/cc-connect/data-options" "reasonix-node" "reasonix" "$tmp/workspace" "https://im.example.test" "matrix-token" "@agent:im.example.test" "!agents-real:im.example.test" "@owner:im.example.test" "" 'serve_url = "http://127.0.0.1:8080"'
 grep -q 'type = "reasonix"' "$options_config_path"
 grep -q 'serve_url = "http://127.0.0.1:8080"' "$options_config_path"
+
+openclaw_options=$(_cc_connect_agent_options_toml openclaw acp)
+[[ "$openclaw_options" == *'args = ["acp"]'* ]]
+[[ "$openclaw_options" == *'display_name = "OpenClaw ACP"'* ]]
+
+openclaw_url_options=$(DIREXIO_OPENCLAW_ACP_URL=wss://gateway.example.test:18789 _cc_connect_agent_options_toml openclaw acp)
+[[ "$openclaw_url_options" == *'args = ["acp", "--url", "wss://gateway.example.test:18789"]'* ]]
+
+openclaw_posix_token_options=$(DIREXIO_LOCAL_PATH_STYLE=posix DIREXIO_OPENCLAW_ACP_TOKEN_FILE=/mnt/c/Users/alice/.openclaw/token.json _cc_connect_agent_options_toml openclaw acp)
+[[ "$openclaw_posix_token_options" == *'args = ["acp", "--token-file", "/mnt/c/Users/alice/.openclaw/token.json"]'* ]]
+
+openclaw_token_options=$(DIREXIO_LOCAL_PATH_STYLE=windows DIREXIO_OPENCLAW_ACP_TOKEN_FILE=/mnt/c/Users/alice/.openclaw/token.json _cc_connect_agent_options_toml openclaw acp)
+[[ "$openclaw_token_options" == *'args = ["acp", "--token-file", "C:/Users/alice/.openclaw/token.json"]'* ]]
+
+hermes_options=$(_cc_connect_agent_options_toml hermes acp)
+[[ "$hermes_options" == *'args = ["acp"]'* ]]
+[[ "$hermes_options" == *'display_name = "Hermes ACP"'* ]]
+
+openclaw_config_path="$tmp/cc-connect/config-openclaw.toml"
+_write_cc_connect_config "$openclaw_config_path" "$tmp/cc-connect/data-openclaw" "openclaw-node" "$(_cc_connect_agent_type openclaw)" "$tmp/workspace" "https://im.example.test" "matrix-token" "@agent:im.example.test" "!agents-real:im.example.test" "@owner:im.example.test" "$(_cc_connect_agent_command acp openclaw)" "$(_cc_connect_agent_options_toml openclaw acp)"
+grep -q 'type = "acp"' "$openclaw_config_path"
+grep -q 'cmd = "openclaw"' "$openclaw_config_path"
+grep -q 'args = \["acp"\]' "$openclaw_config_path"
+grep -q 'display_name = "OpenClaw ACP"' "$openclaw_config_path"
+
+hermes_config_path="$tmp/cc-connect/config-hermes.toml"
+_write_cc_connect_config "$hermes_config_path" "$tmp/cc-connect/data-hermes" "hermes-node" "$(_cc_connect_agent_type hermes)" "$tmp/workspace" "https://im.example.test" "matrix-token" "@agent:im.example.test" "!agents-real:im.example.test" "@owner:im.example.test" "$(_cc_connect_agent_command acp hermes)" "$(_cc_connect_agent_options_toml hermes acp)"
+grep -q 'type = "acp"' "$hermes_config_path"
+grep -q 'cmd = "hermes"' "$hermes_config_path"
+grep -q 'args = \["acp"\]' "$hermes_config_path"
+grep -q 'display_name = "Hermes ACP"' "$hermes_config_path"
 
 guidance=$(
   _print_cc_connect_guidance codex https://im.example.test "$HOME/.direxio/nodes/im.example.test/credentials.json" "$HOME/.direxio/nodes/im.example.test/env" recommend cc-connect "install command" codex-im "$config_path" "$HOME/.direxio/nodes/im.example.test/cc-connect/bin/direxio-connect" codex "/opt/codex/bin/codex" 2>&1 >/dev/null
