@@ -155,7 +155,7 @@ fi
 
 install_command=$(_agent_install_command "direxio-connect" "$HOME/.direxio/nodes/im.example.test/cc-connect/config.toml" "im.example.test")
 case "$install_command" in
-  *"npm install -g"*"@direxio/connent@1.3.6"*"direxio-connect"*"daemon install"*"--config"*"im.example.test/cc-connect/config.toml"*"--service-name"*"im.example.test"*"--force"*) ;;
+  *"npm install -g"*"@direxio/connent@1.3.7"*"direxio-connect"*"daemon install"*"--config"*"im.example.test/cc-connect/config.toml"*"--service-name"*"im.example.test"*"--force"*) ;;
   *)
     echo "install command did not include expected cc-connect daemon flags: $install_command" >&2
     exit 1
@@ -298,7 +298,7 @@ guidance=$(
 [[ "$guidance" == *"cc-connect config"* ]]
 [[ "$guidance" == *"/opt/codex/bin/codex"* ]]
 [[ "$guidance" == *"daemon install"* ]]
-[[ "$guidance" == *"@direxio/connent@1.3.6"* || "$install_command" == *"@direxio/connent@1.3.6"* ]]
+[[ "$guidance" == *"@direxio/connent@1.3.7"* || "$install_command" == *"@direxio/connent@1.3.7"* ]]
 [[ "$guidance" == *"type = \"matrix\""* || "$guidance" == *"cc-connect will use Matrix"* ]]
 bad_credentials_env_name="DIREXIO_CREDENTIALS""_FILE"
 if [[ "$guidance" == *"$bad_credentials_env_name"* ]]; then
