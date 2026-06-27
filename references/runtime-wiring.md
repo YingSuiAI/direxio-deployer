@@ -67,7 +67,7 @@ This is intentionally separate from the `direxio-connect` bridge. MCP uses the d
 Install and check the MCP package:
 
 ```bash
-npm install -g @direxio/local-mcp
+npm install -g @direxio/local-mcp@0.1.2
 DIREXIO_CREDENTIALS_FILE=~/.direxio/nodes/<service_id>/credentials.json direxio-mcp doctor --json
 ```
 
@@ -109,9 +109,9 @@ DIREXIO_LOCAL_PATH_STYLE=posix|windows
 DIREXIO_CC_CONNECT_AGENT_CMD=<optional agent executable path>
 DIREXIO_<AGENT>_COMMAND=<optional agent-specific executable path>
 DIREXIO_CC_CONNECT_AGENT_OPTIONS_TOML=<optional extra TOML under projects.agent.options>
-DIREXIO_CC_CONNECT_NPM_PACKAGE=@direxio/connent
+DIREXIO_CC_CONNECT_NPM_PACKAGE=@direxio/connent@1.3.6
 DIREXIO_CC_CONNECT_REPO=https://github.com/YingSuiAI/connect.git
-DIREXIO_MCP_NPM_PACKAGE=@direxio/local-mcp
+DIREXIO_MCP_NPM_PACKAGE=@direxio/local-mcp@0.1.2
 DIREXIO_MCP_COMMAND=direxio-mcp
 DIREXIO_SPEECH_PROVIDER=openai|groq|qwen|gemini
 DIREXIO_SPEECH_API_KEY=<optional generic STT key>
@@ -128,14 +128,14 @@ Defaults:
 - `DIREXIO_CC_CONNECT_AGENT_CMD` writes `cmd = "<path>"` into `[projects.agent.options]`. Agent-specific forms such as `DIREXIO_CODEX_COMMAND`, `DIREXIO_CLAUDE_CODE_COMMAND`, `DIREXIO_GEMINI_COMMAND`, `DIREXIO_OPENCODE_COMMAND`, and `DIREXIO_QODERCLI_COMMAND` are also accepted.
 - `DIREXIO_CC_CONNECT_AGENT_OPTIONS_TOML` appends agent-specific options under `[projects.agent.options]`; use it for agents with required non-command options such as `reasonix` (`serve_url`) or `tmux` (`session`).
 - `DIREXIO_AGENT_INSTALL=recommend` prints and records the command only.
-- `DIREXIO_AGENT_INSTALL=auto` runs `npm install -g @direxio/connent` and then installs the `direxio-connect` daemon with the generated config and `--service-name <service_id>`. It is recorded as installed only when `direxio-connect daemon status --service-name <service_id>` reports `Status: Running`; otherwise S6 records `agent_install_status=install_failed`.
+- `DIREXIO_AGENT_INSTALL=auto` runs `npm install -g @direxio/connent@1.3.6` and then installs the `direxio-connect` daemon with the generated config and `--service-name <service_id>`. It is recorded as installed only when `direxio-connect daemon status --service-name <service_id>` reports `Status: Running`; otherwise S6 records `agent_install_status=install_failed`.
 - `DIREXIO_AGENT_INSTALL_MODE=recommended` maps every supported local runtime to `cc-connect`.
 - Speech defaults to `DIREXIO_SPEECH_PROVIDER=openai` and `DIREXIO_SPEECH_LANGUAGE=zh`. Provider-specific keys are also accepted: `DIREXIO_SPEECH_OPENAI_API_KEY` or `OPENAI_API_KEY`, `DIREXIO_SPEECH_GROQ_API_KEY` or `GROQ_API_KEY`, `DIREXIO_SPEECH_QWEN_API_KEY` or `DASHSCOPE_API_KEY`, and `DIREXIO_SPEECH_GEMINI_API_KEY`, `GEMINI_API_KEY`, or `GOOGLE_API_KEY`. Set `DIREXIO_SPEECH_ENABLED=false` to suppress speech config generation even when a key exists.
 
 Manual command:
 
 ```bash
-npm install -g @direxio/connent
+npm install -g @direxio/connent@1.3.6
 direxio-connect daemon install --config ~/.direxio/nodes/<service_id>/cc-connect/config.toml --service-name <service_id> --force
 direxio-connect daemon status --service-name <service_id>
 ```

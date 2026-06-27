@@ -155,7 +155,7 @@ fi
 
 install_command=$(_agent_install_command "direxio-connect" "$HOME/.direxio/nodes/im.example.test/cc-connect/config.toml" "im.example.test")
 case "$install_command" in
-  *"npm install -g"*"@direxio/connent"*"direxio-connect"*"daemon install"*"--config"*"im.example.test/cc-connect/config.toml"*"--service-name"*"im.example.test"*"--force"*) ;;
+  *"npm install -g"*"@direxio/connent@1.3.6"*"direxio-connect"*"daemon install"*"--config"*"im.example.test/cc-connect/config.toml"*"--service-name"*"im.example.test"*"--force"*) ;;
   *)
     echo "install command did not include expected cc-connect daemon flags: $install_command" >&2
     exit 1
@@ -186,7 +186,7 @@ jq -e '.mcpServers["direxio-im.example.test"].command == "direxio-mcp"' "$mcp_se
 jq -e '.mcpServers["direxio-im.example.test"].env.DIREXIO_CREDENTIALS_FILE == "'"$mcp_credentials"'"' "$mcp_service_dir/mcp/hermes.mcp.json" >/dev/null
 grep -q 'DIREXIO_AGENT_NODE_ID=codex-im-example' "$mcp_service_dir/mcp/env"
 mcp_install_command=$(_mcp_install_command)
-[[ "$mcp_install_command" == *"npm install -g"*"@direxio/local-mcp"* ]]
+[[ "$mcp_install_command" == *"npm install -g"*"@direxio/local-mcp@0.1.2"* ]]
 mcp_doctor_command=$(_mcp_doctor_command "$mcp_credentials" "codex-im-example")
 [[ "$mcp_doctor_command" == *"DIREXIO_CREDENTIALS_FILE="* ]]
 [[ "$mcp_doctor_command" == *"direxio-mcp doctor --json"* ]]
@@ -298,7 +298,7 @@ guidance=$(
 [[ "$guidance" == *"cc-connect config"* ]]
 [[ "$guidance" == *"/opt/codex/bin/codex"* ]]
 [[ "$guidance" == *"daemon install"* ]]
-[[ "$guidance" == *"@direxio/connent"* || "$install_command" == *"@direxio/connent"* ]]
+[[ "$guidance" == *"@direxio/connent@1.3.6"* || "$install_command" == *"@direxio/connent@1.3.6"* ]]
 [[ "$guidance" == *"type = \"matrix\""* || "$guidance" == *"cc-connect will use Matrix"* ]]
 bad_credentials_env_name="DIREXIO_CREDENTIALS""_FILE"
 if [[ "$guidance" == *"$bad_credentials_env_name"* ]]; then

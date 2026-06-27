@@ -263,15 +263,15 @@ DIREXIO_AGENT_INSTALL=recommend
 DIREXIO_AGENT_INSTALL_MODE=recommended
 ```
 
-The only supported local conversation bridge is `direxio-connect`, installed from `@direxio/connent` or built from `https://github.com/YingSuiAI/connect.git`. S6 creates a Matrix session for `@agent:<server>`, writes `~/.direxio/nodes/<service_id>/cc-connect/config.toml`, and restricts the bridge to the real `agent_room_id`.
+The only supported local conversation bridge is `direxio-connect`, installed from `@direxio/connent@1.3.6` by default or built from `https://github.com/YingSuiAI/connect.git`. S6 creates a Matrix session for `@agent:<server>`, writes `~/.direxio/nodes/<service_id>/cc-connect/config.toml`, and restricts the bridge to the real `agent_room_id`.
 
-The local MCP tool surface is `direxio-mcp`, installed from `@direxio/local-mcp`. S6 writes `mcp/codex.toml`, `mcp/openclaw.mcp.json`, `mcp/hermes.mcp.json`, `mcp/mcp-servers.json`, and `mcp/env`; these snippets point to `credentials.json` by `DIREXIO_CREDENTIALS_FILE`. Keep this separate from cc-connect: cc-connect must use its direct Matrix config and must not use `DIREXIO_CREDENTIALS_FILE`.
+The local MCP tool surface is `direxio-mcp`, installed from `@direxio/local-mcp@0.1.2` by default. S6 writes `mcp/codex.toml`, `mcp/openclaw.mcp.json`, `mcp/hermes.mcp.json`, `mcp/mcp-servers.json`, and `mcp/env`; these snippets point to `credentials.json` by `DIREXIO_CREDENTIALS_FILE`. Keep this separate from cc-connect: cc-connect must use its direct Matrix config and must not use `DIREXIO_CREDENTIALS_FILE`.
 
 `DIREXIO_CC_CONNECT_AGENT` is the preferred explicit selector. Supported values match connent/connect: `acp`, `antigravity`, `claudecode`, `codex`, `copilot`, `cursor`, `devin`, `gemini`, `iflow`, `kimi`, `opencode`, `pi`, `qoder`, `reasonix`, and `tmux`. Use `DIREXIO_CC_CONNECT_AGENT_CMD`, `DIREXIO_<AGENT>_COMMAND`, and when needed `DIREXIO_CC_CONNECT_AGENT_OPTIONS_TOML` for agent-specific launch details.
 
 `DIREXIO_AGENT_PLATFORM` describes the host runtime following the skill, while `DIREXIO_CC_CONNECT_AGENT` describes the local agent backend that `direxio-connect` should launch. Host runtimes such as Hermes or OpenClaw are not cc-connect backends; when they are detected, set `DIREXIO_CC_CONNECT_AGENT` explicitly, for example `DIREXIO_AGENT_PLATFORM=hermes DIREXIO_CC_CONNECT_AGENT=codex`.
 
-`DIREXIO_AGENT_INSTALL` may be `skip`, `recommend`, or `auto`. Only `auto` attempts to run `npm install -g @direxio/connent` and `direxio-connect daemon install --config ~/.direxio/nodes/<service_id>/cc-connect/config.toml --service-name <service_id> --force`; the default `recommend` records and prints the command without mutating local daemon state. An automatic install is reported as installed only when `direxio-connect daemon status --service-name <service_id>` returns `Status: Running`; otherwise S6 records `agent_install_status=install_failed`.
+`DIREXIO_AGENT_INSTALL` may be `skip`, `recommend`, or `auto`. Only `auto` attempts to run `npm install -g @direxio/connent@1.3.6` and `direxio-connect daemon install --config ~/.direxio/nodes/<service_id>/cc-connect/config.toml --service-name <service_id> --force`; the default `recommend` records and prints the command without mutating local daemon state. An automatic install is reported as installed only when `direxio-connect daemon status --service-name <service_id>` returns `Status: Running`; otherwise S6 records `agent_install_status=install_failed`.
 
 Voice input is supported through `direxio-connect` speech-to-text. When `DIREXIO_SPEECH_API_KEY` or a provider-specific key such as `DIREXIO_SPEECH_QWEN_API_KEY`, `OPENAI_API_KEY`, `GROQ_API_KEY`, `DASHSCOPE_API_KEY`, `GEMINI_API_KEY`, or `GOOGLE_API_KEY` is present, S6 writes `[speech] enabled = true` into the generated config. Without an STT key, do not claim voice input is enabled.
 
@@ -438,7 +438,7 @@ service_dir  : ~/.direxio/nodes/<service_id>
 agent_token  : written to ~/.direxio/nodes/<service_id>/credentials.json
 agent_room_id: written to ~/.direxio/nodes/<service_id>/credentials.json
 env vars      : DIREXIO_DOMAIN, DIREXIO_AGENT_TOKEN, DIREXIO_AGENT_ROOM_ID, DIREXIO_AGENT_NODE_ID persisted
-connect pkg   : @direxio/connent
+connect pkg   : @direxio/connent@1.3.6
 connect agent : <cc_connect_agent>
 connect config: <cc_connect_config>
 connect user  : <cc_connect_matrix_user>
@@ -446,7 +446,7 @@ connect device: <cc_connect_matrix_device>
 agent command : <cc_connect_agent_cmd or default PATH lookup>
 install mode  : policy=<skip|recommend|auto> mode=<cc-connect> status=<...>
 install cmd   : <agent_install_command>
-mcp pkg       : @direxio/local-mcp
+mcp pkg       : @direxio/local-mcp@0.1.2
 mcp server    : <mcp_server_name>
 mcp config dir: <mcp_config_dir>
 mcp codex     : <mcp_codex_config>
@@ -467,7 +467,7 @@ Mention that AWS resources keep billing until destroyed. User-managed DNS and pu
 If `DIREXIO_AGENT_INSTALL=auto` was not used, or if it recorded `install_failed`, give the manual command:
 
 ```bash
-npm install -g @direxio/connent
+npm install -g @direxio/connent@1.3.6
 direxio-connect daemon install --config <cc_connect_config> --service-name <service_id> --force
 direxio-connect daemon status --service-name <service_id>
 ```
@@ -475,7 +475,7 @@ direxio-connect daemon status --service-name <service_id>
 For MCP-capable hosts, also give the recorded MCP command and snippet paths:
 
 ```bash
-npm install -g @direxio/local-mcp
+npm install -g @direxio/local-mcp@0.1.2
 DIREXIO_CREDENTIALS_FILE=<mcp_credentials_file> direxio-mcp doctor --json
 ```
 

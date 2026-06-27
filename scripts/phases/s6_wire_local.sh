@@ -434,7 +434,7 @@ _cc_connect_repo() {
 }
 
 _cc_connect_npm_package() {
-  printf '%s\n' "${DIREXIO_CC_CONNECT_NPM_PACKAGE:-@direxio/connent}"
+  printf '%s\n' "${DIREXIO_CC_CONNECT_NPM_PACKAGE:-@direxio/connent@1.3.6}"
 }
 
 _cc_connect_ref() {
@@ -457,7 +457,7 @@ _cc_connect_config_path() {
 }
 
 _mcp_npm_package() {
-  printf '%s\n' "${DIREXIO_MCP_NPM_PACKAGE:-@direxio/local-mcp}"
+  printf '%s\n' "${DIREXIO_MCP_NPM_PACKAGE:-@direxio/local-mcp@0.1.2}"
 }
 
 _mcp_command() {
