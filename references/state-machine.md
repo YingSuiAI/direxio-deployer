@@ -10,7 +10,7 @@
 - **S3_PROVISION**: 创建 EC2、密钥对、安全组、Elastic IP，渲染 cloud-init。默认镜像 `MESSAGE_SERVER_IMAGE=direxio/message-server:latest`。
 - **S4_BOOTSTRAP_STACK**: 等 cloud-init 安装 Docker 并启动 `postgres:18 + message-server + caddy + coturn`，轮询 `https://<domain>/healthz`。
 - **S5_INIT_TOKENS**: SSH 读取云端 `init-tokens.sh` 生成的 `/opt/p2p/bootstrap.json`，归一化 `password`、`access_token`、`agent_token`、真实 `agent_room_id`。云端脚本会先调用 `portal.bootstrap`，并在服务端未返回房间时用 Matrix Client API 创建和回写真实 agent room。`password` 和 owner `access_token` 按一次性/易失凭据处理；需要登录或用 token 调接口前，必须重新从服务器拉取最新 `/opt/p2p/bootstrap.json`，不要复用旧输出。
-- **S6_WIRE_LOCAL**: 写本地凭据、创建 `@agent:<server>` Matrix session、写 `cc-connect/config.toml`，并按策略安装或推荐 `direxio-connect`。
+- **S6_WIRE_LOCAL**: 写本地凭据、创建 `@agent:<server>` Matrix session、写 `cc-connect/config.toml`，写 MCP 配置片段，并按策略安装或推荐 `direxio-connect`。
 - **S7_VERIFY_E2E**: 验证 `/_p2p`、Matrix versions、well-known、owner.json+CORS、TURN。
 
 ## 云端 compose
@@ -30,8 +30,10 @@
 - 本地服务凭据: `~/.direxio/nodes/<service_id>/credentials.json`
 - 环境文件: `~/.direxio/nodes/<service_id>/env`
 - cc-connect 配置: `~/.direxio/nodes/<service_id>/cc-connect/config.toml`
+- MCP 配置目录: `~/.direxio/nodes/<service_id>/mcp/`
 - Matrix bridge 用户: `@agent:<server>`
 - 安装命令: `npm install -g @direxio/connent && direxio-connect daemon install --config <config> --service-name <service_id> --force`
+- MCP 检查命令: `DIREXIO_CREDENTIALS_FILE=<credentials.json> direxio-mcp doctor --json`
 - AWS 信息: region、instance id、Elastic IP、SSH 命令、state.json、destroy 命令
 
 ## 常见阻断

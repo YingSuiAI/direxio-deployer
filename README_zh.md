@@ -1,6 +1,6 @@
 # Direxio Deployer
 
-`direxio-deployer` 是用于部署生产 Direxio message server 的通用 Agent Skill，并通过 Direxio 专用 Matrix 桥接把本地 agent room 接到当前 agent。当前本地桥接只支持 `direxio-connect`，安装包是 `@direxio/connent`，源码仓库是 `YingSuiAI/connect`。
+`direxio-deployer` 是用于部署生产 Direxio message server 的通用 Agent Skill，并通过 Direxio 专用 Matrix 桥接把本地 agent room 接到当前 agent。当前本地桥接只支持 `direxio-connect`，安装包是 `@direxio/connent`，源码仓库是 `YingSuiAI/connect`。S6 也会给 Codex、OpenClaw、Hermes 这类支持 MCP 的宿主写入服务级 MCP 配置片段。
 
 ## 内容
 
@@ -20,6 +20,7 @@
 - 从服务端同步的 `password` 和 owner `access_token` 按一次性/易失凭据处理；登录或调接口前先重新拉取服务器 `/opt/p2p/bootstrap.json`，不要复用旧输出。
 - S6 会拒绝 `!agent:<domain>` 这类旧伪房间，只接受 message-server 创建的真实 Matrix `agent_room_id`。
 - S6 会通过 `agent.matrix_session.create` 创建 `@agent:<server>` Matrix session，写入 Matrix-only `cc-connect/config.toml`，并把 bridge 限制在当前 `agent_room_id`。
+- S6 会在 `~/.direxio/nodes/<service_id>/mcp/` 下写入 MCP client 配置片段。MCP 通过 `DIREXIO_CREDENTIALS_FILE` 指向同一个服务级 `credentials.json`；cc-connect 仍然只使用直接 Matrix 配置。
 - `DIREXIO_CC_CONNECT_AGENT` 用来选择本地 `direxio-connect` agent 类型。支持值与 connent/connect 一致：`acp`、`antigravity`、`claudecode`、`codex`、`copilot`、`cursor`、`devin`、`gemini`、`iflow`、`kimi`、`opencode`、`pi`、`qoder`、`reasonix`、`tmux`。
 - `DIREXIO_AGENT_PLATFORM` 表示正在执行部署 skill 的宿主运行时；`DIREXIO_CC_CONNECT_AGENT` 表示 `direxio-connect` 要启动的本地 agent 后端。如果宿主运行时是 Hermes/OpenClaw，或者不是 connect 支持的 agent，必须显式设置 `DIREXIO_CC_CONNECT_AGENT`。
 - 当本地 agent 可执行文件不能从 PATH 找到时，设置 `DIREXIO_CC_CONNECT_AGENT_CMD` 或 `DIREXIO_<AGENT>_COMMAND`。Codex Desktop 在 Windows 下也可以继续使用 `DIREXIO_CODEX_COMMAND`。
@@ -97,6 +98,10 @@ env
 cc-connect/config.toml
 cc-connect/data/
 cc-connect/matrix-session.json
+mcp/codex.toml
+mcp/openclaw.mcp.json
+mcp/hermes.mcp.json
+mcp/mcp-servers.json
 ```
 
 手动安装：
@@ -106,6 +111,15 @@ npm install -g @direxio/connent
 direxio-connect daemon install --config ~/.direxio/nodes/<service_id>/cc-connect/config.toml --service-name <service_id> --force
 direxio-connect daemon status --service-name <service_id>
 ```
+
+MCP 安装和检查：
+
+```bash
+npm install -g @direxio/local-mcp
+DIREXIO_CREDENTIALS_FILE=~/.direxio/nodes/<service_id>/credentials.json direxio-mcp doctor --json
+```
+
+Codex 使用 `mcp/codex.toml`。OpenClaw 和 Hermes 使用 `mcp/openclaw.mcp.json` 或 `mcp/hermes.mcp.json` 作为 JSON 配置片段。
 
 语音输入在配置 STT provider key 后可用。设置 `DIREXIO_SPEECH_API_KEY` 或 `DIREXIO_SPEECH_QWEN_API_KEY` 等 provider 专用变量后，S6 会在 `cc-connect/config.toml` 写入 `[speech] enabled = true`。
 

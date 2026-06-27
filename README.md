@@ -2,7 +2,7 @@
 
 [简体中文](README_zh.md)
 
-`direxio-deployer` deploys a production Direxio message server and wires the local agent room through Direxio's Matrix bridge. The supported local bridge is `direxio-connect`, installed from the npm package `@direxio/connent` or built from `YingSuiAI/connect`.
+`direxio-deployer` deploys a production Direxio message server and wires the local agent room through Direxio's Matrix bridge. The supported local bridge is `direxio-connect`, installed from the npm package `@direxio/connent` or built from `YingSuiAI/connect`. S6 also writes service-scoped MCP snippets for MCP-capable hosts such as Codex, OpenClaw, and Hermes.
 
 ## Contents
 
@@ -22,6 +22,7 @@
 - Treat synced `password` and owner `access_token` values as one-time/volatile credentials. Pull the current server `/opt/p2p/bootstrap.json` before showing a login password or using an owner token for API calls.
 - S6 rejects legacy pseudo agent rooms such as `!agent:<domain>` and requires the real Matrix `agent_room_id` created by message-server.
 - S6 creates an `@agent:<server>` Matrix session through `agent.matrix_session.create`, writes a Matrix-only `cc-connect/config.toml`, and restricts the bridge to the current `agent_room_id`.
+- S6 writes MCP client snippets under `~/.direxio/nodes/<service_id>/mcp/`. They point `direxio-mcp` at the same service-scoped `credentials.json` by `DIREXIO_CREDENTIALS_FILE`; cc-connect still uses its direct Matrix config.
 - `DIREXIO_CC_CONNECT_AGENT` selects the local `direxio-connect` agent type. Supported values match connent/connect: `acp`, `antigravity`, `claudecode`, `codex`, `copilot`, `cursor`, `devin`, `gemini`, `iflow`, `kimi`, `opencode`, `pi`, `qoder`, `reasonix`, and `tmux`.
 - `DIREXIO_AGENT_PLATFORM` is the host runtime following this deployer skill; `DIREXIO_CC_CONNECT_AGENT` is the backend that `direxio-connect` launches. If the host runtime is Hermes/OpenClaw or anything else that is not a supported connect agent, set `DIREXIO_CC_CONNECT_AGENT` explicitly.
 - Set `DIREXIO_CC_CONNECT_AGENT_CMD` or `DIREXIO_<AGENT>_COMMAND` when a local agent executable is not discoverable from PATH. Codex also supports `DIREXIO_CODEX_COMMAND` for Windows Desktop installs.
@@ -99,6 +100,10 @@ env
 cc-connect/config.toml
 cc-connect/data/
 cc-connect/matrix-session.json
+mcp/codex.toml
+mcp/openclaw.mcp.json
+mcp/hermes.mcp.json
+mcp/mcp-servers.json
 ```
 
 Manual install:
@@ -108,6 +113,15 @@ npm install -g @direxio/connent
 direxio-connect daemon install --config ~/.direxio/nodes/<service_id>/cc-connect/config.toml --service-name <service_id> --force
 direxio-connect daemon status --service-name <service_id>
 ```
+
+MCP install and check:
+
+```bash
+npm install -g @direxio/local-mcp
+DIREXIO_CREDENTIALS_FILE=~/.direxio/nodes/<service_id>/credentials.json direxio-mcp doctor --json
+```
+
+Use `mcp/codex.toml` for Codex. Use `mcp/openclaw.mcp.json` or `mcp/hermes.mcp.json` as JSON snippets for OpenClaw and Hermes.
 
 Voice input is supported when an STT provider key is available. Set `DIREXIO_SPEECH_API_KEY` or provider-specific variables such as `DIREXIO_SPEECH_QWEN_API_KEY`; S6 will then write `[speech] enabled = true` into `cc-connect/config.toml`.
 

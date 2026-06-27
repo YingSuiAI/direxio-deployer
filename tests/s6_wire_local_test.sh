@@ -168,6 +168,29 @@ windows_install_command=$(DIREXIO_LOCAL_PATH_STYLE=windows _agent_install_comman
 [[ "$windows_install_command" == *"C:/Users/alice/.direxio/nodes/im/cc-connect/config.toml"* ]]
 [[ "$windows_install_command" == *"--service-name im"* ]]
 
+mcp_service_dir="$tmp/mcp-service"
+mcp_credentials="$mcp_service_dir/credentials.json"
+mkdir -p "$mcp_service_dir"
+: > "$mcp_credentials"
+_write_mcp_config_artifacts "im.example.test" "$mcp_service_dir" "$mcp_credentials" "codex-im-example"
+[ -s "$mcp_service_dir/mcp/codex.toml" ]
+[ -s "$mcp_service_dir/mcp/openclaw.mcp.json" ]
+[ -s "$mcp_service_dir/mcp/hermes.mcp.json" ]
+[ -s "$mcp_service_dir/mcp/mcp-servers.json" ]
+[ -s "$mcp_service_dir/mcp/env" ]
+grep -q '\[mcp_servers."direxio-im.example.test"\]' "$mcp_service_dir/mcp/codex.toml"
+grep -q 'command = "direxio-mcp"' "$mcp_service_dir/mcp/codex.toml"
+grep -q 'DIREXIO_CREDENTIALS_FILE' "$mcp_service_dir/mcp/codex.toml"
+grep -q "$mcp_credentials" "$mcp_service_dir/mcp/codex.toml"
+jq -e '.mcpServers["direxio-im.example.test"].command == "direxio-mcp"' "$mcp_service_dir/mcp/openclaw.mcp.json" >/dev/null
+jq -e '.mcpServers["direxio-im.example.test"].env.DIREXIO_CREDENTIALS_FILE == "'"$mcp_credentials"'"' "$mcp_service_dir/mcp/hermes.mcp.json" >/dev/null
+grep -q 'DIREXIO_AGENT_NODE_ID=codex-im-example' "$mcp_service_dir/mcp/env"
+mcp_install_command=$(_mcp_install_command)
+[[ "$mcp_install_command" == *"npm install -g"*"@direxio/local-mcp"* ]]
+mcp_doctor_command=$(_mcp_doctor_command "$mcp_credentials" "codex-im-example")
+[[ "$mcp_doctor_command" == *"DIREXIO_CREDENTIALS_FILE="* ]]
+[[ "$mcp_doctor_command" == *"direxio-mcp doctor --json"* ]]
+
 stale_node_id=$(DIREXIO_AGENT_NODE_ID=codex-old.example.test _agent_node_id codex new.example.test '!agents-real:new.example.test')
 [[ "$stale_node_id" == codex-new.example.test-* ]]
 
@@ -186,6 +209,7 @@ grep -q 'share_session_in_channel = true' "$config_path"
 grep -q 'group_reply_all = true' "$config_path"
 grep -q 'auto_join = false' "$config_path"
 ! grep -q '^\[speech\]' "$config_path"
+! grep -q 'DIREXIO_CREDENTIALS_FILE' "$config_path"
 
 speech_config_path="$tmp/cc-connect/config-with-speech.toml"
 DIREXIO_SPEECH_API_KEY=speech-key \

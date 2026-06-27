@@ -30,13 +30,17 @@ grep -q 'DIREXIO_AGENT_TOKEN' scripts/phases/s6_wire_local.sh
 grep -q 'DIREXIO_AGENT_ROOM_ID' scripts/phases/s6_wire_local.sh
 grep -q 'DIREXIO_CC_CONNECT_REPO' scripts/phases/s6_wire_local.sh
 grep -q 'DIREXIO_LOCAL_PATH_STYLE' scripts/phases/s6_wire_local.sh
+grep -q 'DIREXIO_CREDENTIALS_FILE' scripts/phases/s6_wire_local.sh
+grep -q '@direxio/local-mcp' scripts/phases/s6_wire_local.sh
 grep -q 'PLATFORMS_INCLUDE=matrix' scripts/phases/s6_wire_local.sh
 grep -q 'YingSuiAI/connect.git' scripts/phases/s6_wire_local.sh
 grep -q 'DIREXIO_CC_CONNECT_AGENT' scripts/phases/s6_wire_local.sh
 grep -q 'orchestrate.ps1' README.md
 grep -q 'cc-connect' SKILL.md
-if grep -R '@direxio/agent-plugins\|@direxio/local-mcp' SKILL.md scripts README.md README_zh.md references >/dev/null; then
-  echo "current docs/scripts must not reference legacy agent plugin or local MCP packages" >&2
+grep -q 'mcp_config_dir' SKILL.md
+grep -q 'mcp_codex_config' references/runtime-wiring.md
+if grep -R '@direxio/agent-plugins' SKILL.md scripts README.md README_zh.md references >/dev/null; then
+  echo "current docs/scripts must not reference legacy agent plugin packages" >&2
   exit 1
 fi
 grep -q '简体中文](README_zh.md)' README.md
@@ -66,8 +70,13 @@ if grep -RE 'agentp2p\.im|54\.161\.73\.211' SKILL.md references scripts README.m
   exit 1
 fi
 
-if grep -R 'DIREXIO_CREDENTIALS_FILE' SKILL.md references scripts README.md README_zh.md >/dev/null; then
-  echo "published docs/scripts must not use DIREXIO_CREDENTIALS_FILE for the local bridge; use direct DIREXIO_* env" >&2
+if awk '/_write_cc_connect_config\(\)/,/^}/' scripts/phases/s6_wire_local.sh | grep -q 'DIREXIO_CREDENTIALS_FILE'; then
+  echo "cc-connect config must not use DIREXIO_CREDENTIALS_FILE; it must use direct Matrix config" >&2
+  exit 1
+fi
+
+if awk '/_print_cc_connect_guidance\(\)/,/^}/' scripts/phases/s6_wire_local.sh | grep -q 'DIREXIO_CREDENTIALS_FILE'; then
+  echo "cc-connect guidance must not use DIREXIO_CREDENTIALS_FILE; MCP guidance owns that env var" >&2
   exit 1
 fi
 

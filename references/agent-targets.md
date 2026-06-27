@@ -1,6 +1,6 @@
 # Agent Targets
 
-Use this file when installing or updating this skill and when reviewing S6 local bridge output. Direxio no longer ships extra chat-platform adapters from this deployer; the only post-deploy local bridge is `direxio-connect`.
+Use this file when installing or updating this skill and when reviewing S6 local bridge output. Direxio no longer ships extra chat-platform adapters from this deployer; the only post-deploy local conversation bridge is `direxio-connect`. MCP-capable hosts can also use the generated `direxio-mcp` snippets.
 
 ## Project-Local Skill Clones
 
@@ -50,6 +50,10 @@ env
 cc-connect/config.toml
 cc-connect/data/
 cc-connect/matrix-session.json
+mcp/codex.toml
+mcp/openclaw.mcp.json
+mcp/hermes.mcp.json
+mcp/mcp-servers.json
 ```
 
 The generated `cc-connect/config.toml` contains exactly one Matrix platform and includes:
@@ -87,6 +91,17 @@ auto_verify = false
 The `[speech]` block is present only when S6 finds a speech-to-text API key from `DIREXIO_SPEECH_*` or supported provider environment variables. Voice input is not available without STT credentials.
 
 `admin_from` must stay at the `[[projects]]` level. `direxio-connect` uses the full Matrix sender ID, so S6 writes `@owner:<server>`; privileged commands such as `/dir`, `/shell`, `/show`, `/restart`, and `/upgrade` are blocked for other room members. `/dir reset` returns to the generated `work_dir` and clears the runtime override stored under `cc-connect/data/projects/<project>.state.json`.
+
+## MCP Targets
+
+S6 writes MCP snippets for Codex, OpenClaw, and Hermes under `~/.direxio/nodes/<service_id>/mcp/`. These snippets use `direxio-mcp` from `@direxio/local-mcp` and point to the service credential file through `DIREXIO_CREDENTIALS_FILE`.
+
+```bash
+npm install -g @direxio/local-mcp
+DIREXIO_CREDENTIALS_FILE=~/.direxio/nodes/<service_id>/credentials.json direxio-mcp doctor --json
+```
+
+Use `mcp/codex.toml` for Codex. Use `mcp/openclaw.mcp.json` and `mcp/hermes.mcp.json` as JSON snippets for OpenClaw and Hermes. The deployer writes snippets only; it does not mutate each host application's global MCP config.
 
 ## Installation Policy
 

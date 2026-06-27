@@ -39,6 +39,38 @@ DIREXIO_AGENT_ROOM_ID=__ROOM_ID__
 DIREXIO_AGENT_NODE_ID=__AGENT_NODE_ID__
 ```
 
+## MCP Tooling
+
+S6 writes MCP snippets under the same service directory:
+
+```text
+~/.direxio/nodes/<service_id>/mcp/
+```
+
+Generated files:
+
+- `codex.toml`: Codex TOML snippet using `[mcp_servers."<server-name>"]`.
+- `openclaw.mcp.json`: OpenClaw JSON snippet using `mcpServers`.
+- `hermes.mcp.json`: Hermes JSON snippet using `mcpServers`.
+- `mcp-servers.json`: generic JSON snippet for other MCP clients.
+- `env`: shell exports for checking `direxio-mcp` manually.
+
+All snippets run `direxio-mcp` over stdio and set:
+
+```bash
+DIREXIO_CREDENTIALS_FILE=~/.direxio/nodes/<service_id>/credentials.json
+DIREXIO_AGENT_NODE_ID=__AGENT_NODE_ID__
+```
+
+This is intentionally separate from the `direxio-connect` bridge. MCP uses the deployer credential file; cc-connect uses a direct Matrix Client-Server session in `cc-connect/config.toml`.
+
+Install and check the MCP package:
+
+```bash
+npm install -g @direxio/local-mcp
+DIREXIO_CREDENTIALS_FILE=~/.direxio/nodes/<service_id>/credentials.json direxio-mcp doctor --json
+```
+
 ## cc-connect Matrix Bridge
 
 S6 calls `agent.matrix_session.create` with the owner token. Current message-server builds must return a Matrix session for `@agent:<server>`, not for `@owner:<server>`. The resulting session is stored at:
@@ -79,6 +111,8 @@ DIREXIO_<AGENT>_COMMAND=<optional agent-specific executable path>
 DIREXIO_CC_CONNECT_AGENT_OPTIONS_TOML=<optional extra TOML under projects.agent.options>
 DIREXIO_CC_CONNECT_NPM_PACKAGE=@direxio/connent
 DIREXIO_CC_CONNECT_REPO=https://github.com/YingSuiAI/connect.git
+DIREXIO_MCP_NPM_PACKAGE=@direxio/local-mcp
+DIREXIO_MCP_COMMAND=direxio-mcp
 DIREXIO_SPEECH_PROVIDER=openai|groq|qwen|gemini
 DIREXIO_SPEECH_API_KEY=<optional generic STT key>
 DIREXIO_SPEECH_BASE_URL=<optional OpenAI-compatible STT base URL>
@@ -149,4 +183,17 @@ cc_connect_matrix_session_file
 cc_connect_matrix_user
 cc_connect_matrix_device
 cc_connect_matrix_homeserver
+mcp_npm_package
+mcp_command
+mcp_server_name
+mcp_config_dir
+mcp_credentials_file
+mcp_codex_config
+mcp_openclaw_config
+mcp_hermes_config
+mcp_json_config
+mcp_env_file
+mcp_readme
+mcp_install_command
+mcp_doctor_command
 ```
