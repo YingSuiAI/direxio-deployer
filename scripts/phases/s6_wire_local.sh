@@ -471,7 +471,7 @@ _cc_connect_config_path() {
 }
 
 _mcp_npm_package() {
-  printf '%s\n' "${DIREXIO_MCP_NPM_PACKAGE:-@direxio/local-mcp@0.1.5}"
+  printf '%s\n' "${DIREXIO_MCP_NPM_PACKAGE:-@direxio/local-mcp@0.1.6}"
 }
 
 _mcp_command() {

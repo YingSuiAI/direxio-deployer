@@ -299,7 +299,7 @@ DIREXIO_AGENT_INSTALL_MODE=recommended
 
 The only supported local conversation bridge is `direxio-connect`, installed from `@direxio/connent@1.3.10` by default or built from `https://github.com/YingSuiAI/connect.git`. S6 creates a Matrix session for `@agent:<server>`, writes `~/.direxio/nodes/<service_id>/cc-connect/config.toml`, and restricts the bridge to the real `agent_room_id`.
 
-The local MCP tool surface is `direxio-mcp`, installed from `@direxio/local-mcp@0.1.5` by default. S6 writes `mcp/codex.toml`, `mcp/openclaw.mcp.json`, `mcp/hermes.mcp.json`, `mcp/mcp-servers.json`, and `mcp/env`; these snippets point to `credentials.json` by `DIREXIO_CREDENTIALS_FILE`. Keep this separate from cc-connect: cc-connect must use its direct Matrix config and must not use `DIREXIO_CREDENTIALS_FILE`.
+The local MCP tool surface is `direxio-mcp`, installed from `@direxio/local-mcp@0.1.6` by default. S6 writes `mcp/codex.toml`, `mcp/openclaw.mcp.json`, `mcp/hermes.mcp.json`, `mcp/mcp-servers.json`, and `mcp/env`; these snippets point to `credentials.json` by `DIREXIO_CREDENTIALS_FILE`. Keep this separate from cc-connect: cc-connect must use its direct Matrix config and must not use `DIREXIO_CREDENTIALS_FILE`.
 
 `DIREXIO_CC_CONNECT_AGENT` is the preferred explicit selector. Supported values match connent/connect: `acp`, `antigravity`, `claudecode`, `codex`, `copilot`, `cursor`, `devin`, `gemini`, `iflow`, `kimi`, `opencode`, `pi`, `qoder`, `reasonix`, and `tmux`. Detected OpenClaw and Hermes runtimes map to `cc_connect_agent=acp`; they are not native connect agent types. OpenClaw uses `cmd = "openclaw"` with `args = ["acp"]`. Hermes uses `cmd = "direxio-connect"` with `args = ["hermes-acp-adapter", "--", "hermes", "acp"]` so the Direxio compatibility layer can suppress Hermes reasoning text before it reaches the Matrix room. Use `DIREXIO_CC_CONNECT_AGENT_CMD`, `DIREXIO_<AGENT>_COMMAND`, and when needed `DIREXIO_CC_CONNECT_AGENT_OPTIONS_TOML` for agent-specific launch details. OpenClaw and Hermes also accept `DIREXIO_OPENCLAW_COMMAND`, `DIREXIO_HERMES_COMMAND`, `DIREXIO_HERMES_ACP_ADAPTER_COMMAND`, `DIREXIO_OPENCLAW_ACP_URL`, `DIREXIO_OPENCLAW_ACP_TOKEN_FILE`, `DIREXIO_OPENCLAW_ACP_ARGS_TOML`, and `DIREXIO_HERMES_ACP_ARGS_TOML`; Hermes custom args are child Hermes args and S6 prefixes the adapter wrapper automatically.
 
@@ -648,7 +648,7 @@ connect device: <cc_connect_matrix_device>
 agent command : <cc_connect_agent_cmd or default PATH lookup>
 install mode  : policy=<skip|recommend|auto> mode=<cc-connect> status=<...>
 install cmd   : <agent_install_command>
-mcp pkg       : @direxio/local-mcp@0.1.5
+mcp pkg       : @direxio/local-mcp@0.1.6
 mcp server    : <mcp_server_name>
 mcp config dir: <mcp_config_dir>
 mcp codex     : <mcp_codex_config>
@@ -679,7 +679,7 @@ direxio-connect daemon status --service-name <service_id>
 For MCP-capable hosts, also give the recorded MCP command and snippet paths:
 
 ```bash
-npm install -g @direxio/local-mcp@0.1.5
+npm install -g @direxio/local-mcp@0.1.6
 DIREXIO_CREDENTIALS_FILE=<mcp_credentials_file> direxio-mcp doctor --json
 ```
 

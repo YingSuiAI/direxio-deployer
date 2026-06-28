@@ -89,10 +89,10 @@ The `[speech]` block is present only when S6 finds a speech-to-text API key from
 
 ## MCP Targets
 
-S6 writes MCP snippets for Codex, OpenClaw, and Hermes under `~/.direxio/nodes/<service_id>/mcp/`. These snippets use `direxio-mcp` from `@direxio/local-mcp@0.1.5` by default and point to the service credential file through `DIREXIO_CREDENTIALS_FILE`.
+S6 writes MCP snippets for Codex, OpenClaw, and Hermes under `~/.direxio/nodes/<service_id>/mcp/`. These snippets use `direxio-mcp` from `@direxio/local-mcp@0.1.6` by default and point to the service credential file through `DIREXIO_CREDENTIALS_FILE`.
 
 ```bash
-npm install -g @direxio/local-mcp@0.1.5
+npm install -g @direxio/local-mcp@0.1.6
 DIREXIO_CREDENTIALS_FILE=~/.direxio/nodes/<service_id>/credentials.json direxio-mcp doctor --json
 ```
 

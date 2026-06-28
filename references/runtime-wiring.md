@@ -67,7 +67,7 @@ This is intentionally separate from the `direxio-connect` bridge. MCP uses the d
 Install and check the MCP package:
 
 ```bash
-npm install -g @direxio/local-mcp@0.1.5
+npm install -g @direxio/local-mcp@0.1.6
 DIREXIO_CREDENTIALS_FILE=~/.direxio/nodes/<service_id>/credentials.json direxio-mcp doctor --json
 ```
 
@@ -117,7 +117,7 @@ DIREXIO_OPENCLAW_ACP_ARGS_TOML=<optional OpenClaw ACP TOML array>
 DIREXIO_HERMES_ACP_ARGS_TOML=<optional Hermes ACP TOML array>
 DIREXIO_CC_CONNECT_NPM_PACKAGE=@direxio/connent@1.3.10
 DIREXIO_CC_CONNECT_REPO=https://github.com/YingSuiAI/connect.git
-DIREXIO_MCP_NPM_PACKAGE=@direxio/local-mcp@0.1.5
+DIREXIO_MCP_NPM_PACKAGE=@direxio/local-mcp@0.1.6
 DIREXIO_MCP_COMMAND=direxio-mcp
 DIREXIO_SPEECH_PROVIDER=openai|groq|qwen|gemini
 DIREXIO_SPEECH_API_KEY=<optional generic STT key>

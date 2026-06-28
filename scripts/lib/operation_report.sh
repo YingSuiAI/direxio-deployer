@@ -164,7 +164,7 @@ operation_report_json() {
         },
         mcp: {
           status: local_refresh_status,
-          package: ($st.mcp_npm_package // "@direxio/local-mcp@0.1.5"),
+          package: ($st.mcp_npm_package // "@direxio/local-mcp@0.1.6"),
           server_name: ($st.mcp_server_name // ""),
           config_dir: ($st.mcp_config_dir // ""),
           codex: ($st.mcp_codex_config // ""),

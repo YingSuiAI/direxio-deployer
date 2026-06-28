@@ -189,7 +189,7 @@ jq -e '.mcpServers["direxio-im_example_test"].command == "direxio-mcp"' "$mcp_se
 jq -e '.mcpServers["direxio-im_example_test"].env.DIREXIO_CREDENTIALS_FILE == "'"$mcp_credentials"'"' "$mcp_service_dir/mcp/hermes.mcp.json" >/dev/null
 grep -q 'DIREXIO_AGENT_NODE_ID=codex-im-example' "$mcp_service_dir/mcp/env"
 mcp_install_command=$(_mcp_install_command)
-[[ "$mcp_install_command" == *"npm install -g"*"@direxio/local-mcp@0.1.5"* ]]
+[[ "$mcp_install_command" == *"npm install -g"*"@direxio/local-mcp@0.1.6"* ]]
 mcp_doctor_command=$(_mcp_doctor_command "$mcp_credentials" "codex-im-example")
 [[ "$mcp_doctor_command" == *"DIREXIO_CREDENTIALS_FILE="* ]]
 [[ "$mcp_doctor_command" == *"direxio-mcp doctor --json"* ]]

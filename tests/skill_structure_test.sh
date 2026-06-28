@@ -110,7 +110,7 @@ if grep -RE 'fixed order.*\.codex.*\.hermes|\.codex.*checked before.*\.hermes' S
   exit 1
 fi
 
-if grep -R '@direxio/local-mcp@0\.1\.[0-4]' SKILL.md references scripts README.md README_zh.md >/dev/null; then
+if grep -R '@direxio/local-mcp@0\.1\.[0-5]' SKILL.md references scripts README.md README_zh.md >/dev/null; then
   echo "published docs/scripts must not reference stale @direxio/local-mcp versions" >&2
   exit 1
 fi
@@ -178,7 +178,7 @@ fi
 grep -q 'eight-digit app initialization code' SKILL.md
 grep -q 'S7 green is not the final product-complete state' SKILL.md
 grep -q 'non-polluting' SKILL.md
-grep -q '@direxio/local-mcp@0.1.5' SKILL.md
+grep -q '@direxio/local-mcp@0.1.6' SKILL.md
 grep -q 'DirexioDeployer' SKILL.md
 grep -q 'AdministratorAccess' SKILL.md
 grep -q 'must never create or accept a root access key' SKILL.md
