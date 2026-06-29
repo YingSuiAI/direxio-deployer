@@ -298,6 +298,10 @@ print_delivery() {
   local report_path runtime_summary app_gate real_chat_gate agent_runtime_gate
   domain=$(state_get domain)
   password=$(state_get password)
+  if ! printf '%s' "$password" | grep -Eq '^[0-9]{8}$'; then
+    warn "state password field is not an exact eight-digit initialization code; rerun S5_INIT_TOKENS before reporting it."
+    return 1
+  fi
   keyfile=$(res_get key_file); pubip=$(res_get public_ip)
   iid=$(res_get instance_id); region=$(state_get region); statejson="$STATE_JSON"
   envfile=$(state_get agent_env_file)
@@ -889,13 +893,20 @@ paths_match_for_check() {
   esac
 }
 
+connect_daemon_agent_error_from_logs() {
+  local binary=$1 service_name=$2
+  "$binary" daemon logs --service-name "$service_name" -n "${DIREXIO_CONNECT_LOG_TAIL_LINES:-120}" 2>/dev/null \
+    | grep -Eio 'ACP_SESSION_INIT_FAILED|ACP metadata is missing|Recreate this ACP session' \
+    | head -n 1 || true
+}
+
 cmd_verify_connect_daemon() {
   [ -f "$STATE_JSON" ] || {
     warn "state.json not found: $STATE_JSON"
     return 1
   }
 
-  local service_name service_dir config runtime_dir binary target_work_dir status_out daemon_status work_dir evidence
+  local service_name service_dir config runtime_dir binary target_work_dir status_out daemon_status work_dir evidence agent_error
   service_name=$(jq -r '.agent_service_id // .domain // empty' "$STATE_JSON")
   service_dir=$(jq -r '.agent_service_dir // empty' "$STATE_JSON")
   config=$(jq -r '.cc_connect_config // empty' "$STATE_JSON")
@@ -953,6 +964,28 @@ cmd_verify_connect_daemon() {
   elif ! paths_match_for_check "$target_work_dir" "$work_dir"; then
     evidence="direxio-connect daemon belongs to a different service"
   else
+    agent_error=$(connect_daemon_agent_error_from_logs "$binary" "$service_name")
+    if [ -n "$agent_error" ]; then
+      _state_write '
+        .runtime_checks.connect_daemon = {
+          status: "failed",
+          ts: $ts,
+          evidence: "direxio-connect daemon logs report ACP session initialization failure",
+          service_name: $service_name,
+          daemon_status: $daemon_status,
+          work_dir: $work_dir,
+          expected_work_dir: $target_work_dir,
+          agent_error: $agent_error
+        }
+      ' --arg ts "$(_now)" \
+        --arg service_name "$service_name" \
+        --arg daemon_status "$daemon_status" \
+        --arg work_dir "$(normalize_check_path "$work_dir")" \
+        --arg target_work_dir "$(normalize_check_path "$target_work_dir")" \
+        --arg agent_error "$agent_error"
+      warn "direxio-connect daemon logs report ACP session initialization failure"
+      return 1
+    fi
     _state_write '
       .runtime_checks.connect_daemon = {
         status: "passed",

@@ -313,18 +313,39 @@ STATE_CALLS="$tmp/state.calls"
 PATH="$fakebin:$PATH" _maybe_auto_install_cc_connect auto codex codex "$tmp/service" "$tmp/service/cc-connect/config.toml" direxio-connect im.example.test
 grep -q '^agent_install_status=install_failed$' "$STATE_CALLS"
 
-openclaw_options=$(_cc_connect_agent_options_toml openclaw acp)
-[[ "$openclaw_options" == *'args = ["acp"]'* ]]
+if _cc_connect_agent_options_toml openclaw acp > "$tmp/openclaw-missing.out" 2> "$tmp/openclaw-missing.err"; then
+  echo "OpenClaw ACP options must require real gateway URL, token file, and session" >&2
+  exit 1
+fi
+grep -q 'DIREXIO_OPENCLAW_ACP_URL' "$tmp/openclaw-missing.err"
+grep -q 'DIREXIO_OPENCLAW_ACP_TOKEN_FILE' "$tmp/openclaw-missing.err"
+grep -q 'DIREXIO_OPENCLAW_ACP_SESSION' "$tmp/openclaw-missing.err"
+
+openclaw_options=$(
+  DIREXIO_OPENCLAW_ACP_URL=ws://127.0.0.1:18790 \
+  DIREXIO_OPENCLAW_ACP_TOKEN_FILE=/mnt/c/Users/alice/.openclaw/gateway.token \
+  DIREXIO_OPENCLAW_ACP_SESSION=agent:main:main \
+  _cc_connect_agent_options_toml openclaw acp
+)
+[[ "$openclaw_options" == *'args = ["acp", "--url", "ws://127.0.0.1:18790", "--token-file", "/mnt/c/Users/alice/.openclaw/gateway.token", "--session", "agent:main:main"]'* ]]
 [[ "$openclaw_options" == *'display_name = "OpenClaw ACP"'* ]]
 
-openclaw_url_options=$(DIREXIO_OPENCLAW_ACP_URL=wss://gateway.example.test:18789 _cc_connect_agent_options_toml openclaw acp)
-[[ "$openclaw_url_options" == *'args = ["acp", "--url", "wss://gateway.example.test:18789"]'* ]]
+openclaw_session_options=$(
+  DIREXIO_OPENCLAW_ACP_URL=ws://127.0.0.1:18790 \
+  DIREXIO_OPENCLAW_ACP_TOKEN_FILE=/mnt/c/Users/alice/.openclaw/gateway.token \
+  DIREXIO_OPENCLAW_ACP_SESSION=agent:direxio:main \
+  _cc_connect_agent_options_toml openclaw acp
+)
+[[ "$openclaw_session_options" == *'--session", "agent:direxio:main"'* ]]
 
-openclaw_posix_token_options=$(DIREXIO_LOCAL_PATH_STYLE=posix DIREXIO_OPENCLAW_ACP_TOKEN_FILE=/mnt/c/Users/alice/.openclaw/token.json _cc_connect_agent_options_toml openclaw acp)
-[[ "$openclaw_posix_token_options" == *'args = ["acp", "--token-file", "/mnt/c/Users/alice/.openclaw/token.json"]'* ]]
+openclaw_url_options=$(DIREXIO_OPENCLAW_ACP_ARGS_TOML='["acp", "--url", "wss://gateway.example.test:18789", "--session", "agent:main:main"]' _cc_connect_agent_options_toml openclaw acp)
+[[ "$openclaw_url_options" == *'args = ["acp", "--url", "wss://gateway.example.test:18789", "--session", "agent:main:main"]'* ]]
 
-openclaw_token_options=$(DIREXIO_LOCAL_PATH_STYLE=windows DIREXIO_OPENCLAW_ACP_TOKEN_FILE=/mnt/c/Users/alice/.openclaw/token.json _cc_connect_agent_options_toml openclaw acp)
-[[ "$openclaw_token_options" == *'args = ["acp", "--token-file", "C:/Users/alice/.openclaw/token.json"]'* ]]
+openclaw_posix_token_options=$(DIREXIO_OPENCLAW_ACP_URL=ws://127.0.0.1:18790 DIREXIO_LOCAL_PATH_STYLE=posix DIREXIO_OPENCLAW_ACP_TOKEN_FILE=/mnt/c/Users/alice/.openclaw/token.json DIREXIO_OPENCLAW_ACP_SESSION=agent:main:main _cc_connect_agent_options_toml openclaw acp)
+[[ "$openclaw_posix_token_options" == *'args = ["acp", "--url", "ws://127.0.0.1:18790", "--token-file", "/mnt/c/Users/alice/.openclaw/token.json", "--session", "agent:main:main"]'* ]]
+
+openclaw_token_options=$(DIREXIO_OPENCLAW_ACP_URL=ws://127.0.0.1:18790 DIREXIO_LOCAL_PATH_STYLE=windows DIREXIO_OPENCLAW_ACP_TOKEN_FILE=/mnt/c/Users/alice/.openclaw/token.json DIREXIO_OPENCLAW_ACP_SESSION=agent:main:main _cc_connect_agent_options_toml openclaw acp)
+[[ "$openclaw_token_options" == *'args = ["acp", "--url", "ws://127.0.0.1:18790", "--token-file", "C:/Users/alice/.openclaw/token.json", "--session", "agent:main:main"]'* ]]
 
 hermes_options=$(_cc_connect_agent_options_toml hermes acp)
 [[ "$hermes_options" == *'args = ["hermes-acp-adapter", "--", "hermes", "acp"]'* ]]
@@ -337,10 +358,10 @@ hermes_custom_args_options=$(DIREXIO_HERMES_ACP_ARGS_TOML='["acp", "--profile", 
 [[ "$hermes_custom_args_options" == *'args = ["hermes-acp-adapter", "--", "hermes", "acp", "--profile", "direxio"]'* ]]
 
 openclaw_config_path="$tmp/cc-connect/config-openclaw.toml"
-_write_cc_connect_config "$openclaw_config_path" "$tmp/cc-connect/data-openclaw" "openclaw-node" "$(_cc_connect_agent_type openclaw)" "$tmp/workspace" "https://im.example.test" "matrix-token" "@agent:im.example.test" "!agents-real:im.example.test" "@owner:im.example.test" "$(_cc_connect_agent_command acp openclaw)" "$(_cc_connect_agent_options_toml openclaw acp)"
+_write_cc_connect_config "$openclaw_config_path" "$tmp/cc-connect/data-openclaw" "openclaw-node" "$(_cc_connect_agent_type openclaw)" "$tmp/workspace" "https://im.example.test" "matrix-token" "@agent:im.example.test" "!agents-real:im.example.test" "@owner:im.example.test" "$(_cc_connect_agent_command acp openclaw)" "$openclaw_options"
 grep -q 'type = "acp"' "$openclaw_config_path"
 grep -q 'cmd = "openclaw"' "$openclaw_config_path"
-grep -q 'args = \["acp"\]' "$openclaw_config_path"
+grep -q 'args = \["acp", "--url", "ws://127.0.0.1:18790", "--token-file", "/mnt/c/Users/alice/.openclaw/gateway.token", "--session", "agent:main:main"\]' "$openclaw_config_path"
 grep -q 'display_name = "OpenClaw ACP"' "$openclaw_config_path"
 
 hermes_config_path="$tmp/cc-connect/config-hermes.toml"

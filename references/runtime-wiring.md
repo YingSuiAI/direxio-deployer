@@ -111,8 +111,9 @@ DIREXIO_<AGENT>_COMMAND=<optional agent-specific executable path>
 DIREXIO_CC_CONNECT_AGENT_OPTIONS_TOML=<optional extra TOML under projects.agent.options>
 DIREXIO_OPENCLAW_COMMAND=<optional OpenClaw executable path>
 DIREXIO_HERMES_COMMAND=<optional Hermes executable path>
-DIREXIO_OPENCLAW_ACP_URL=<optional OpenClaw gateway URL>
-DIREXIO_OPENCLAW_ACP_TOKEN_FILE=<optional OpenClaw ACP token file>
+DIREXIO_OPENCLAW_ACP_URL=<required OpenClaw gateway URL>
+DIREXIO_OPENCLAW_ACP_TOKEN_FILE=<required OpenClaw ACP token file>
+DIREXIO_OPENCLAW_ACP_SESSION=<required OpenClaw ACP session>
 DIREXIO_OPENCLAW_ACP_ARGS_TOML=<optional OpenClaw ACP TOML array>
 DIREXIO_HERMES_ACP_ARGS_TOML=<optional Hermes ACP TOML array>
 DIREXIO_CC_CONNECT_NPM_PACKAGE=direxio-connent@latest
@@ -129,14 +130,14 @@ DIREXIO_SPEECH_LANGUAGE=zh
 Defaults:
 
 - `DIREXIO_CC_CONNECT_AGENT` is the preferred explicit selector. It accepts every connent/connect agent: `acp`, `antigravity`, `claudecode`, `codex`, `copilot`, `cursor`, `devin`, `gemini`, `iflow`, `kimi`, `opencode`, `pi`, `qoder`, `reasonix`, and `tmux`.
-- `DIREXIO_AGENT_PLATFORM=auto` detects the local agent runtime and maps it to a `direxio-connect` agent type only when it can identify one unambiguously. OpenClaw and Hermes map to the generic `acp` connect agent. OpenClaw uses default `args = ["acp"]`; Hermes uses the `direxio-connect hermes-acp-adapter -- hermes acp` compatibility wrapper by default.
+- `DIREXIO_AGENT_PLATFORM=auto` detects the local agent runtime and maps it to a `direxio-connect` agent type only when it can identify one unambiguously. OpenClaw and Hermes map to the generic `acp` connect agent. OpenClaw requires explicit real ACP Gateway settings from the current runtime; Hermes uses the `direxio-connect hermes-acp-adapter -- hermes acp` compatibility wrapper by default.
 - `DIREXIO_LOCAL_PATH_STYLE=windows` writes Windows-compatible `data_dir`, `work_dir`, config paths, and install commands. `scripts/orchestrate.ps1` sets this automatically. Linux, macOS, and WSL Bash runs should leave the default `posix` style. Windows Git Bash/MSYS2 users who run `scripts/orchestrate.sh` directly must set `DIREXIO_LOCAL_PATH_STYLE=windows` when the local bridge is a Windows process.
 - `DIREXIO_CC_CONNECT_AGENT_CMD` writes `cmd = "<path>"` into `[projects.agent.options]`. Agent-specific forms such as `DIREXIO_CODEX_COMMAND`, `DIREXIO_CLAUDE_CODE_COMMAND`, `DIREXIO_GEMINI_COMMAND`, `DIREXIO_OPENCODE_COMMAND`, `DIREXIO_QODERCLI_COMMAND`, and `DIREXIO_OPENCLAW_COMMAND` are also accepted. For Hermes, `DIREXIO_HERMES_COMMAND` selects the child Hermes executable behind the adapter, while `DIREXIO_HERMES_ACP_ADAPTER_COMMAND` overrides the adapter command itself.
 - `DIREXIO_CC_CONNECT_AGENT_OPTIONS_TOML` appends agent-specific options under `[projects.agent.options]`; use it for agents with required non-command options such as `reasonix` (`serve_url`) or `tmux` (`session`).
-- OpenClaw Gateway ACP uses `DIREXIO_OPENCLAW_ACP_URL` to append `--url <url>` and `DIREXIO_OPENCLAW_ACP_TOKEN_FILE` to append `--token-file <local path>`. Complete OpenClaw pairing before installing or starting the daemon.
-- `DIREXIO_OPENCLAW_ACP_ARGS_TOML` replaces the generated OpenClaw ACP args array, for example `["acp", "--url", "wss://gateway.example.test:18789"]`. `DIREXIO_HERMES_ACP_ARGS_TOML` supplies the child Hermes args; S6 prefixes `["hermes-acp-adapter", "--", "<hermes-command>"]` automatically.
+- OpenClaw Gateway ACP uses `DIREXIO_OPENCLAW_ACP_URL`, `DIREXIO_OPENCLAW_ACP_TOKEN_FILE`, and `DIREXIO_OPENCLAW_ACP_SESSION` to write `--url`, `--token-file`, and `--session`. Complete OpenClaw pairing first and use the real session that should receive Direxio messages; do not guess a default session or reuse old chat output.
+- `DIREXIO_OPENCLAW_ACP_ARGS_TOML` replaces the generated OpenClaw ACP args array, for example `["acp", "--url", "wss://gateway.example.test:18789", "--token-file", "$HOME/.openclaw/gateway.token", "--session", "agent:main:main"]`. `DIREXIO_HERMES_ACP_ARGS_TOML` supplies the child Hermes args; S6 prefixes `["hermes-acp-adapter", "--", "<hermes-command>"]` automatically.
 - `DIREXIO_AGENT_INSTALL=recommend` prints and records the command only.
-- `DIREXIO_AGENT_INSTALL=auto` runs `npm install -g direxio-connent@latest` and then installs the `direxio-connect` daemon with the generated config and `--service-name <service_id>`. It is recorded as installed only when `direxio-connect daemon status --service-name <service_id>` reports `Status: Running`; otherwise S6 records `agent_install_status=install_failed`.
+- `DIREXIO_AGENT_INSTALL=auto` runs `npm install -g direxio-connent@latest` and then installs the `direxio-connect` daemon with the generated config and `--service-name <service_id>`. It is recorded as installed only when `direxio-connect daemon status --service-name <service_id>` reports `Status: Running` and recent daemon logs do not show ACP session initialization failure; otherwise S6 records `agent_install_status=install_failed`.
 - `DIREXIO_AGENT_INSTALL_MODE=recommended` maps every supported local runtime to `cc-connect`.
 - Speech defaults to `DIREXIO_SPEECH_PROVIDER=openai` and `DIREXIO_SPEECH_LANGUAGE=zh`. Provider-specific keys are also accepted: `DIREXIO_SPEECH_OPENAI_API_KEY` or `OPENAI_API_KEY`, `DIREXIO_SPEECH_GROQ_API_KEY` or `GROQ_API_KEY`, `DIREXIO_SPEECH_QWEN_API_KEY` or `DASHSCOPE_API_KEY`, and `DIREXIO_SPEECH_GEMINI_API_KEY`, `GEMINI_API_KEY`, or `GOOGLE_API_KEY`. Set `DIREXIO_SPEECH_ENABLED=false` to suppress speech config generation even when a key exists.
 

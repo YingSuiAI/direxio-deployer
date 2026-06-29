@@ -23,9 +23,9 @@
 - S6 会通过 `agent.matrix_session.create` 创建 `@agent:<server>` Matrix session，写入 Matrix-only `cc-connect/config.toml`，并把 bridge 限制在当前 `agent_room_id`。
 - S6 会在 `~/.direxio/nodes/<service_id>/mcp/` 下写入 MCP client 配置片段。MCP 通过 `DIREXIO_CREDENTIALS_FILE` 指向同一个服务级 `credentials.json`；cc-connect 仍然只使用直接 Matrix 配置。
 - `DIREXIO_CC_CONNECT_AGENT` 用来选择本地 `direxio-connect` agent 类型。支持值与 connent/connect 一致：`acp`、`antigravity`、`claudecode`、`codex`、`copilot`、`cursor`、`devin`、`gemini`、`iflow`、`kimi`、`opencode`、`pi`、`qoder`、`reasonix`、`tmux`。
-- `DIREXIO_AGENT_PLATFORM` 表示正在执行部署 skill 的宿主运行时；`DIREXIO_CC_CONNECT_AGENT` 表示 `direxio-connect` 要启动的本地 agent 后端。检测到 OpenClaw 或 Hermes 运行时时，S6 会通过通用 `acp` agent 写入桥接配置，不会写成 connect 原生 `type = "openclaw"` 或 `type = "hermes"`。OpenClaw 默认写入 `cmd = "openclaw"`、`args = ["acp"]`；Hermes 默认写入 `cmd = "direxio-connect"`、`args = ["hermes-acp-adapter", "--", "hermes", "acp"]`，通过兼容层避免 Hermes 推理文本被当成用户可见回复。
+- `DIREXIO_AGENT_PLATFORM` 表示正在执行部署 skill 的宿主运行时；`DIREXIO_CC_CONNECT_AGENT` 表示 `direxio-connect` 要启动的本地 agent 后端。检测到 OpenClaw 或 Hermes 运行时时，S6 会通过通用 `acp` agent 写入桥接配置，不会写成 connect 原生 `type = "openclaw"` 或 `type = "hermes"`。OpenClaw 会写入 `cmd = "openclaw"`，但必须由当前 agent/operator 提供真实 Gateway URL、token-file 和 ACP session；Hermes 默认写入 `cmd = "direxio-connect"`、`args = ["hermes-acp-adapter", "--", "hermes", "acp"]`，通过兼容层避免 Hermes 推理文本被当成用户可见回复。
 - 当本地 agent 可执行文件不能从 PATH 找到时，设置 `DIREXIO_CC_CONNECT_AGENT_CMD` 或 `DIREXIO_<AGENT>_COMMAND`。Codex Desktop 在 Windows 下也可以继续使用 `DIREXIO_CODEX_COMMAND`；OpenClaw 支持 `DIREXIO_OPENCLAW_COMMAND`；Hermes 使用 `DIREXIO_HERMES_COMMAND` 指定 adapter 后面的子进程命令，只有 adapter 命令本身不是 `direxio-connect` 时才需要 `DIREXIO_HERMES_ACP_ADAPTER_COMMAND`。
-- `DIREXIO_AGENT_INSTALL=auto` 会安装 `direxio-connent` 并执行 `direxio-connect daemon install --config <config> --service-name <service_id> --force`。默认 `recommend` 只记录并打印命令。自动安装只有在 `direxio-connect daemon status --service-name <service_id>` 返回 `Status: Running` 时才记为 installed，否则 S6 会记录 `agent_install_status=install_failed`。
+- `DIREXIO_AGENT_INSTALL=auto` 会安装 `direxio-connent` 并执行 `direxio-connect daemon install --config <config> --service-name <service_id> --force`。默认 `recommend` 只记录并打印命令。自动安装只有在 `direxio-connect daemon status --service-name <service_id>` 返回 `Status: Running` 且近期 daemon 日志没有 ACP session 初始化失败时才记为 installed，否则 S6 会记录 `agent_install_status=install_failed`。
 
 ## 最小命令
 
@@ -87,7 +87,7 @@ bash scripts/orchestrate.sh
 ```
 
 可选安装模式：`recommended`、`cc-connect`。
-如果 `DIREXIO_AGENT_PLATFORM=auto` 无法唯一识别当前运行时，显式设置 `DIREXIO_CC_CONNECT_AGENT`。需要触发 OpenClaw 或 Hermes 默认配置时，设置 `DIREXIO_AGENT_PLATFORM=openclaw` 或 `DIREXIO_AGENT_PLATFORM=hermes`；只设置 `DIREXIO_CC_CONNECT_AGENT=acp` 会进入通用 ACP，需要手动提供 options。OpenClaw Gateway ACP 需要设置 `DIREXIO_OPENCLAW_ACP_URL` 并在启动 daemon 前完成 OpenClaw pairing。OpenClaw 自定义参数用 `DIREXIO_OPENCLAW_ACP_ARGS_TOML`；Hermes 自定义参数用 `DIREXIO_HERMES_ACP_ARGS_TOML`，S6 会自动在前面加上 `hermes-acp-adapter -- <hermes-command>`。
+如果 `DIREXIO_AGENT_PLATFORM=auto` 无法唯一识别当前运行时，显式设置 `DIREXIO_CC_CONNECT_AGENT`。需要触发 OpenClaw 或 Hermes 默认配置时，设置 `DIREXIO_AGENT_PLATFORM=openclaw` 或 `DIREXIO_AGENT_PLATFORM=hermes`；只设置 `DIREXIO_CC_CONNECT_AGENT=acp` 会进入通用 ACP，需要手动提供 options。OpenClaw Gateway ACP 必须在完成 pairing 后，从当前 OpenClaw runtime 填写 `DIREXIO_OPENCLAW_ACP_URL`、`DIREXIO_OPENCLAW_ACP_TOKEN_FILE` 和 `DIREXIO_OPENCLAW_ACP_SESSION`。只有需要完整覆盖 OpenClaw ACP args 数组时才使用 `DIREXIO_OPENCLAW_ACP_ARGS_TOML`；Hermes 自定义参数用 `DIREXIO_HERMES_ACP_ARGS_TOML`，S6 会自动在前面加上 `hermes-acp-adapter -- <hermes-command>`。
 
 查看状态：
 

@@ -36,7 +36,7 @@ run_phase() {
   local password token access_token asurl agent_room_id
   if ! IFS=$'\t' read -r password token access_token < <(_extract_output_tokens "$out"); then
     phase_set S5_INIT_TOKENS failed "bootstrap.json missing password/access/agent credentials"
-    fail "bootstrap.json does not contain password, access_token, and agent_token."
+    fail "bootstrap.json must contain password as an eight-digit initialization-code string plus access_token and agent_token."
   fi
   asurl=$(jq -r --arg domain "$domain" '.as_url // ("https://" + $domain)' "$out")
   agent_room_id=$(jq -r '.agent_room_id // empty' "$out")
@@ -59,10 +59,11 @@ run_phase() {
 
 _extract_output_tokens() {
   local out=$1 password token access_token
-  password=$(jq -r '.password // empty' "$out")
+  password=$(jq -r 'if (.password | type) == "string" then .password else empty end' "$out")
   token=$(jq -r '.agent_token // empty' "$out")
   access_token=$(jq -r '.access_token // empty' "$out")
   [ -n "$password" ] && [ -n "$token" ] && [ -n "$access_token" ] || return 1
+  printf '%s' "$password" | grep -Eq '^[0-9]{8}$' || return 1
   printf '%s\t%s\t%s\n' "$password" "$token" "$access_token"
 }
 

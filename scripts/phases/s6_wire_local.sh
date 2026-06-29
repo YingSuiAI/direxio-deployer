@@ -544,7 +544,7 @@ _cc_connect_agent_options_toml() {
   fi
   case "$runtime:$agent" in
     openclaw:acp)
-      args_toml=$(_openclaw_acp_args_toml)
+      args_toml=$(_openclaw_acp_args_toml) || return 1
       q_display=$(_toml_escape "OpenClaw ACP")
       printf 'args = %s\n' "$args_toml"
       printf 'display_name = "%s"\n' "$q_display"
@@ -559,25 +559,23 @@ _cc_connect_agent_options_toml() {
 }
 
 _openclaw_acp_args_toml() {
-  local url token_file
+  local url token_file session missing=
   if [ -n "${DIREXIO_OPENCLAW_ACP_ARGS_TOML:-}" ]; then
     printf '%s\n' "$DIREXIO_OPENCLAW_ACP_ARGS_TOML"
     return 0
   fi
   url=${DIREXIO_OPENCLAW_ACP_URL:-}
   token_file=${DIREXIO_OPENCLAW_ACP_TOKEN_FILE:-}
-  if [ -n "$token_file" ]; then
-    token_file=$(_local_connect_path "$token_file")
+  session=${DIREXIO_OPENCLAW_ACP_SESSION:-}
+  [ -n "$url" ] || missing="${missing} DIREXIO_OPENCLAW_ACP_URL"
+  [ -n "$token_file" ] || missing="${missing} DIREXIO_OPENCLAW_ACP_TOKEN_FILE"
+  [ -n "$session" ] || missing="${missing} DIREXIO_OPENCLAW_ACP_SESSION"
+  if [ -n "$missing" ]; then
+    fail "OpenClaw ACP requires real Gateway settings:${missing}. Set them from the current OpenClaw runtime, or provide DIREXIO_OPENCLAW_ACP_ARGS_TOML with the complete args array."
+    return 1
   fi
-  if [ -n "$url" ] && [ -n "$token_file" ]; then
-    _toml_array acp --url "$url" --token-file "$token_file"
-  elif [ -n "$url" ]; then
-    _toml_array acp --url "$url"
-  elif [ -n "$token_file" ]; then
-    _toml_array acp --token-file "$token_file"
-  else
-    _toml_array acp
-  fi
+  token_file=$(_local_connect_path "$token_file")
+  _toml_array acp --url "$url" --token-file "$token_file" --session "$session"
 }
 
 _hermes_acp_args_toml() {
@@ -943,6 +941,13 @@ _cc_connect_daemon_is_running() {
   printf '%s\n' "$status" | grep -Eq 'Status:[[:space:]]*Running'
 }
 
+_cc_connect_daemon_has_agent_startup_error() {
+  local binary=$1 service_name=$2 logs
+  [ -n "$service_name" ] || service_name=cc-connect
+  logs=$("$binary" daemon logs --service-name "$service_name" -n "${DIREXIO_CONNECT_LOG_TAIL_LINES:-120}" 2>/dev/null || true)
+  printf '%s\n' "$logs" | grep -Eiq 'ACP_SESSION_INIT_FAILED|ACP metadata is missing|Recreate this ACP session'
+}
+
 _maybe_auto_install_cc_connect() {
   local policy=$1 runtime=$2 cc_agent=$3 service_dir=$4 config_path=$5 binary=$6 service_name=$7
   local repo ref src commit config_arg
@@ -962,6 +967,11 @@ _maybe_auto_install_cc_connect() {
       if ! _cc_connect_daemon_is_running "$binary" "$service_name"; then
         state_set agent_install_status "install_failed" 2>/dev/null || true
         warn "cc-connect daemon install returned success, but daemon status is not Running. Check the local agent command and cc-connect logs."
+        return 0
+      fi
+      if _cc_connect_daemon_has_agent_startup_error "$binary" "$service_name"; then
+        state_set agent_install_status "install_failed" 2>/dev/null || true
+        warn "cc-connect daemon is Running, but logs show ACP session initialization failed. Check OpenClaw ACP URL, token-file, and session."
         return 0
       fi
       state_set agent_install_status "installed" 2>/dev/null || true
@@ -1018,6 +1028,11 @@ _maybe_auto_install_cc_connect() {
     if ! _cc_connect_daemon_is_running "$binary" "$service_name"; then
       state_set agent_install_status "install_failed" 2>/dev/null || true
       warn "cc-connect daemon install returned success, but daemon status is not Running. Check the local agent command and cc-connect logs."
+      return 0
+    fi
+    if _cc_connect_daemon_has_agent_startup_error "$binary" "$service_name"; then
+      state_set agent_install_status "install_failed" 2>/dev/null || true
+      warn "cc-connect daemon is Running, but logs show ACP session initialization failed. Check OpenClaw ACP URL, token-file, and session."
       return 0
     fi
     state_set agent_install_status "installed" 2>/dev/null || true

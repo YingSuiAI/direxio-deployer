@@ -14,6 +14,13 @@ cat > "$fakebin/direxio-connect" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [ "${1:-}" = "daemon" ] && [ "${2:-}" = "logs" ]; then
+  [ "${3:-}" = "--service-name" ]
+  [ "${4:-}" = "connect-check.example.test" ]
+  printf '%s\n' "${CONNECT_LOG_OUTPUT:-}"
+  exit 0
+fi
+
 [ "${1:-}" = "daemon" ]
 [ "${2:-}" = "status" ]
 [ "${3:-}" = "--service-name" ]
@@ -76,10 +83,24 @@ jq -e '
   and (.user_confirmations.agent_mcp_runtime | not)
 ' "$state" >/dev/null
 
+set +e
+P2P_WORKDIR="$service_dir" PATH="$fakebin:$PATH" CONNECT_WORK_DIR="$service_dir/cc-connect" CONNECT_LOG_OUTPUT='ACP error (ACP_SESSION_INIT_FAILED): ACP metadata is missing for agent:main:acp:a18569b4-1f24-4f8a-aec6-f6a54530d50e. Recreate this ACP session with /acp spawn and rebind the thread.' bash "$ROOT/scripts/orchestrate.sh" verify connect_daemon > "$tmp/acp-error.out" 2>&1
+acp_rc=$?
+set -e
+[ "$acp_rc" -ne 0 ] || {
+  echo "connect daemon check must fail when daemon logs show ACP session init failure" >&2
+  exit 1
+}
+jq -e '
+  .runtime_checks.connect_daemon.status == "failed"
+  and (.runtime_checks.connect_daemon.evidence | contains("ACP session initialization failure"))
+  and (.runtime_checks.connect_daemon.agent_error | contains("ACP_SESSION_INIT_FAILED"))
+' "$state" >/dev/null
+
 report_output=$(P2P_WORKDIR="$service_dir" bash "$ROOT/scripts/orchestrate.sh" report new_deploy)
 report_path=$(printf '%s\n' "$report_output" | sed -nE 's/^operation report: //p' | tail -n 1)
 jq -e '
-  .runtime_checks.connect_daemon.status == "passed"
+  .runtime_checks.connect_daemon.status == "failed"
   and .gates.user_confirmation.agent_mcp_runtime == "pending_runtime_confirmation"
 ' "$report_path" >/dev/null
 

@@ -67,4 +67,22 @@ grep -q 'ServerAliveCountMax=3' "$SSH_LOG"
 grep -q '^19$' "$TIMEOUT_LOG"
 jq -e '.password == "12345678" and .agent_token == "agent" and .access_token == "access"' "$tmp/bootstrap.json" >/dev/null
 
+printf '{"password":"01234567","agent_token":"agent","access_token":"access"}\n' > "$tmp/bootstrap-leading-zero.json"
+IFS=$'\t' read -r password token access_token < <(_extract_output_tokens "$tmp/bootstrap-leading-zero.json")
+[ "$password" = "01234567" ]
+[ "$token" = "agent" ]
+[ "$access_token" = "access" ]
+
+printf '{"password":"8848121","agent_token":"agent","access_token":"access"}\n' > "$tmp/bootstrap-short-code.json"
+if _extract_output_tokens "$tmp/bootstrap-short-code.json" >/dev/null; then
+  echo "S5 must reject initialization codes that are not exactly eight digits" >&2
+  exit 1
+fi
+
+printf '{"password":12345678,"agent_token":"agent","access_token":"access"}\n' > "$tmp/bootstrap-numeric-code.json"
+if _extract_output_tokens "$tmp/bootstrap-numeric-code.json" >/dev/null; then
+  echo "S5 must reject numeric initialization codes; they must stay JSON strings to preserve leading zeros" >&2
+  exit 1
+fi
+
 echo "phase timeout guards ok"
