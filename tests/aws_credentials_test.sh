@@ -52,6 +52,14 @@ export PATH="$fakebin:$PATH"
 export AWS_SHARED_CREDENTIALS_FILE="$tmp/aws/credentials"
 export AWS_CONFIG_FILE="$tmp/aws/config"
 
+file_mode() {
+  if stat -c '%a' "$1" >/dev/null 2>&1; then
+    stat -c '%a' "$1"
+  else
+    stat -f '%Lp' "$1"
+  fi
+}
+
 cat > "$tmp/direxio.csv" <<'CSV'
 User name,Access key ID,Secret access key
 DirexioDeployer-20260628,AKIADIREXIOTEST,SECRET_DIREXIO_VALUE
@@ -73,8 +81,8 @@ grep -q '^aws_secret_access_key = SECRET_DIREXIO_VALUE$' "$AWS_SHARED_CREDENTIAL
 grep -q '^\[profile direxio-deployer\]$' "$AWS_CONFIG_FILE"
 grep -q '^region = ap-southeast-1$' "$AWS_CONFIG_FILE"
 
-credential_perm=$(stat -f '%Lp' "$AWS_SHARED_CREDENTIALS_FILE" 2>/dev/null || stat -c '%a' "$AWS_SHARED_CREDENTIALS_FILE")
-config_perm=$(stat -f '%Lp' "$AWS_CONFIG_FILE" 2>/dev/null || stat -c '%a' "$AWS_CONFIG_FILE")
+credential_perm=$(file_mode "$AWS_SHARED_CREDENTIALS_FILE")
+config_perm=$(file_mode "$AWS_CONFIG_FILE")
 [ "$credential_perm" = "600" ]
 [ "$config_perm" = "600" ]
 

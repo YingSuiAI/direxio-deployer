@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-tmp=$(mktemp -d)
+tmp=$(mktemp -d "$ROOT/.tmp-runtime-summary.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 
 export HOME="$tmp/home"
@@ -10,6 +10,25 @@ mkdir -p "$HOME"
 
 fakebin="$tmp/bin"
 mkdir -p "$fakebin"
+
+windows_path() {
+  local path=$1 drive rest
+  case "$path" in
+    /mnt/[A-Za-z]/*)
+      drive=${path#/mnt/}
+      drive=${drive%%/*}
+      rest=${path#/mnt/$drive/}
+      printf '%s:\\%s\n' "$(printf '%s' "$drive" | tr '[:lower:]' '[:upper:]')" "$(printf '%s' "$rest" | sed 's#/#\\#g')"
+      ;;
+    /[A-Za-z]/*)
+      drive=${path#/}
+      drive=${drive%%/*}
+      rest=${path#/$drive/}
+      printf '%s:\\%s\n' "$(printf '%s' "$drive" | tr '[:lower:]' '[:upper:]')" "$(printf '%s' "$rest" | sed 's#/#\\#g')"
+      ;;
+    *) printf '%s\n' "$path" ;;
+  esac
+}
 
 cat > "$fakebin/direxio-connect" <<'EOF'
 #!/usr/bin/env bash
@@ -29,51 +48,52 @@ EOF
 chmod 700 "$fakebin/direxio-connect"
 
 cat > "$fakebin/direxio-mcp" <<'EOF'
-#!/usr/bin/env node
-const requiredCred = process.env.EXPECTED_CREDENTIALS_FILE;
-if (process.env.DIREXIO_CREDENTIALS_FILE !== requiredCred) {
-  console.error("wrong DIREXIO_CREDENTIALS_FILE");
-  process.exit(1);
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "${DIREXIO_CREDENTIALS_FILE:-}" != "${EXPECTED_CREDENTIALS_FILE:-}" ]; then
+  echo "wrong DIREXIO_CREDENTIALS_FILE" >&2
+  exit 1
+fi
+
+if [ "${1:-}" = "doctor" ] && [ "${2:-}" = "--json" ]; then
+  printf '{"ok":true,"domain":"runtime-summary.example.test","agent_room_id":"!agent:runtime-summary.example.test","token":"redacted"}\n'
+  exit 0
+fi
+
+frame() {
+  local body=$1
+  printf 'Content-Length: %s\r\n\r\n%s' "${#body}" "$body"
 }
 
-if (process.argv[2] === "doctor" && process.argv[3] === "--json") {
-  console.log(JSON.stringify({
-    ok: true,
-    domain: "runtime-summary.example.test",
-    agent_room_id: "!agent:runtime-summary.example.test",
-    token: "redacted"
-  }));
-  process.exit(0);
-}
-
-const responses = [
-  {
-    jsonrpc: "2.0",
-    id: 1,
-    result: {
-      protocolVersion: "2024-11-05",
-      capabilities: { tools: {} },
-      serverInfo: { name: "fake-direxio-mcp", version: "0.0.0" }
-    }
-  },
-  {
-    jsonrpc: "2.0",
-    id: 2,
-    result: {
-      tools: [
-        { name: "search_rooms" },
-        { name: "send_message" },
-        { name: "list_messages" }
-      ]
-    }
-  }
-];
-for (const response of responses) {
-  const body = JSON.stringify(response);
-  process.stdout.write(`Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`);
-}
+frame '{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"fake-direxio-mcp","version":"0.0.0"}}}'
+frame '{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"search_rooms"},{"name":"send_message"},{"name":"list_messages"}]}}'
 EOF
 chmod 700 "$fakebin/direxio-mcp"
+
+cat > "$tmp/fake-mcp.ps1" <<'EOF'
+if ($env:DIREXIO_CREDENTIALS_FILE -ne $env:EXPECTED_CREDENTIALS_FILE) {
+  [Console]::Error.WriteLine("wrong DIREXIO_CREDENTIALS_FILE")
+  exit 1
+}
+
+if (($args.Count -ge 2) -and ($args[0] -eq "doctor") -and ($args[1] -eq "--json")) {
+  [Console]::Out.WriteLine('{"ok":true,"domain":"runtime-summary.example.test","agent_room_id":"!agent:runtime-summary.example.test","token":"redacted"}')
+  exit 0
+}
+
+function Frame($body) {
+  [Console]::Out.Write("Content-Length: $($body.Length)`r`n`r`n$body")
+}
+
+Frame '{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"fake-direxio-mcp","version":"0.0.0"}}}'
+Frame '{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"search_rooms"},{"name":"send_message"},{"name":"list_messages"}]}}'
+EOF
+
+mcp_command=direxio-mcp
+if ! command -v node >/dev/null 2>&1 && command -v node.exe >/dev/null 2>&1; then
+  fake_mcp_ps1=$(windows_path "$tmp/fake-mcp.ps1")
+  mcp_command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"$fake_mcp_ps1\""
+fi
 
 cat > "$fakebin/curl" <<'EOF'
 #!/usr/bin/env bash
@@ -108,6 +128,7 @@ jq -n \
   --arg service_dir "$service_dir" \
   --arg credentials "$credentials" \
   --arg config "$config" \
+  --arg mcp_command "$mcp_command" \
   '{
     run_id: "runtime-summary-test",
     region: "ap-northeast-1",
@@ -118,7 +139,7 @@ jq -n \
     agent_service_dir: $service_dir,
     agent_credentials_file: $credentials,
     mcp_credentials_file: $credentials,
-    mcp_command: "direxio-mcp",
+    mcp_command: $mcp_command,
     agent_token: "AGENT_TOKEN_RUNTIME",
     agent_room_id: "!agent:runtime-summary.example.test",
     cc_connect_config: $config,

@@ -751,7 +751,7 @@ cmd_verify_mcp_tools() {
     return 1
   }
 
-  local credentials mcp_cmd node_id out err report
+  local credentials mcp_cmd node_id node_cmd node_script out err report
   credentials=$(jq -r '.agent_credentials_file // .mcp_credentials_file // empty' "$STATE_JSON")
   mcp_cmd=$(jq -r '.mcp_command // "direxio-mcp"' "$STATE_JSON")
   node_id=$(jq -r '.agent_node_id // empty' "$STATE_JSON")
@@ -760,14 +760,16 @@ cmd_verify_mcp_tools() {
     return 1
   }
   [ -n "$mcp_cmd" ] || mcp_cmd=direxio-mcp
-  command -v node >/dev/null 2>&1 || {
-    warn "mcp tools check requires node to run scripts/mcp-tools-list.mjs"
+  node_cmd=$(_node_command)
+  [ -n "$node_cmd" ] || {
+    warn "mcp tools check requires node or node.exe to run scripts/mcp-tools-list.mjs"
     return 1
   }
+  node_script=$(_node_script_path "$node_cmd" "$HERE/mcp-tools-list.mjs")
 
   out=$(mktemp)
   err=$(mktemp)
-  if ! DIREXIO_CREDENTIALS_FILE="$credentials" DIREXIO_AGENT_NODE_ID="$node_id" node "$HERE/mcp-tools-list.mjs" "$mcp_cmd" > "$out" 2> "$err"; then
+  if ! DIREXIO_CREDENTIALS_FILE="$credentials" DIREXIO_AGENT_NODE_ID="$node_id" "$node_cmd" "$node_script" "$mcp_cmd" > "$out" 2> "$err"; then
     _state_write '
       .runtime_checks.mcp_tools = {
         status: "failed",
@@ -802,6 +804,49 @@ cmd_verify_mcp_tools() {
   ' --arg ts "$(_now)" --argjson report "$report"
   rm -f "$out" "$err"
   echo "verified runtime check: mcp_tools"
+}
+
+_node_command() {
+  if command -v node >/dev/null 2>&1; then
+    command -v node
+    return 0
+  fi
+  if command -v node.exe >/dev/null 2>&1; then
+    command -v node.exe
+    return 0
+  fi
+  return 1
+}
+
+_node_script_path() {
+  local node_cmd=$1 script=$2
+  case "$node_cmd" in
+    *.exe|*.EXE)
+      if command -v cygpath >/dev/null 2>&1; then
+        cygpath -w "$script"
+        return 0
+      fi
+      case "$script" in
+        /mnt/[A-Za-z]/*)
+          local drive rest
+          drive=${script#/mnt/}
+          drive=${drive%%/*}
+          rest=${script#/mnt/$drive/}
+          printf '%s:\\%s\n' "$(printf '%s' "$drive" | tr '[:lower:]' '[:upper:]')" "$(printf '%s' "$rest" | sed 's#/#\\#g')"
+          return 0
+          ;;
+        /[A-Za-z]/*)
+          local drive rest
+          drive=${script#/}
+          drive=${drive%%/*}
+          rest=${script#/$drive/}
+          printf '%s:\\%s\n' "$(printf '%s' "$drive" | tr '[:lower:]' '[:upper:]')" "$(printf '%s' "$rest" | sed 's#/#\\#g')"
+          return 0
+          ;;
+      esac
+      ;;
+  esac
+  printf '%s\n' "$script"
 }
 
 path_dirname() {
