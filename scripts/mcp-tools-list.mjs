@@ -60,27 +60,17 @@ send({ jsonrpc: "2.0", method: "notifications/initialized", params: {} });
 send({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
 
 function send(message) {
-  const body = JSON.stringify(message);
-  child.stdin.write(`Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`);
+  child.stdin.write(`${JSON.stringify(message)}\n`);
 }
 
 function readFrames() {
   while (true) {
-    const headerEnd = stdout.indexOf("\r\n\r\n");
-    if (headerEnd < 0) return;
-    const header = stdout.subarray(0, headerEnd).toString("utf8");
-    const match = header.match(/Content-Length:\s*(\d+)/i);
-    if (!match) {
-      finishWithError("MCP response missing Content-Length header");
-      return;
-    }
-    const length = Number.parseInt(match[1], 10);
-    const frameStart = headerEnd + 4;
-    const frameEnd = frameStart + length;
-    if (stdout.length < frameEnd) return;
-    const body = stdout.subarray(frameStart, frameEnd).toString("utf8");
-    stdout = stdout.subarray(frameEnd);
-    const message = JSON.parse(body);
+    const lineEnd = stdout.indexOf("\n");
+    if (lineEnd < 0) return;
+    const line = stdout.subarray(0, lineEnd).toString("utf8").replace(/\r$/, "");
+    stdout = stdout.subarray(lineEnd + 1);
+    if (line.length === 0) continue;
+    const message = JSON.parse(line);
     if (typeof message.id !== "undefined") {
       responses.set(message.id, message);
     }
