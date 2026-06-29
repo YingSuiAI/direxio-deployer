@@ -13,6 +13,7 @@ required=(
   scripts/orchestrate.ps1
   scripts/aws-credentials.sh
   scripts/destroy.sh
+  scripts/destroy.ps1
   scripts/update.sh
   scripts/reset-app-data.sh
   scripts/pricing-estimate.sh
@@ -61,6 +62,11 @@ grep -q 'PLATFORMS_INCLUDE=matrix' scripts/phases/s6_wire_local.sh
 grep -q 'YingSuiAI/direxio-connect.git' scripts/phases/s6_wire_local.sh
 grep -q 'DIREXIO_CC_CONNECT_AGENT' scripts/phases/s6_wire_local.sh
 grep -q 'orchestrate.ps1' README.md
+grep -q 'destroy.ps1' README.md
+grep -q 'destroy.ps1' README_zh.md
+grep -q 'destroy.ps1' SKILL.md
+grep -q 'destroy.ps1' references/deployment-workflow.md
+grep -q 'destroy.ps1' references/windows-deployment-notes.md
 grep -q 'cc-connect' SKILL.md
 grep -q 'mcp_config_dir' SKILL.md
 grep -q 'mcp_codex_config' references/runtime-wiring.md

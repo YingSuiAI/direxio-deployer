@@ -102,6 +102,13 @@ DOMAIN=<domain> bash scripts/orchestrate.sh status
 DOMAIN=<domain> bash scripts/destroy.sh
 ```
 
+Windows 用户使用 PowerShell 销毁入口：
+
+```powershell
+$env:DOMAIN = "<domain>"
+.\scripts\destroy.ps1
+```
+
 销毁时只会在 `direxio-connect daemon status --service-name <service_id>` 返回的 `WorkDir` 等于当前服务的
 `~/.direxio/nodes/<service_id>/cc-connect` 目录时停止本地 daemon，然后删除该
 service 目录。

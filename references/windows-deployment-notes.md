@@ -9,9 +9,19 @@ Use the PowerShell wrapper from the repository root:
 ```powershell
 .\scripts\orchestrate.ps1 status
 .\scripts\orchestrate.ps1
+.\scripts\destroy.ps1
 ```
 
-The wrapper finds Git Bash and uses it for the Bash state machine, but sets `DIREXIO_LOCAL_PATH_STYLE=windows` so S6 writes Windows-compatible `direxio-connect` config paths and daemon install commands.
+The wrappers find Git for Windows Bash and use it for the Bash state machine, but set `DIREXIO_LOCAL_PATH_STYLE=windows` so S6 writes Windows-compatible `direxio-connect` config paths and daemon install commands. Use these PowerShell entrypoints on Windows instead of WSL Bash unless you intentionally deployed from WSL and want WSL-owned local paths.
+
+Destroy can use `DOMAIN` or an explicit Windows state path:
+
+```powershell
+$env:DOMAIN = "__DOMAIN__"
+.\scripts\destroy.ps1
+
+.\scripts\destroy.ps1 "$env:USERPROFILE\.direxio\nodes\<service_id>\state.json"
+```
 
 ## Background Process Output Buffering
 

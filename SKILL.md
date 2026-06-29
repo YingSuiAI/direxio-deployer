@@ -13,6 +13,7 @@ Agents should treat this repository root as the execution engine. The runnable e
 scripts/orchestrate.sh
 scripts/orchestrate.ps1
 scripts/destroy.sh
+scripts/destroy.ps1
 ```
 
 ## Skill Freshness Gate
@@ -509,7 +510,8 @@ for the current service before giving advice. The status output includes a
   install proof; the next action is to rerun the deployment workflow to refresh S4-S7, local credentials, MCP snippets, and runtime checks.
 - Next action: the concrete diagnostic or user action for the current phase.
 - Stop-loss: whether no cloud destroy is needed yet, or how to ask the agent to
-  run destroy / run `scripts/destroy.sh`.
+  run destroy / run `scripts/destroy.sh` on POSIX or `.\scripts\destroy.ps1` on
+  Windows PowerShell.
 
 Do not tell a nontechnical user only that a phase failed. Translate the recovery
 summary into current status, cost impact, resumability, next action, and
@@ -564,7 +566,7 @@ do next.
 
 ## Destroy Flow
 
-Use `scripts/destroy.sh` for teardown. Destroy first checks `direxio-connect daemon status --service-name <service_id>` and stops only that named daemon when the reported `WorkDir` matches the current service directory, `~/.direxio/nodes/<service_id>/cc-connect`. After AWS resources are terminated and released, destroy reads AWS back and records `destroy.evidence` before removing the corresponding local service directory under `~/.direxio/nodes/<service_id>`. This prevents stale state, credentials, and bridge files from blocking or misleading the next deployment while still preserving a reportable AWS cleanup audit trail. It leaves unrelated node credential directories intact.
+Use `scripts/destroy.sh` for teardown on POSIX shells and `.\scripts\destroy.ps1` from PowerShell on Windows. The Windows wrapper selects Git for Windows Bash for the Bash state machine, sets Windows-compatible local path mode, and converts explicit Windows state paths before invoking `scripts/destroy.sh`. Destroy first checks `direxio-connect daemon status --service-name <service_id>` and stops only that named daemon when the reported `WorkDir` matches the current service directory, `~/.direxio/nodes/<service_id>/cc-connect`. After AWS resources are terminated and released, destroy reads AWS back and records `destroy.evidence` before removing the corresponding local service directory under `~/.direxio/nodes/<service_id>`. This prevents stale state, credentials, and bridge files from blocking or misleading the next deployment while still preserving a reportable AWS cleanup audit trail. It leaves unrelated node credential directories intact.
 
 Destroy uses the same AWS identity boundary as deployment: root AWS access-key
 identity is allowed when the operator explicitly chose root credentials. Prefer
@@ -610,7 +612,7 @@ bash scripts/orchestrate.sh
 
 Use an `AWS_PROFILE` or temporary `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` for the selected AWS identity. Root access keys are allowed when the operator explicitly chooses them; a temporary `DirexioDeployer` IAM user remains the recommended routine path. Do not write AWS secrets, initialization codes, or agent tokens into skill files or the repository.
 
-On Windows, prefer `.\scripts\orchestrate.ps1` from PowerShell. It selects Git Bash for the Bash phases and writes Windows-compatible local `direxio-connect` paths.
+On Windows, prefer `.\scripts\orchestrate.ps1` and `.\scripts\destroy.ps1` from PowerShell. These wrappers select Git for Windows Bash for the Bash phases and write Windows-compatible local `direxio-connect` paths.
 
 ## Required Confirmation
 

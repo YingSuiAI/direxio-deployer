@@ -67,13 +67,21 @@ From the repository root:
 DOMAIN=__DOMAIN__ bash scripts/destroy.sh
 ```
 
+On Windows, run destroy from PowerShell so local service paths stay in Windows
+form and the wrapper selects Git for Windows Bash instead of WSL:
+
+```powershell
+$env:DOMAIN = "__DOMAIN__"
+.\scripts\destroy.ps1
+```
+
 Destroy stops the local `direxio-connect` daemon only when `direxio-connect daemon status --service-name <service_id>` reports a `WorkDir` matching the current service directory, `~/.direxio/nodes/<service_id>/cc-connect`. It then terminates the recorded EC2 instance, verifies the recorded EBS root volume, releases the Elastic IP, deletes the security group and key pair, removes Route53 records/zones created by the deployer, records AWS read-back results under `destroy.evidence`, and removes the corresponding local service directory under `~/.direxio/nodes/<service_id>`. This prevents stale credentials and `state.json` files from being treated as active deployments later while preserving an audit report for cleanup.
 
 Destroy allows root AWS access-key identity when the operator explicitly chose
 root credentials. Use the same deployment profile for teardown that was used
 for provisioning.
 
-Use `P2P_KEEP_WORKDIR=1 DOMAIN=__DOMAIN__ bash scripts/destroy.sh` only when preserving local state files for debugging; if used, report that the service directory still exists.
+Use `P2P_KEEP_WORKDIR=1 DOMAIN=__DOMAIN__ bash scripts/destroy.sh` on POSIX, or set `$env:P2P_KEEP_WORKDIR = "1"` before `.\scripts\destroy.ps1` on Windows, only when preserving local state files for debugging; if used, report that the service directory still exists.
 
 ## Run
 
@@ -242,6 +250,7 @@ If rate-limited, the log shows `retry after <timestamp> UTC`.
    ```bash
    bash scripts/destroy.sh
    ```
+   On Windows, use `.\scripts\destroy.ps1` from PowerShell.
    Then start again with a fresh domain.
 
 3. **Force Caddy staging CA** (development only) — Set the environment

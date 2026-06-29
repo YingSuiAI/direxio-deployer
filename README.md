@@ -105,6 +105,13 @@ Destroy recorded resources:
 DOMAIN=<domain> bash scripts/destroy.sh
 ```
 
+On Windows, use the PowerShell destroy entrypoint:
+
+```powershell
+$env:DOMAIN = "<domain>"
+.\scripts\destroy.ps1
+```
+
 Destroy stops the local `direxio-connect` daemon only when its reported `WorkDir`
 matches the current service's `~/.direxio/nodes/<service_id>/cc-connect`
 directory, then removes that service directory.

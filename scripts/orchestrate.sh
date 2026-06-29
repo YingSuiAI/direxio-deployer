@@ -239,7 +239,11 @@ status_stop_loss() {
     echo "no recorded cloud resources need destroy from this state"
   else
     echo "ask the agent to run destroy, or run:"
-    echo "  DOMAIN=${domain:-__DOMAIN__} bash $HERE/destroy.sh"
+    if [ "${DIREXIO_LOCAL_PATH_STYLE:-}" = "windows" ] || [ -n "${DIREXIO_WINDOWS_HOME:-}" ]; then
+      echo "  \$env:DOMAIN = \"${domain:-__DOMAIN__}\"; .\\scripts\\destroy.ps1"
+    else
+      echo "  DOMAIN=${domain:-__DOMAIN__} bash $HERE/destroy.sh"
+    fi
     echo "  Purchased domains, third-party DNS records, and retained hosted zones are not automatically removed."
   fi
 }
@@ -545,7 +549,7 @@ cmd_run() {
     case "$rc" in
       0)  ok "Phase $cur completed." ;;
       2)  warn "Phase $cur is waiting for user action (credentials/quota/confirmation). Resolve it and rerun this script to resume."; return 2 ;;
-      *)  warn "Phase $cur failed (rc=$rc). Fix it and rerun to resume, or run bash destroy.sh to remove resources."; return 1 ;;
+      *)  warn "Phase $cur failed (rc=$rc). Fix it and rerun to resume, or ask the agent to destroy this node to remove resources."; return 1 ;;
     esac
   done
 }
