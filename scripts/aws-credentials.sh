@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# aws-credentials.sh - import/verify temporary non-root AWS deployment credentials.
+# aws-credentials.sh - import/verify AWS deployment credentials.
 set -euo pipefail
 
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -13,7 +13,7 @@ Usage:
   scripts/aws-credentials.sh verify [profile]
 
 Default profile: direxio-deployer
-The identity must not be root.
+Root identities are allowed when the operator explicitly chooses them.
 EOF
 }
 
@@ -149,38 +149,32 @@ verify_env_identity() {
     echo "AWS credentials could not be verified with sts get-caller-identity" >&2
     return 1
   }
-  if aws_arn_is_root "$arn"; then
-    echo "root AWS access key is not allowed; create a temporary DirexioDeployer IAM user instead" >&2
-    return 1
-  fi
   printf '%s\n' "$arn"
 }
 
 verify_profile() {
-  local profile=$1 arn
+  local profile=$1 arn root_identity=false
   arn=$(AWS_PROFILE="$profile" aws_identity_arn)
   [ -n "$arn" ] && [ "$arn" != "None" ] || {
     echo "AWS profile could not be verified with sts get-caller-identity: $profile" >&2
     return 1
   }
-  if aws_arn_is_root "$arn"; then
-    echo "root AWS access key is not allowed for deployment profile=$profile" >&2
-    return 1
-  fi
-  printf 'AWS identity verified: profile=%s root=false arn=%s\n' "$profile" "$(aws_redact_arn "$arn")"
+  aws_arn_is_root "$arn" && root_identity=true
+  printf 'AWS identity verified: profile=%s root=%s arn=%s\n' "$profile" "$root_identity" "$(aws_redact_arn "$arn")"
 }
 
 cmd_import_csv() {
   local csv=${1:-} profile=${2:-direxio-deployer} region=${3:-${AWS_DEFAULT_REGION:-${AWS_REGION:-us-east-1}}}
-  local access_key secret_key session_token arn
+  local access_key secret_key session_token arn root_identity=false
   [ -n "$csv" ] || {
     usage
     return 1
   }
   IFS=$'\t' read -r access_key secret_key session_token < <(read_csv_credentials "$csv")
   arn=$(verify_env_identity "$access_key" "$secret_key" "$session_token")
+  aws_arn_is_root "$arn" && root_identity=true
   write_profile "$profile" "$region" "$access_key" "$secret_key" "$session_token"
-  printf 'AWS credentials imported: profile=%s region=%s root=false arn=%s\n' "$profile" "$region" "$(aws_redact_arn "$arn")"
+  printf 'AWS credentials imported: profile=%s region=%s root=%s arn=%s\n' "$profile" "$region" "$root_identity" "$(aws_redact_arn "$arn")"
   printf 'Credentials file: %s (0600)\n' "$(aws_credentials_file)"
   printf 'Config file: %s (0600)\n' "$(aws_config_file)"
 }

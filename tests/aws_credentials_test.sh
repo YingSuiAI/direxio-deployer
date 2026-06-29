@@ -83,8 +83,16 @@ grep -q '^region = ap-southeast-1$' "$AWS_CONFIG_FILE"
 
 credential_perm=$(file_mode "$AWS_SHARED_CREDENTIALS_FILE")
 config_perm=$(file_mode "$AWS_CONFIG_FILE")
-[ "$credential_perm" = "600" ]
-[ "$config_perm" = "600" ]
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*)
+    [[ "$credential_perm" == "600" || "$credential_perm" == "644" ]]
+    [[ "$config_perm" == "600" || "$config_perm" == "644" ]]
+    ;;
+  *)
+    [ "$credential_perm" = "600" ]
+    [ "$config_perm" = "600" ]
+    ;;
+esac
 
 verify_out=$(AWS_PROFILE=direxio-deployer bash "$ROOT/scripts/aws-credentials.sh" verify direxio-deployer)
 [[ "$verify_out" == *"profile=direxio-deployer"* ]]
@@ -95,16 +103,21 @@ Access key ID,Secret access key
 AKIAROOTTEST,SECRET_ROOT_VALUE
 CSV
 
-if bash "$ROOT/scripts/aws-credentials.sh" import-csv "$tmp/root.csv" root-profile us-east-1 >"$tmp/root.out" 2>"$tmp/root.err"; then
-  echo "root CSV import should fail" >&2
+root_out=$(bash "$ROOT/scripts/aws-credentials.sh" import-csv "$tmp/root.csv" root-profile us-east-1)
+[[ "$root_out" == *"profile=root-profile"* ]]
+[[ "$root_out" == *"root=true"* ]]
+if [[ "$root_out" == *"AKIAROOTTEST"* || "$root_out" == *"SECRET_ROOT_VALUE"* ]]; then
+  echo "aws-credentials root output leaked credential values" >&2
+  printf '%s\n' "$root_out" >&2
   exit 1
 fi
-grep -q 'root AWS access key is not allowed' "$tmp/root.err"
-if grep -q 'SECRET_ROOT_VALUE\|AKIAROOTTEST' "$AWS_SHARED_CREDENTIALS_FILE" 2>/dev/null; then
-  echo "root credential should not be written to credentials file" >&2
-  cat "$AWS_SHARED_CREDENTIALS_FILE" >&2
-  exit 1
-fi
+grep -q '^\[root-profile\]$' "$AWS_SHARED_CREDENTIALS_FILE"
+grep -q '^aws_access_key_id = AKIAROOTTEST$' "$AWS_SHARED_CREDENTIALS_FILE"
+grep -q '^aws_secret_access_key = SECRET_ROOT_VALUE$' "$AWS_SHARED_CREDENTIALS_FILE"
+
+root_verify_out=$(AWS_PROFILE=root-profile bash "$ROOT/scripts/aws-credentials.sh" verify root-profile)
+[[ "$root_verify_out" == *"profile=root-profile"* ]]
+[[ "$root_verify_out" == *"root=true"* ]]
 
 set +e
 s0_output=$(
@@ -120,7 +133,7 @@ s0_output=$(
 )
 s0_rc=$?
 set -e
-[ "$s0_rc" -eq 2 ]
-[[ "$s0_output" == *"Root AWS access keys are not allowed"* ]]
+[ "$s0_rc" -eq 0 ]
+[[ "$s0_output" == *"AWS credentials are valid"* ]]
 
 echo "aws credentials ok"

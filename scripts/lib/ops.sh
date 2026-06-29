@@ -39,6 +39,9 @@ ops_path_dirname() {
 ops_normalize_path() {
   local path=$1
   path=$(printf '%s' "$path" | sed 's#\\#/#g')
+  if command -v cygpath >/dev/null 2>&1; then
+    cygpath -m "$path" 2>/dev/null && return 0
+  fi
   while [ "${#path}" -gt 1 ] && [ "${path%/}" != "$path" ]; do
     case "$path" in [A-Za-z]:/) break ;; esac
     path=${path%/}

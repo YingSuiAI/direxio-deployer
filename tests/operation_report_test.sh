@@ -141,6 +141,7 @@ jq -e '
   and (.billing.recorded_billable_resources | index("EBS root volume vol-report-root") != null)
   and (.billing.recorded_billable_resources | index("public IPv4 203.0.113.42") != null)
   and (.billing.recorded_billable_resources | index("Route53 hosted zone ZREPORT") != null)
+  and .security.root_access_key_allowed == true
   and .security.temporary_iam_cleanup_required == true
   and (.security.temporary_iam_cleanup_action | contains("delete or disable"))
 ' "$report_path" >/dev/null

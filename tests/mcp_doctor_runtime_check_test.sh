@@ -33,6 +33,10 @@ service_dir="$HOME/.direxio/nodes/mcp-check.example.test"
 mkdir -p "$service_dir"
 credentials="$service_dir/credentials.json"
 : > "$credentials"
+expected_credentials="$credentials"
+if command -v cygpath >/dev/null 2>&1; then
+  expected_credentials=$(cygpath -m "$expected_credentials")
+fi
 state="$service_dir/state.json"
 jq -n \
   --arg service_dir "$service_dir" \
@@ -61,7 +65,7 @@ jq -n \
     resources: {}
   }' > "$state"
 
-verify_output=$(P2P_WORKDIR="$service_dir" PATH="$fakebin:$PATH" EXPECTED_CREDENTIALS_FILE="$credentials" bash "$ROOT/scripts/orchestrate.sh" verify mcp_doctor)
+verify_output=$(P2P_WORKDIR="$service_dir" PATH="$fakebin:$PATH" EXPECTED_CREDENTIALS_FILE="$expected_credentials" bash "$ROOT/scripts/orchestrate.sh" verify mcp_doctor)
 printf '%s\n' "$verify_output" | grep -q 'verified runtime check: mcp_doctor'
 
 jq -e '

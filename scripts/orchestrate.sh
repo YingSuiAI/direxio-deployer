@@ -218,7 +218,7 @@ status_next_action() {
   fi
 
   case "$1" in
-    S0_PREREQ_AWS)      echo "configure AWS CLI credentials for a non-root temporary DirexioDeployer IAM user and rerun status" ;;
+    S0_PREREQ_AWS)      echo "configure AWS CLI credentials for the selected deployment identity and rerun status" ;;
     S1_PREFLIGHT)       echo "fix AWS region, default VPC, EC2 quota, or AMI availability before creating resources" ;;
     S2_DOMAIN)          echo "confirm the long-lived domain, DNS authority, and irreversible Matrix server_name binding" ;;
     S3_PROVISION)       echo "inspect EC2 provisioning, Elastic IP allocation, security group creation, and DNS record setup" ;;
@@ -341,7 +341,7 @@ print_delivery() {
   echo "  state.json   : $statejson"
   echo "  stop billing : ask the agent to destroy this node when finished"
   echo "  Note         : EC2/public IPv4/EBS resources keep billing until destroy is run."
-  echo "  security     : delete or disable the temporary IAM key after deployment."
+  echo "  security     : delete/disable temporary IAM keys after deployment; rotate/remove root keys if used."
   echo "  Product gate : S7 is green; final product completion still needs App initialization and agent/MCP runtime confirmation."
   if report_path=$(operation_report_write new_deploy automated_gates_complete_user_confirmation_pending "$STATE_JSON" 2>/dev/null); then
     echo "  report       : $report_path"
@@ -642,7 +642,7 @@ cmd_verify_mcp_doctor() {
 
   out=$(mktemp)
   err=$(mktemp)
-  if ! DIREXIO_CREDENTIALS_FILE="$credentials" DIREXIO_AGENT_NODE_ID="$node_id" bash -lc "$mcp_cmd doctor --json" > "$out" 2> "$err"; then
+  if ! DIREXIO_CREDENTIALS_FILE="$credentials" DIREXIO_AGENT_NODE_ID="$node_id" bash -c "$mcp_cmd doctor --json" > "$out" 2> "$err"; then
     _state_write '
       .runtime_checks.mcp_doctor = {
         status: "failed",
@@ -861,6 +861,9 @@ path_dirname() {
 normalize_check_path() {
   local path=$1
   path=$(printf '%s' "$path" | sed 's#\\#/#g')
+  if command -v cygpath >/dev/null 2>&1; then
+    cygpath -m "$path" 2>/dev/null && return 0
+  fi
   while [ "${#path}" -gt 1 ] && [ "${path%/}" != "$path" ]; do
     case "$path" in [A-Za-z]:/) break ;; esac
     path=${path%/}

@@ -63,7 +63,11 @@ Frame '{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"search_rooms","descri
 EOF
 
 mcp_command=direxio-mcp
-if ! command -v node >/dev/null 2>&1 && command -v node.exe >/dev/null 2>&1; then
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) use_windows_mcp=1 ;;
+  *) use_windows_mcp=0 ;;
+esac
+if { [ "$use_windows_mcp" = "1" ] || ! command -v node >/dev/null 2>&1; } && command -v node.exe >/dev/null 2>&1; then
   fake_mcp_ps1=$(windows_path "$tmp/fake-mcp.ps1")
   mcp_command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"$fake_mcp_ps1\""
 fi
@@ -72,6 +76,10 @@ service_dir="$HOME/.direxio/nodes/mcp-tools.example.test"
 mkdir -p "$service_dir"
 credentials="$service_dir/credentials.json"
 : > "$credentials"
+expected_credentials="$credentials"
+if command -v cygpath >/dev/null 2>&1; then
+  expected_credentials=$(cygpath -m "$expected_credentials")
+fi
 state="$service_dir/state.json"
 jq -n \
   --arg service_dir "$service_dir" \
@@ -101,7 +109,7 @@ jq -n \
     resources: {}
   }' > "$state"
 
-verify_output=$(P2P_WORKDIR="$service_dir" PATH="$fakebin:$PATH" EXPECTED_CREDENTIALS_FILE="$credentials" bash "$ROOT/scripts/orchestrate.sh" verify mcp_tools)
+verify_output=$(P2P_WORKDIR="$service_dir" PATH="$fakebin:$PATH" EXPECTED_CREDENTIALS_FILE="$expected_credentials" bash "$ROOT/scripts/orchestrate.sh" verify mcp_tools)
 printf '%s\n' "$verify_output" | grep -q 'verified runtime check: mcp_tools'
 
 jq -e '

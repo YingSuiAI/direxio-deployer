@@ -29,7 +29,8 @@
 
 ## 最小命令
 
-从 AWS CSV 导入并验证一个临时、非 root 的部署 profile：
+从 AWS CSV 导入并验证一个部署 profile。推荐使用临时 `DirexioDeployer` IAM
+用户；如果操作者明确选择 root access key，也允许继续：
 
 ```bash
 bash scripts/aws-credentials.sh import-csv /path/to/accessKeys.csv direxio-deployer us-east-1

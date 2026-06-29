@@ -223,10 +223,6 @@ if [ -z "$AWS_IDENTITY_ARN" ] || [ "$AWS_IDENTITY_ARN" = "None" ]; then
   echo "AWS credentials are required before destroy can remove cloud resources or local state."
   exit 1
 fi
-if aws_arn_is_root "$AWS_IDENTITY_ARN"; then
-  echo "Root AWS access keys are not allowed for destroy. Use a temporary non-root DirexioDeployer IAM user/profile, then rerun."
-  exit 2
-fi
 
 find_route53_zone() {
   local domain=$1 best_id="" best_name="" best_len=0 id name clean len
@@ -316,6 +312,9 @@ delete_route53_hosted_zone_if_owned() {
 normalize_local_path() {
   local path=$1 drive rest
   path=$(printf '%s' "$path" | sed 's#\\#/#g')
+  if command -v cygpath >/dev/null 2>&1; then
+    cygpath -m "$path" 2>/dev/null && return 0
+  fi
   case "$path" in
     /mnt/[A-Za-z]/*)
       drive=${path#/mnt/}

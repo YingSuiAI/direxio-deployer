@@ -83,9 +83,9 @@ If distro packages are too old or missing, ask before using the official AWS CLI
 
 ## Credentials
 
-Prefer a temporary non-root `DirexioDeployer` IAM user or role. If the user
-provides an AWS access-key CSV, import it through the repository helper so root
-identities are blocked and command output stays redacted:
+Prefer a temporary `DirexioDeployer` IAM user or role. If the user provides an
+AWS access-key CSV, import it through the repository helper so command output
+stays redacted and the identity is marked as `root=true|false`:
 
 ```bash
 bash scripts/aws-credentials.sh import-csv /path/to/accessKeys.csv direxio-deployer <region>
@@ -93,7 +93,8 @@ export AWS_PROFILE=direxio-deployer
 bash scripts/aws-credentials.sh verify direxio-deployer
 ```
 
-Existing profiles can still be used when they are non-root:
+Existing profiles can still be used, including root profiles when the operator
+explicitly chooses root credentials:
 
 ```bash
 aws configure --profile p2p-matrix

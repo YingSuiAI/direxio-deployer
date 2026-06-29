@@ -175,6 +175,10 @@ mcp_service_dir="$tmp/mcp-service"
 mcp_credentials="$mcp_service_dir/credentials.json"
 mkdir -p "$mcp_service_dir"
 : > "$mcp_credentials"
+expected_mcp_credentials="$mcp_credentials"
+if command -v cygpath >/dev/null 2>&1; then
+  expected_mcp_credentials=$(cygpath -m "$expected_mcp_credentials")
+fi
 _write_mcp_config_artifacts "im.example.test" "$mcp_service_dir" "$mcp_credentials" "codex-im-example"
 [ -s "$mcp_service_dir/mcp/codex.toml" ]
 [ -s "$mcp_service_dir/mcp/openclaw.mcp.json" ]
@@ -186,7 +190,7 @@ grep -q 'command = "direxio-mcp"' "$mcp_service_dir/mcp/codex.toml"
 grep -q 'DIREXIO_CREDENTIALS_FILE' "$mcp_service_dir/mcp/codex.toml"
 grep -q "$mcp_credentials" "$mcp_service_dir/mcp/codex.toml"
 jq -e '.mcpServers["direxio-im_example_test"].command == "direxio-mcp"' "$mcp_service_dir/mcp/openclaw.mcp.json" >/dev/null
-jq -e '.mcpServers["direxio-im_example_test"].env.DIREXIO_CREDENTIALS_FILE == "'"$mcp_credentials"'"' "$mcp_service_dir/mcp/hermes.mcp.json" >/dev/null
+jq -e '.mcpServers["direxio-im_example_test"].env.DIREXIO_CREDENTIALS_FILE == "'"$expected_mcp_credentials"'"' "$mcp_service_dir/mcp/hermes.mcp.json" >/dev/null
 grep -q 'DIREXIO_AGENT_NODE_ID=codex-im-example' "$mcp_service_dir/mcp/env"
 mcp_install_command=$(_mcp_install_command)
 [[ "$mcp_install_command" == *"npm install -g"*"@direxio/local-mcp@0.1.6"* ]]

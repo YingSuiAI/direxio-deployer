@@ -90,7 +90,11 @@ Frame '{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"search_rooms"},{"name
 EOF
 
 mcp_command=direxio-mcp
-if ! command -v node >/dev/null 2>&1 && command -v node.exe >/dev/null 2>&1; then
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) use_windows_mcp=1 ;;
+  *) use_windows_mcp=0 ;;
+esac
+if { [ "$use_windows_mcp" = "1" ] || ! command -v node >/dev/null 2>&1; } && command -v node.exe >/dev/null 2>&1; then
   fake_mcp_ps1=$(windows_path "$tmp/fake-mcp.ps1")
   mcp_command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"$fake_mcp_ps1\""
 fi
@@ -123,6 +127,10 @@ credentials="$service_dir/credentials.json"
 config="$service_dir/cc-connect/config.toml"
 : > "$credentials"
 : > "$config"
+expected_credentials="$credentials"
+if command -v cygpath >/dev/null 2>&1; then
+  expected_credentials=$(cygpath -m "$expected_credentials")
+fi
 state="$service_dir/state.json"
 jq -n \
   --arg service_dir "$service_dir" \
@@ -158,7 +166,7 @@ jq -n \
     resources: {}
   }' > "$state"
 
-verify_output=$(P2P_WORKDIR="$service_dir" PATH="$fakebin:$PATH" EXPECTED_CREDENTIALS_FILE="$credentials" CONNECT_WORK_DIR="$service_dir/cc-connect" bash "$ROOT/scripts/orchestrate.sh" verify runtime)
+verify_output=$(P2P_WORKDIR="$service_dir" PATH="$fakebin:$PATH" EXPECTED_CREDENTIALS_FILE="$expected_credentials" CONNECT_WORK_DIR="$service_dir/cc-connect" bash "$ROOT/scripts/orchestrate.sh" verify runtime)
 printf '%s\n' "$verify_output" | grep -q 'verified runtime checks: passed'
 
 jq -e '
@@ -176,7 +184,7 @@ report_path=$(printf '%s\n' "$report_output" | sed -nE 's/^operation report: //p
 jq -e '.runtime_checks.summary.status == "passed"' "$report_path" >/dev/null
 
 set +e
-P2P_WORKDIR="$service_dir" PATH="$fakebin:$PATH" EXPECTED_CREDENTIALS_FILE="$credentials" CONNECT_WORK_DIR="$HOME/.direxio/nodes/other.example.test/cc-connect" bash "$ROOT/scripts/orchestrate.sh" verify runtime > "$tmp/runtime-fail.out" 2>&1
+P2P_WORKDIR="$service_dir" PATH="$fakebin:$PATH" EXPECTED_CREDENTIALS_FILE="$expected_credentials" CONNECT_WORK_DIR="$HOME/.direxio/nodes/other.example.test/cc-connect" bash "$ROOT/scripts/orchestrate.sh" verify runtime > "$tmp/runtime-fail.out" 2>&1
 fail_rc=$?
 set -e
 [ "$fail_rc" -ne 0 ] || {

@@ -83,19 +83,21 @@ Step-by-step onboarding flow:
      attempt browser sign-in. Use the CLI for all AWS operations — DNS checks,
      Route53 zone inspection, EC2 provisioning.
 
-2. **Temporary deployment IAM user.**
-   - Ask: "Do you already have an AWS access key CSV file or AWS profile for a
-     temporary deployment IAM user?"
+2. **AWS access key or profile.**
+   - Ask: "Do you already have an AWS access key CSV file or AWS profile for
+     deployment?"
    - If yes, ask only for the local CSV path or profile name, then verify it
      with `aws sts get-caller-identity`.
    - If no, default to a temporary IAM administrator user for MVP deployment.
      Explain in one sentence: "This temporary user lets the deployment tool
      create and later destroy this Direxio node; delete or disable it after
      deployment."
-   - The user may sign in to the AWS Console with root or another administrator
-     account in the browser, but the agent must never create or accept a root access key.
-     If `aws sts get-caller-identity` returns an ARN ending in
-     `:root`, stop and guide the user to create an IAM user instead.
+   - Root access keys are allowed when the operator explicitly chooses them.
+     Prefer a temporary `DirexioDeployer` IAM user for routine deployments, but
+     do not block deployment only because `aws sts get-caller-identity` returns
+     an ARN ending in `:root`. Warn once that root credentials are highly
+     privileged and should be rotated or removed when no longer needed, then
+     continue if the user accepts that risk.
    - Guide only one or two clicks at a time:
      1. Open `https://console.aws.amazon.com/iam/home#/users/create`.
      2. Create a user named `DirexioDeployer-YYYYMMDD` or `DirexioDeployer`.
@@ -109,17 +111,17 @@ Step-by-step onboarding flow:
      7. Choose `Create access key`, download the `.csv` file, and provide only
         the local file path.
    - After credentials are configured, run `aws sts get-caller-identity`,
-     report only the account and redacted IAM user ARN, and refuse to continue
-     if the identity is root.
-   - Prefer the repository helper for CSV import and root blocking:
+     report only the account, whether the identity is root, and the redacted
+     ARN.
+   - Prefer the repository helper for CSV import and redacted verification:
      ```bash
      bash scripts/aws-credentials.sh import-csv /path/to/accessKeys.csv direxio-deployer <region>
      export AWS_PROFILE=direxio-deployer
      bash scripts/aws-credentials.sh verify direxio-deployer
      ```
      The helper verifies the CSV credentials with STS before writing them,
-     refuses root identities, writes only to the local AWS credentials/config
-     files with mode `0600`, and prints only a redacted ARN.
+     writes only to the local AWS credentials/config files with mode `0600`,
+     and prints only a redacted ARN plus `root=true|false`.
    - For long-term hardening after MVP deployment, the operator may replace
      `AdministratorAccess` with a narrower policy such as
      `references/iam-policy.json`, but do not make a nontechnical first-time
@@ -245,7 +247,7 @@ Step-by-step onboarding flow:
 Required first-time deployment confirmation:
 
 ```text
-I confirm that I have an active AWS account, a real long-lived domain, and an AWS access key CSV or AWS profile for a temporary DirexioDeployer IAM user. I understand this can create billable AWS resources and that they keep billing until destroyed.
+I confirm that I have an active AWS account, a real long-lived domain, and an AWS access key CSV or AWS profile for this deployment. I understand this can create billable AWS resources and that they keep billing until destroyed.
 ```
 
 If any prerequisite is missing, stop deployment and guide the user through that
@@ -564,10 +566,10 @@ do next.
 
 Use `scripts/destroy.sh` for teardown. Destroy first checks `direxio-connect daemon status --service-name <service_id>` and stops only that named daemon when the reported `WorkDir` matches the current service directory, `~/.direxio/nodes/<service_id>/cc-connect`. After AWS resources are terminated and released, destroy reads AWS back and records `destroy.evidence` before removing the corresponding local service directory under `~/.direxio/nodes/<service_id>`. This prevents stale state, credentials, and bridge files from blocking or misleading the next deployment while still preserving a reportable AWS cleanup audit trail. It leaves unrelated node credential directories intact.
 
-Destroy uses the same AWS identity boundary as deployment: it must refuse root
-AWS access-key identity before mutating AWS resources or removing local service
-state. Use a temporary non-root `DirexioDeployer` IAM user/profile for teardown
-as well as provisioning.
+Destroy uses the same AWS identity boundary as deployment: root AWS access-key
+identity is allowed when the operator explicitly chose root credentials. Prefer
+using the same temporary `DirexioDeployer` IAM user/profile for teardown when
+that was used for provisioning.
 
 If an operator needs to preserve local state files for debugging, run destroy with `P2P_KEEP_WORKDIR=1` and explicitly report that the stale service directory remains.
 
@@ -606,7 +608,7 @@ MESSAGE_SERVER_IMAGE=direxio/message-server:latest \
 bash scripts/orchestrate.sh
 ```
 
-Use an `AWS_PROFILE` or temporary `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` that belongs to a non-root `DirexioDeployer` IAM user. Do not write AWS secrets, initialization codes, or agent tokens into skill files or the repository.
+Use an `AWS_PROFILE` or temporary `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` for the selected AWS identity. Root access keys are allowed when the operator explicitly chooses them; a temporary `DirexioDeployer` IAM user remains the recommended routine path. Do not write AWS secrets, initialization codes, or agent tokens into skill files or the repository.
 
 On Windows, prefer `.\scripts\orchestrate.ps1` from PowerShell. It selects Git Bash for the Bash phases and writes Windows-compatible local `direxio-connect` paths.
 
@@ -619,7 +621,7 @@ Ask once, plainly and in the user's language. The confirmation message must summ
 - AWS region and billable resources: EC2, Elastic IP, security group, EBS, network egress, TURN traffic.
 - Instance type: default `t3.small`.
 - Message-server image: default `direxio/message-server:latest`; override with `MESSAGE_SERVER_IMAGE`.
-- AWS credentials source, with root access keys disallowed for deployment.
+- AWS credentials source, including whether root access keys are being used.
 - AWS/domain onboarding status: active AWS account, real long-lived domain, access key CSV or AWS profile, DNS authority, and billing/deletion acknowledgement.
 - Existing state action: `continue`, `destroy`, or different `DOMAIN`/service directory.
 - Network/system installs: package managers, AWS CLI, jq, Git Bash/MSYS2/WSL, Homebrew, apt/dnf/yum/pacman/zypper.
@@ -662,7 +664,7 @@ EC2          : <instance-id> (<public-ip>)
 SSH          : ssh -i <key-file> ubuntu@<public-ip>
 state.json   : <state path>
 stop billing : ask the agent to destroy this node when finished
-security     : delete or disable the temporary DirexioDeployer access key after deployment
+security     : delete or disable any temporary DirexioDeployer access key after deployment; rotate/remove root access keys if used
 report       : <operation-report.json path>
 ```
 

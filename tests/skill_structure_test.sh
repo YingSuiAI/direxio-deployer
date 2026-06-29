@@ -150,20 +150,7 @@ if grep -R 'destroy command' SKILL.md references/user-journey.md references/depl
   exit 1
 fi
 
-if grep -F 'Do not open with the longer IAM user and custom policy flow' SKILL.md >/dev/null; then
-  echo "SKILL.md must default to a temporary DirexioDeployer IAM user, not a quick root/account access-key path" >&2
-  exit 1
-fi
-
-if grep -F 'If the user is signed in as the root account and chooses the quick path anyway' SKILL.md >/dev/null; then
-  echo "SKILL.md must not allow root access keys as a deployment credential path" >&2
-  exit 1
-fi
-
-if grep -R 'If a root key was used to unblock' SKILL.md references README.md README_zh.md >/dev/null; then
-  echo "published docs must not preserve a root-key escape hatch" >&2
-  exit 1
-fi
+grep -q 'Root access keys are allowed when the operator explicitly chooses them' SKILL.md
 
 if grep -RE '_find_route53_zone.*does NOT create|never creates hosted zone|hosted zone must exist before S3_PROVISION|Do not rely on the script to create the zone' SKILL.md references README.md README_zh.md >/dev/null; then
   echo "published docs must not preserve stale Route53 hosted-zone manual-create guidance" >&2
@@ -181,9 +168,9 @@ grep -q 'non-polluting' SKILL.md
 grep -q '@direxio/local-mcp@0.1.6' SKILL.md
 grep -q 'DirexioDeployer' SKILL.md
 grep -q 'AdministratorAccess' SKILL.md
-grep -q 'must never create or accept a root access key' SKILL.md
+grep -qi 'root access keys are allowed' SKILL.md
 grep -q 'Destroy uses the same AWS identity boundary as deployment' SKILL.md
-grep -q 'Destroy refuses root AWS access-key identity' references/deployment-workflow.md
+grep -q 'Destroy allows root AWS access-key identity' references/deployment-workflow.md
 grep -q 'Recovery summary' SKILL.md
 grep -q 'operation-report.json' SKILL.md
 grep -q 'destroy.evidence' SKILL.md
@@ -247,7 +234,7 @@ grep -q 'AWS Budget' references/deployment-workflow.md
 grep -q 'AWS Billing Console' SKILL.md
 grep -q 'Current MVP deployment path is EC2-only' SKILL.md
 grep -q 'Lightsail requires a separate deploy_mode=lightsail implementation before it can be offered' SKILL.md
-grep -q 'delete or disable the temporary DirexioDeployer access key' SKILL.md
+grep -q 'rotate/remove root access keys if used' SKILL.md
 grep -q 'temporary IAM key' scripts/orchestrate.sh
 
 for requirement_id in \

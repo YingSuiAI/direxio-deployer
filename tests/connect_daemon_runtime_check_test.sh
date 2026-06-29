@@ -63,11 +63,16 @@ jq -n \
 verify_output=$(P2P_WORKDIR="$service_dir" PATH="$fakebin:$PATH" CONNECT_WORK_DIR="$service_dir/cc-connect" bash "$ROOT/scripts/orchestrate.sh" verify connect_daemon)
 printf '%s\n' "$verify_output" | grep -q 'verified runtime check: connect_daemon'
 
+expected_work_dir="$service_dir/cc-connect"
+if command -v cygpath >/dev/null 2>&1; then
+  expected_work_dir=$(cygpath -m "$expected_work_dir")
+fi
+
 jq -e '
   .runtime_checks.connect_daemon.status == "passed"
   and .runtime_checks.connect_daemon.service_name == "connect-check.example.test"
   and .runtime_checks.connect_daemon.daemon_status == "Running"
-  and .runtime_checks.connect_daemon.work_dir == "'"$service_dir"'/cc-connect"
+  and .runtime_checks.connect_daemon.work_dir == "'"$expected_work_dir"'"
   and (.user_confirmations.agent_mcp_runtime | not)
 ' "$state" >/dev/null
 

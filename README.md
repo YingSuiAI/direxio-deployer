@@ -31,7 +31,9 @@
 
 ## Minimal Command
 
-Import and verify a temporary non-root AWS deployment profile from an AWS CSV:
+Import and verify an AWS deployment profile from an AWS CSV. A temporary
+`DirexioDeployer` IAM user is recommended, but root access keys are allowed
+when the operator explicitly chooses them:
 
 ```bash
 bash scripts/aws-credentials.sh import-csv /path/to/accessKeys.csv direxio-deployer us-east-1

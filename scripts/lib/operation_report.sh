@@ -207,9 +207,9 @@ operation_report_json() {
         security: {
           secrets_included: false,
           values_redacted: true,
-          root_access_key_allowed: false,
+          root_access_key_allowed: true,
           temporary_iam_cleanup_required: true,
-          temporary_iam_cleanup_action: "delete or disable the temporary DirexioDeployer access key after deployment, or reduce it to a maintenance-only policy"
+          temporary_iam_cleanup_action: "if a temporary DirexioDeployer access key was used, delete or disable it after deployment, or reduce it to a maintenance-only policy"
         }
       }
       + (if $operation_type == "destroy" then {

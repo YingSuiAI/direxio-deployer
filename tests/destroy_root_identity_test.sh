@@ -62,22 +62,30 @@ CALLS="$calls" PATH="$fakebin:$PATH" bash "$ROOT/scripts/destroy.sh" "$state" > 
 destroy_rc=$?
 set -e
 
-[ "$destroy_rc" -ne 0 ] || {
-  echo "destroy must fail closed when AWS identity is root" >&2
+[ "$destroy_rc" -eq 0 ] || {
+  echo "destroy must allow root identity when the operator chose root credentials" >&2
   cat "$tmp/destroy.out" >&2
   exit 1
 }
-grep -q 'Root AWS access keys are not allowed' "$tmp/destroy.out"
+grep -q 'source = ' "$tmp/destroy.out"
 
-if grep -E 'ec2 terminate-instances|ec2 release-address|ec2 delete-security-group|ec2 delete-key-pair|route53 change-resource-record-sets' "$calls" >/dev/null; then
-  echo "destroy must not mutate AWS resources with a root identity" >&2
+for expected in 'ec2 terminate-instances' 'ec2 release-address' 'ec2 delete-security-group' 'ec2 delete-key-pair'; do
+  if ! grep -F "$expected" "$calls" >/dev/null; then
+    echo "destroy should process recorded AWS resource with root identity: $expected" >&2
+    cat "$calls" >&2
+    exit 1
+  fi
+done
+
+if grep -F 'route53 change-resource-record-sets' "$calls" >/dev/null; then
+  echo "destroy should not touch Route53 for DOMAIN_MODE=user" >&2
   cat "$calls" >&2
   exit 1
 fi
 
-if [ ! -d "$service_dir" ]; then
-  echo "destroy must not remove local service state when root identity is rejected" >&2
+if [ -d "$service_dir" ]; then
+  echo "destroy should remove local service state after processing resources" >&2
   exit 1
 fi
 
-echo "destroy root identity ok"
+echo "destroy root identity allowed ok"

@@ -23,8 +23,10 @@ P2P_EXISTING_STATE_ACTION=destroy
 DOMAIN=<different-domain>
 ```
 
-For first-time credentials, import the temporary `DirexioDeployer` IAM CSV and
-verify the non-root identity before provisioning:
+For first-time credentials, import the selected AWS access-key CSV and verify
+the identity before provisioning. A temporary `DirexioDeployer` IAM user is the
+recommended routine path, but root access keys are allowed when the operator
+explicitly chose them:
 
 ```bash
 bash scripts/aws-credentials.sh import-csv /path/to/accessKeys.csv direxio-deployer <region>
@@ -67,9 +69,9 @@ DOMAIN=__DOMAIN__ bash scripts/destroy.sh
 
 Destroy stops the local `direxio-connect` daemon only when `direxio-connect daemon status --service-name <service_id>` reports a `WorkDir` matching the current service directory, `~/.direxio/nodes/<service_id>/cc-connect`. It then terminates the recorded EC2 instance, verifies the recorded EBS root volume, releases the Elastic IP, deletes the security group and key pair, removes Route53 records/zones created by the deployer, records AWS read-back results under `destroy.evidence`, and removes the corresponding local service directory under `~/.direxio/nodes/<service_id>`. This prevents stale credentials and `state.json` files from being treated as active deployments later while preserving an audit report for cleanup.
 
-Destroy refuses root AWS access-key identity before any AWS mutation or local
-service-state removal. Use the same temporary non-root `DirexioDeployer`
-profile for teardown that is required for provisioning.
+Destroy allows root AWS access-key identity when the operator explicitly chose
+root credentials. Use the same deployment profile for teardown that was used
+for provisioning.
 
 Use `P2P_KEEP_WORKDIR=1 DOMAIN=__DOMAIN__ bash scripts/destroy.sh` only when preserving local state files for debugging; if used, report that the service directory still exists.
 

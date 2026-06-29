@@ -75,9 +75,10 @@ reuse of an old deployment state.
 
 ## Credential Safety
 
-Never use root access keys for deployment. If the active AWS CLI identity is
-root, stop before mutating AWS resources and replace it with a temporary
-`DirexioDeployer` IAM user or a dedicated IAM role.
+Prefer a temporary `DirexioDeployer` IAM user or dedicated IAM role for routine
+deployment. Root access keys are allowed when the operator explicitly chooses
+them; report that the identity is root and remind the operator to rotate or
+remove the key when it is no longer needed.
 
 Do not store AWS AK/SK in skill files, docs, or committed repo files. Treat
 `state.json`, `outputs.json`, and `~/.direxio/nodes/<service_id>/credentials.json` as local
