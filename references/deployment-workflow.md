@@ -36,10 +36,14 @@ P2P_EXISTING_STATE_ACTION=destroy
 DOMAIN=<different-domain>
 ```
 
-For first-time credentials, import the selected AWS access-key CSV and verify
-the identity before provisioning. A temporary `DirexioDeployer` IAM user is the
-recommended routine path, but root access keys are allowed when the operator
-explicitly chose them:
+For first-time credentials, offer the operator two paths before provisioning:
+root access key or dedicated IAM deployment user. The root path is the fastest
+because it uses the account owner identity directly, but it is highly
+privileged; tell the operator to save the CSV securely, never paste or commit
+it, and rotate or delete the root key after deployment. The dedicated
+`DirexioDeployer` IAM user path is safer because it avoids root keys, but it
+requires more AWS console steps. Import the selected AWS access-key CSV and
+verify the identity before provisioning:
 
 ```bash
 bash scripts/aws-credentials.sh import-csv /path/to/accessKeys.csv direxio-deployer <region>
@@ -149,19 +153,22 @@ reminders, `billing.cost_estimate`, destroy read-back evidence under
 contain the initialization code, AWS secrets, access tokens, agent tokens, or
 Matrix session tokens. User/runtime evidence is also scrubbed for
 eight-or-more digit numeric strings because users may paste initialization
-codes into confirmation notes. After update/reset, the report must show
+codes into confirmation notes. After reset/redeploy, the report must show
 `credentials.status=refresh_pending`, `connect.install_status=refresh_pending`,
 and `mcp.status=refresh_pending` until S5/S6/S7 and runtime checks refresh
-local evidence.
+local evidence. Image-only update does not clear local credentials,
+confirmations, runtime checks, cc-connect state, or MCP artifacts.
 
 When the user or runtime evidence confirms a manual product gate, write it back
 to state before regenerating the report. Connect daemon status is a
 service-scoped local bridge check, MCP doctor is a non-polluting runtime check,
 MCP tools is stdio `tools/list` discovery, and MCP smoke is a read-only backend
-call. In the default `DIREXIO_AGENT_INSTALL=recommend` path, `verify runtime`
-records `connect_daemon=manual_pending` instead of failing the aggregate,
-because daemon installation is an explicit operator action. These checks are
-not the full runtime product gate:
+call. In the `DIREXIO_AGENT_INSTALL=recommend` path, `verify runtime` records
+`connect_daemon=manual_pending` instead of failing the aggregate, because
+daemon installation is an explicit operator action. The default
+`DIREXIO_AGENT_INSTALL=auto` path expects cc-connect and direxio-mcp to be
+installed automatically during S6. These checks are not the full runtime
+product gate:
 
 ```bash
 DOMAIN=__DOMAIN__ bash scripts/orchestrate.sh verify runtime

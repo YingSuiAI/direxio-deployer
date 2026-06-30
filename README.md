@@ -69,9 +69,10 @@ The CLI is implemented in Node and uses native paths for the host it runs on. On
 
 ## Minimal Command
 
-Import and verify an AWS deployment profile from an AWS CSV. A temporary
-`DirexioDeployer` IAM user is recommended, but root access keys are allowed
-when the operator explicitly chooses them:
+Import and verify an AWS deployment profile from an AWS CSV. Root access keys
+are the fastest first-deploy path but are highly privileged; save the CSV
+securely and rotate or delete the key after deployment. A temporary
+`DirexioDeployer` IAM user is safer but takes more AWS console steps:
 
 ```bash
 bash scripts/aws-credentials.sh import-csv /path/to/accessKeys.csv direxio-deployer us-east-1
@@ -111,16 +112,15 @@ $env:MESSAGE_SERVER_IMAGE = "direxio/message-server:latest"
 .\scripts\orchestrate.ps1
 ```
 
-Recommendation-only local bridge wiring:
+Recommendation-only local bridge and MCP wiring:
 
 ```bash
 DIREXIO_AGENT_INSTALL=recommend bash scripts/orchestrate.sh
 ```
 
-Automatic local bridge install:
+Automatic local bridge and MCP install is the default. Set runtime selectors only when auto-detection is ambiguous:
 
 ```bash
-DIREXIO_AGENT_INSTALL=auto \
 DIREXIO_AGENT_PLATFORM=auto \
 DIREXIO_CC_CONNECT_AGENT=claudecode \
 DIREXIO_AGENT_INSTALL_MODE=recommended \
@@ -158,8 +158,10 @@ Update an existing node without deleting data:
 
 ```bash
 DOMAIN=<domain> MESSAGE_SERVER_IMAGE=direxio/message-server:latest bash scripts/update.sh
-P2P_EXISTING_STATE_ACTION=continue DOMAIN=<domain> bash scripts/orchestrate.sh
 ```
+
+Image refresh restarts the remote service only. It leaves local credentials,
+`direxio-connect`, MCP artifacts, user confirmations, and runtime checks intact.
 
 Reset application data while preserving EC2, DNS, fixed IP, and Caddy TLS:
 
@@ -167,6 +169,11 @@ Reset application data while preserving EC2, DNS, fixed IP, and Caddy TLS:
 DIREXIO_RESET_APP_DATA_CONFIRM=1 DOMAIN=<domain> bash scripts/reset-app-data.sh
 P2P_EXISTING_STATE_ACTION=continue DOMAIN=<domain> bash scripts/orchestrate.sh
 ```
+
+Application data reset clears server-side app volumes, so the follow-up
+orchestrate run regenerates local credentials/MCP artifacts and automatically
+reinstalls/restarts `direxio-connect` plus `direxio-mcp` unless explicitly
+overridden with `DIREXIO_AGENT_INSTALL=recommend` or `skip`.
 
 ## Local Bridge
 
@@ -193,7 +200,8 @@ direxio-connect daemon install --config ~/.direxio/nodes/<service_id>/cc-connect
 direxio-connect daemon status --service-name <service_id>
 ```
 
-MCP install and check:
+MCP is installed automatically during S6 when `DIREXIO_AGENT_INSTALL=auto`.
+Manual recovery command:
 
 ```bash
 npm install -g direxio-mcp@latest

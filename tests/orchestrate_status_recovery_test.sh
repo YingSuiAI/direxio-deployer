@@ -78,7 +78,7 @@ json_mutate "$refresh_workdir/state.json" set-json runtime_checks.summary '{"sta
 refresh_output=$(P2P_WORKDIR="$refresh_workdir" bash "$ROOT/scripts/orchestrate.sh" status)
 
 assert_contains "$refresh_output" "Recovery summary"
-assert_contains "$refresh_output" "Local refresh: update/reset cleared old credentials, user confirmations, runtime checks, and bridge install proof"
-assert_contains "$refresh_output" "Next action: rerun the deployment workflow to refresh S4-S7, local credentials, MCP snippets, and runtime checks"
+assert_contains "$refresh_output" "Local refresh: reset/redeploy cleared old credentials, user confirmations, runtime checks, bridge install proof, and MCP install proof"
+assert_contains "$refresh_output" "Next action: rerun the deployment workflow to refresh S4-S7, local credentials, MCP snippets, automatic installs, and runtime checks"
 
 echo "orchestrate status recovery ok"

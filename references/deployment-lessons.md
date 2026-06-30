@@ -102,10 +102,11 @@ reuse of an old deployment state.
 
 ## Credential Safety
 
-Prefer a temporary `DirexioDeployer` IAM user or dedicated IAM role for routine
-deployment. Root access keys are allowed when the operator explicitly chooses
-them; report that the identity is root and remind the operator to rotate or
-remove the key when it is no longer needed.
+Offer two credential paths for first-time deployment. Root access keys are the
+fastest path but are highly privileged; report that the identity is root,
+remind the operator to save the CSV securely, and rotate or remove the key when
+it is no longer needed. A temporary `DirexioDeployer` IAM user or dedicated IAM
+role is safer but requires more AWS console steps.
 
 Do not store AWS AK/SK in skill files, docs, or committed repo files. Treat
 `state.json`, `outputs.json`, and `~/.direxio/nodes/<service_id>/credentials.json` as local

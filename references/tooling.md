@@ -82,7 +82,10 @@ If distro packages are too old or missing, ask before using the official AWS CLI
 
 ## Credentials
 
-Prefer a temporary `DirexioDeployer` IAM user or role. If the user provides an
+For first-time setup, offer a root access key as the fastest path and a
+temporary `DirexioDeployer` IAM user or role as the safer path. Root keys are
+highly privileged; the operator must save the CSV securely, never paste or
+commit it, and rotate or delete it after deployment. If the user provides an
 AWS access-key CSV, import it through the repository helper so command output
 stays redacted and the identity is marked as `root=true|false`:
 

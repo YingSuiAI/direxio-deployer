@@ -362,7 +362,7 @@ _validate_agent_platform() {
 }
 
 _agent_install_policy() {
-  local policy=${DIREXIO_AGENT_INSTALL:-recommend}
+  local policy=${DIREXIO_AGENT_INSTALL:-auto}
   case "$policy" in
     skip|recommend|auto) printf '%s\n' "$policy" ;;
     *) fail "DIREXIO_AGENT_INSTALL must be skip, recommend, or auto." ;;
@@ -1125,6 +1125,26 @@ _maybe_auto_install_cc_connect() {
   fi
 }
 
+_maybe_auto_install_mcp() {
+  local policy=$1
+  if [ "$policy" != "auto" ]; then
+    state_set mcp_install_status "$policy" 2>/dev/null || true
+    return 0
+  fi
+  if ! command -v npm >/dev/null 2>&1; then
+    warn "DIREXIO_AGENT_INSTALL=auto requested, but npm is not on PATH. Install Node.js to install direxio-mcp automatically."
+    state_set mcp_install_status "npm_missing" 2>/dev/null || true
+    return 0
+  fi
+  if npm install -g "$(_mcp_npm_package)"; then
+    state_set mcp_install_status "installed" 2>/dev/null || true
+    ok "direxio-mcp installed from npm."
+  else
+    state_set mcp_install_status "install_failed" 2>/dev/null || true
+    warn "direxio-mcp npm install failed. MCP config artifacts and install command are available for manual recovery."
+  fi
+}
+
 _agent_skill_install_path() {
   local runtime=$1
   case "$runtime" in
@@ -1442,12 +1462,14 @@ run_phase() {
   state_set agent_install_policy "$install_policy" 2>/dev/null || true
   state_set agent_install_mode "$install_mode" 2>/dev/null || true
   state_set agent_install_command "$install_command" 2>/dev/null || true
+  state_set mcp_install_policy "$install_policy" 2>/dev/null || true
   state_set agent_skill_install_path "$skill_path" 2>/dev/null || true
   state_set agent_global_skill_install_path "$global_skill_path" 2>/dev/null || true
   state_set direxio_agent_bridge "cc-connect" 2>/dev/null || true
   _print_cc_connect_guidance "$runtime" "$asurl" "$node_cred" "$envfile" "$install_policy" "$install_mode" "$install_command" "$node_id" "$cc_config_local" "$cc_binary" "$cc_agent" "$cc_agent_cmd" "$service_id"
   _print_mcp_guidance "$runtime" "$service_id" "$mcp_server_name" "$node_cred_local" "$mcp_dir_local" "$mcp_codex_config_local" "$mcp_openclaw_config_local" "$mcp_hermes_config_local" "$mcp_install_command" "$mcp_doctor_command"
   _maybe_auto_install_agent "$install_policy" "$runtime" "$cc_agent" "$service_dir" "$cc_config" "$cc_binary" "$service_id"
+  _maybe_auto_install_mcp "$install_policy"
 
   phase_set S6_WIRE_LOCAL done "credentials.json written;node_id=$node_id;service_id=$service_id;env_file=$envfile;runtime=$runtime;install_policy=$install_policy;install_mode=$install_mode;cc_connect_config=$cc_config;mcp_config_dir=$mcp_dir;cc_connect_agent=$cc_agent"
   return 0

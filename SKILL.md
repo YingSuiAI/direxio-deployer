@@ -100,17 +100,28 @@ Step-by-step onboarding flow:
      deployment?"
    - If yes, ask only for the local CSV path or profile name, then verify it
      with `aws sts get-caller-identity`.
-   - If no, default to a temporary IAM administrator user for MVP deployment.
-     Explain in one sentence: "This temporary user lets the deployment tool
-     create and later destroy this Direxio node; delete or disable it after
-     deployment."
-   - Root access keys are allowed when the operator explicitly chooses them.
-     Prefer a temporary `DirexioDeployer` IAM user for routine deployments, but
-     do not block deployment only because `aws sts get-caller-identity` returns
-     an ARN ending in `:root`. Warn once that root credentials are highly
-     privileged and should be rotated or removed when no longer needed, then
-     continue if the user accepts that risk.
-   - Guide only one or two clicks at a time:
+   - If no, offer two credential paths and ask the user to choose:
+     1. **Root access key (default fastest path):** simpler to create for a
+        first deployment because it uses the account owner identity directly.
+        Explain that it is highly privileged, must be saved securely, must
+        never be pasted into chat or committed, and should be rotated or
+        deleted after deployment.
+     2. **Dedicated IAM deployment user:** safer because it avoids root keys,
+        but requires more AWS console steps. Explain in one sentence: "This
+        temporary user lets the deployment tool create and later destroy this
+        Direxio node; delete or disable it after deployment."
+   - If the user chooses the root path, guide only one or two clicks at a time:
+     1. Sign in to AWS as the root account owner.
+     2. Open the root user's **Security credentials** page.
+     3. In **Access keys**, choose **Create access key**.
+     4. Select **Command Line Interface (CLI)**, acknowledge AWS's root-key
+        warning, and create the key.
+     5. Download the `.csv` file, store it securely, and provide only the local
+        CSV path to the agent.
+     6. After deployment, rotate or delete the root access key unless the user
+        has a deliberate reason to keep it.
+   - If the user chooses the dedicated IAM deployment user path, guide only one
+     or two clicks at a time:
      1. Open `https://console.aws.amazon.com/iam/home#/users/create`.
      2. Create a user named `DirexioDeployer-YYYYMMDD` or `DirexioDeployer`.
      3. Attach the AWS managed policy `AdministratorAccess`. State plainly
@@ -122,6 +133,10 @@ Step-by-step onboarding flow:
         continue.
      7. Choose `Create access key`, download the `.csv` file, and provide only
         the local file path.
+   - Root access keys are allowed when the operator explicitly chooses them.
+     Do not block deployment only because `aws sts get-caller-identity` returns
+     an ARN ending in `:root`; report `root=true`, repeat the security warning
+     once, and continue if the user accepts that risk.
    - After credentials are configured, run `aws sts get-caller-identity`,
      report only the account, whether the identity is root, and the redacted
      ARN.
@@ -361,19 +376,19 @@ DIREXIO_CC_CONNECT_AGENT=<optional connect agent>
 DIREXIO_OPENCLAW_ACP_URL=<optional explicit OpenClaw gateway URL>
 DIREXIO_OPENCLAW_ACP_TOKEN_FILE=<optional explicit OpenClaw gateway token file>
 DIREXIO_OPENCLAW_ACP_SESSION=<optional OpenClaw ACP session; defaults to agent:main:main>
-DIREXIO_AGENT_INSTALL=recommend
+DIREXIO_AGENT_INSTALL=auto
 DIREXIO_AGENT_INSTALL_MODE=recommended
 ```
 
 The only supported local conversation bridge is `direxio-connect`, installed from `direxio-connent@latest` by default or built from `https://github.com/YingSuiAI/direxio-connect.git`. S6 creates a Matrix session for `@agent:<server>`, writes `~/.direxio/nodes/<service_id>/cc-connect/config.toml`, and restricts the bridge to the real `agent_room_id`.
 
-The local MCP tool surface is `direxio-mcp`, installed from `direxio-mcp@latest` by default. S6 writes `mcp/codex.toml`, `mcp/openclaw.md`, `mcp/openclaw-server.json`, `mcp/hermes.mcp.json`, `mcp/mcp-servers.json`, and `mcp/env`; these artifacts point to `credentials.json` by `DIREXIO_CREDENTIALS_FILE`. OpenClaw must be configured through the generated `openclaw mcp set` command in `mcp/openclaw.md`; do not paste MCP JSON into `~/.openclaw/openclaw.json`. Keep this separate from cc-connect: cc-connect must use its direct Matrix config and must not use `DIREXIO_CREDENTIALS_FILE`.
+The local MCP tool surface is `direxio-mcp`, installed from `direxio-mcp@latest` by default when `DIREXIO_AGENT_INSTALL=auto`. S6 writes `mcp/codex.toml`, `mcp/openclaw.md`, `mcp/openclaw-server.json`, `mcp/hermes.mcp.json`, `mcp/mcp-servers.json`, and `mcp/env`; these artifacts point to `credentials.json` by `DIREXIO_CREDENTIALS_FILE`. OpenClaw must be configured through the generated `openclaw mcp set` command in `mcp/openclaw.md`; do not paste MCP JSON into `~/.openclaw/openclaw.json`. Keep this separate from cc-connect: cc-connect must use its direct Matrix config and must not use `DIREXIO_CREDENTIALS_FILE`.
 
 `DIREXIO_CC_CONNECT_AGENT` is the preferred explicit selector. Supported values match connent/connect: `acp`, `antigravity`, `claudecode`, `codex`, `copilot`, `cursor`, `devin`, `gemini`, `iflow`, `kimi`, `opencode`, `pi`, `qoder`, `reasonix`, and `tmux`. Detected OpenClaw and Hermes runtimes map to `cc_connect_agent=acp`; they are not native connect agent types. OpenClaw uses `cmd = "openclaw"` with args `["acp", "--session", "agent:main:main"]` by default, letting `openclaw acp` auto-discover the Gateway from `~/.openclaw/openclaw.json`. If the operator needs to force explicit Gateway settings, S6 requires all three real values from the current OpenClaw runtime after pairing: `DIREXIO_OPENCLAW_ACP_URL`, `DIREXIO_OPENCLAW_ACP_TOKEN_FILE`, and `DIREXIO_OPENCLAW_ACP_SESSION`; do not guess these values or reuse old chat output. Hermes uses `cmd = "direxio-connect"` with `args = ["hermes-acp-adapter", "--", "hermes", "acp"]` so the Direxio compatibility layer can suppress Hermes reasoning text before it reaches the Matrix room. Use `DIREXIO_CC_CONNECT_AGENT_CMD`, `DIREXIO_<AGENT>_COMMAND`, and when needed `DIREXIO_CC_CONNECT_AGENT_OPTIONS_TOML` for agent-specific launch details. OpenClaw and Hermes also accept `DIREXIO_OPENCLAW_COMMAND`, `DIREXIO_HERMES_COMMAND`, `DIREXIO_HERMES_ACP_ADAPTER_COMMAND`, `DIREXIO_OPENCLAW_ACP_ARGS_TOML`, and `DIREXIO_HERMES_ACP_ARGS_TOML`; Hermes custom args are child Hermes args and S6 prefixes the adapter wrapper automatically.
 
 `DIREXIO_AGENT_PLATFORM` describes the host runtime following the skill, while `DIREXIO_CC_CONNECT_AGENT` describes the local agent backend that `direxio-connect` should launch. Host runtimes such as Hermes or OpenClaw are not native cc-connect backend types; S6 maps them to the generic ACP backend by default and records `cc_connect_agent=acp`. Override `DIREXIO_CC_CONNECT_AGENT` only when the operator intentionally wants a different local backend.
 
-`DIREXIO_AGENT_INSTALL` may be `skip`, `recommend`, or `auto`. Only `auto` attempts to run `npm install -g direxio-connent@latest` and `direxio-connect daemon install --config ~/.direxio/nodes/<service_id>/cc-connect/config.toml --service-name <service_id> --force`; the default `recommend` records and prints the command without mutating local daemon state. An automatic install is reported as installed only when `direxio-connect daemon status --service-name <service_id>` returns `Status: Running` and recent daemon logs do not show ACP session initialization failure; otherwise S6 records `agent_install_status=install_failed`. S6 calls `agent.matrix_session.create` with `agent_token` and retries transient HTTP 000/404/408/409/425/429/5xx responses before failing, because the Matrix action can become reachable after `/healthz`; defaults are 12 attempts with exponential backoff capped by `DIREXIO_MATRIX_SESSION_RETRY_MAX_INTERVAL`.
+`DIREXIO_AGENT_INSTALL` may be `skip`, `recommend`, or `auto`; the default is `auto`. `auto` attempts to run `npm install -g direxio-connent@latest`, `direxio-connect daemon install --config ~/.direxio/nodes/<service_id>/cc-connect/config.toml --service-name <service_id> --force`, and `npm install -g direxio-mcp@latest`. `recommend` records and prints commands without mutating local daemon/package state. A cc-connect automatic install is reported as installed only when `direxio-connect daemon status --service-name <service_id>` returns `Status: Running` and recent daemon logs do not show ACP session initialization failure; otherwise S6 records `agent_install_status=install_failed`. MCP automatic install records `mcp_install_status=installed` only when npm succeeds. S6 calls `agent.matrix_session.create` with `agent_token` and retries transient HTTP 000/404/408/409/425/429/5xx responses before failing, because the Matrix action can become reachable after `/healthz`; defaults are 12 attempts with exponential backoff capped by `DIREXIO_MATRIX_SESSION_RETRY_MAX_INTERVAL`.
 
 Voice input is supported through `direxio-connect` speech-to-text. When `DIREXIO_SPEECH_API_KEY` or a provider-specific key such as `DIREXIO_SPEECH_QWEN_API_KEY`, `OPENAI_API_KEY`, `GROQ_API_KEY`, `DASHSCOPE_API_KEY`, `GEMINI_API_KEY`, or `GOOGLE_API_KEY` is present, S6 writes `[speech] enabled = true` into the generated config. Without an STT key, do not claim voice input is enabled.
 
@@ -574,9 +589,9 @@ for the current service before giving advice. The status output includes a
 - Resume safety: whether rerunning the same command is safe, or whether the
   operator must preserve `state.json` and continue with
   `P2P_EXISTING_STATE_ACTION=continue`.
-- Local refresh: if `agent_install_status=refresh_pending`, update/reset
-  cleared old credentials, user confirmations, runtime checks, and bridge
-  install proof; the next action is to rerun the deployment workflow to refresh S4-S7, local credentials, MCP snippets, and runtime checks.
+- Local refresh: if `agent_install_status=refresh_pending`, reset/redeploy
+  cleared old credentials, user confirmations, runtime checks, bridge install
+  proof, and MCP install proof; the next action is to rerun the deployment workflow to refresh S4-S7, local credentials, MCP snippets, automatic installs, and runtime checks.
 - Next action: the concrete diagnostic or user action for the current phase.
 - Stop-loss: whether no cloud destroy is needed yet, or how to ask the agent to
   run destroy / run `scripts/destroy.sh` on POSIX or `.\scripts\destroy.ps1` on
@@ -623,8 +638,10 @@ reminders, `billing.cost_estimate`, destroy read-back evidence when applicable,
 `billing.destroy_cleanup_status`, `billing.possible_remaining_billable_resources`,
 and secret-redaction evidence. It also records local refresh state:
 `credentials.status`, `connect.install_status`, and `mcp.status` must show
-`refresh_pending` after update/reset until S5/S6/S7 and runtime verification
-write fresh evidence. User confirmation evidence is redacted before it is
+`refresh_pending` after reset/redeploy until S5/S6/S7 and runtime verification
+write fresh evidence. Image-only update keeps existing local refresh state and
+does not clear credentials, confirmations, runtime checks, or local install
+evidence. User confirmation evidence is redacted before it is
 written to the operation report, so initialization codes and tokens are not
 copied into handoff artifacts.
 If a destroy report lists possible remaining billable resources, tell the user
@@ -684,15 +701,15 @@ When the user asks for a complete fresh start — "destroy everything", "start o
 
 ## Image Refresh And Data Reset
 
-When the user only asks to pull a newer image on an existing EC2 instance, do not destroy cloud resources and do not delete application or TLS storage. Run `scripts/update.sh` against the current state. It SSHes to the existing node, optionally updates `MESSAGE_SERVER_IMAGE`, runs Docker Compose pull/up, reruns `/opt/p2p/init-tokens.sh`, clears stale local secret fields, clears old user-confirmation/runtime-check evidence, marks `agent_install_status=refresh_pending`, stops only the matching service-scoped direxio-connect daemon when its `WorkDir` matches this service, marks S4-S7 pending, and writes a redacted `operation-report.json`.
+When the user only asks to pull a newer image on an existing EC2 instance, do not destroy cloud resources and do not delete application or TLS storage. Run `scripts/update.sh` against the current state. It SSHes to the existing node, optionally updates `MESSAGE_SERVER_IMAGE`, runs Docker Compose pull/up, reruns `/opt/p2p/init-tokens.sh` only when current bootstrap credentials are missing, leaves local credentials, user-confirmation/runtime-check evidence, cc-connect daemon state, MCP artifacts, and S4-S7 phase state unchanged, and writes a redacted `operation-report.json`.
 
-When the user asks to reset application data on an existing EC2 instance, do not destroy EC2, public IPv4/EIP, DNS, or Caddy TLS storage. Run `scripts/reset-app-data.sh` only after explicit destructive confirmation with `DIREXIO_RESET_APP_DATA_CONFIRM=1`. It clears only the application volumes (`postgres-data`, `message-config`, `message-data`), generates a new backend password/init-code field, restarts the stack, reruns `/opt/p2p/init-tokens.sh`, clears stale local secret fields, clears old user-confirmation/runtime-check evidence, marks `agent_install_status=refresh_pending`, stops only the matching service-scoped direxio-connect daemon when its `WorkDir` matches this service, marks S4-S7 pending, and writes a redacted `operation-report.json`.
+When the user asks to reset application data on an existing EC2 instance, do not destroy EC2, public IPv4/EIP, DNS, or Caddy TLS storage. Run `scripts/reset-app-data.sh` only after explicit destructive confirmation with `DIREXIO_RESET_APP_DATA_CONFIRM=1`. It clears only the application volumes (`postgres-data`, `message-config`, `message-data`), generates a new backend password/init-code field, restarts the stack, reruns `/opt/p2p/init-tokens.sh`, clears stale local secret fields, clears old user-confirmation/runtime-check evidence, marks `agent_install_status=refresh_pending` and `mcp_install_status=refresh_pending`, stops only the matching service-scoped direxio-connect daemon when its `WorkDir` matches this service, marks S4-S7 pending, and writes a redacted `operation-report.json`. The follow-up orchestrate run regenerates local credentials/MCP artifacts and, by default, reinstalls/restarts cc-connect plus direxio-mcp.
 
 Current message-server images require `P2P_PORTAL_PASSWORD` and an explicit `portal.bootstrap`; `init-tokens.sh` owns that cloud-side bootstrap and creates a real Matrix `agent_room_id` when the backend credentials file does not already include one.
 
 Do not delete caddy-data or caddy-config during an image-only refresh. Removing Caddy's ACME storage loses the existing production certificate and can trigger CA duplicate-certificate rate limits. Preserve `caddy-data` and `caddy-config`; clear only `postgres-data message-config message-data` when the requested reset needs a clean homeserver/database.
 
-For repeated test refreshes, rerun `scripts/orchestrate.sh` normally after update/reset. S4-S7 will re-run from state, and S6 only rewrites local credentials and environment files unless `DIREXIO_AGENT_INSTALL=auto` is explicitly set.
+For repeated data-reset refreshes, rerun `scripts/orchestrate.sh` normally after reset. S4-S7 will re-run from state, and S6 regenerates local credentials/MCP artifacts and automatically installs/restarts local packages unless `DIREXIO_AGENT_INSTALL=recommend` or `skip` is explicitly set. Image-only update does not require an orchestrate follow-up unless verification shows the service actually regenerated credentials.
 
 ## Minimal Invocation
 
@@ -706,7 +723,7 @@ MESSAGE_SERVER_IMAGE=direxio/message-server:latest \
 bash scripts/orchestrate.sh
 ```
 
-Use an `AWS_PROFILE` or temporary `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` for the selected AWS identity. Root access keys are allowed when the operator explicitly chooses them; a temporary `DirexioDeployer` IAM user remains the recommended routine path. Do not write AWS secrets, initialization codes, or agent tokens into skill files or the repository.
+Use an `AWS_PROFILE` or temporary `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` for the selected AWS identity. Root access keys are allowed when the operator explicitly chooses them; they are the fastest first-deploy path but highly privileged and must be saved securely, never pasted, and rotated or deleted after deployment. A temporary `DirexioDeployer` IAM user is the safer path but takes more setup steps. Do not write AWS secrets, initialization codes, or agent tokens into skill files or the repository.
 
 On Windows, prefer `.\scripts\orchestrate.ps1` and `.\scripts\destroy.ps1` from PowerShell. These wrappers select Git for Windows Bash for the Bash phases and write Windows-compatible local `direxio-connect` paths.
 

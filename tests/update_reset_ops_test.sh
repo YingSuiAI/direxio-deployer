@@ -103,17 +103,17 @@ write_state "$state" "$service_dir"
 update_calls="$tmp/update.calls"
 : > "$update_calls"
 CALLS="$update_calls" PATH="$fakebin:$PATH" CONNECT_WORK_DIR="$service_dir/cc-connect" MESSAGE_SERVER_IMAGE="direxio/message-server:test" bash "$ROOT/scripts/update.sh" "$state" > "$tmp/update.out"
-assert_contains "$tmp/update.out" 'Old user confirmations and runtime checks were cleared'
-assert_contains "$tmp/update.out" 'Scoped local bridge daemon was stopped'
-assert_contains "$tmp/update.out" 'rerun orchestrate with P2P_EXISTING_STATE_ACTION=continue'
+assert_not_contains "$tmp/update.out" 'Old user confirmations and runtime checks were cleared'
+assert_not_contains "$tmp/update.out" 'Scoped local bridge daemon was stopped'
+assert_not_contains "$tmp/update.out" 'rerun orchestrate with P2P_EXISTING_STATE_ACTION=continue'
 
 assert_contains "$update_calls" 'docker compose --env-file \.env pull'
 assert_contains "$update_calls" 'docker compose --env-file \.env up -d'
 assert_contains "$update_calls" 'bash /opt/p2p/init-tokens\.sh'
 assert_contains "$update_calls" 'direxio/message-server:test'
 assert_contains "$update_calls" 'MESSAGE_SERVER_IMAGE=\$escaped_image'
-assert_contains "$update_calls" 'direxio-connect daemon status --service-name ops\.example\.test'
-assert_contains "$update_calls" 'direxio-connect daemon stop --service-name ops\.example\.test'
+assert_not_contains "$update_calls" 'direxio-connect daemon status --service-name ops\.example\.test'
+assert_not_contains "$update_calls" 'direxio-connect daemon stop --service-name ops\.example\.test'
 assert_not_contains "$update_calls" 'volume rm|down -v|postgres-data|message-config|message-data|caddy-data|caddy-config'
 
 write_state "$state" "$service_dir"
@@ -125,11 +125,11 @@ assert_not_contains "$update_default_calls" 'sudo MESSAGE_SERVER_IMAGE='
 assert_contains "$update_default_calls" 'docker compose --env-file \.env pull'
 assert_contains "$update_default_calls" 'docker compose --env-file \.env up -d'
 
-json_test_check "$state" "!(data.password || data.access_token || data.agent_token || data.agent_room_id) && data.agent_install_status === 'refresh_pending' && data.phases.S4_BOOTSTRAP_STACK.status === 'pending' && data.phases.S5_INIT_TOKENS.status === 'pending' && data.phases.S6_WIRE_LOCAL.status === 'pending' && data.phases.S7_VERIFY_E2E.status === 'pending' && !data.user_confirmations && !data.runtime_checks"
+json_test_check "$state" "String(data.password) === '12345678' && data.access_token === 'ACCESS_SECRET' && data.agent_token === 'AGENT_SECRET' && data.agent_room_id === '!old:ops.example.test' && data.agent_install_status === 'installed' && data.phases.S4_BOOTSTRAP_STACK.status === 'done' && data.phases.S5_INIT_TOKENS.status === 'done' && data.phases.S6_WIRE_LOCAL.status === 'done' && data.phases.S7_VERIFY_E2E.status === 'done' && data.user_confirmations.agent_mcp_runtime.status === 'confirmed' && data.runtime_checks.summary.status === 'passed'"
 
 update_report="$service_dir/operation-report.json"
 assert_file_exists "$update_report"
-json_test_check "$update_report" "data.operation_type === 'update' && data.status === 'update_remote_restart_complete_refresh_pending' && data.security.secrets_included === false && data.gates.user_confirmation.app_initialization === 'pending_user_confirmation' && data.gates.user_confirmation.real_chat === 'pending_user_confirmation' && data.gates.user_confirmation.agent_mcp_runtime === 'pending_runtime_confirmation' && data.runtime_checks.summary.status === 'not_run' && data.connect.install_status === 'refresh_pending' && data.credentials.status === 'refresh_pending' && data.mcp.status === 'refresh_pending'"
+json_test_check "$update_report" "data.operation_type === 'update' && data.status === 'update_remote_restart_complete' && data.security.secrets_included === false && data.gates.user_confirmation.app_initialization === 'confirmed' && data.gates.user_confirmation.real_chat === 'confirmed' && data.gates.user_confirmation.agent_mcp_runtime === 'confirmed' && data.runtime_checks.summary.status === 'passed' && data.connect.install_status === 'installed' && data.credentials.status === 'current_or_not_recorded' && data.mcp.status === 'current_or_not_recorded'"
 
 write_state "$state" "$service_dir"
 if CALLS="$tmp/reset-unconfirmed.calls" PATH="$fakebin:$PATH" bash "$ROOT/scripts/reset-app-data.sh" "$state" >/dev/null 2>&1; then
@@ -155,10 +155,10 @@ assert_contains "$reset_calls" 'direxio-connect daemon status --service-name ops
 assert_contains "$reset_calls" 'direxio-connect daemon stop --service-name ops\.example\.test'
 assert_not_contains "$reset_calls" 'caddy-data|caddy-config|down -v'
 
-json_test_check "$state" "!(data.password || data.access_token || data.agent_token || data.agent_room_id) && data.agent_install_status === 'refresh_pending' && data.phases.S5_INIT_TOKENS.status === 'pending' && data.phases.S6_WIRE_LOCAL.status === 'pending' && data.phases.S7_VERIFY_E2E.status === 'pending' && !data.user_confirmations && !data.runtime_checks"
+json_test_check "$state" "!(data.password || data.access_token || data.agent_token || data.agent_room_id) && data.agent_install_status === 'refresh_pending' && data.mcp_install_status === 'refresh_pending' && data.phases.S5_INIT_TOKENS.status === 'pending' && data.phases.S6_WIRE_LOCAL.status === 'pending' && data.phases.S7_VERIFY_E2E.status === 'pending' && !data.user_confirmations && !data.runtime_checks"
 
 reset_report="$service_dir/operation-report.json"
 assert_file_exists "$reset_report"
-json_test_check "$reset_report" "data.operation_type === 'reset_app_data' && data.status === 'reset_remote_data_cleared_refresh_pending' && data.security.secrets_included === false && data.gates.user_confirmation.app_initialization === 'pending_user_confirmation' && data.gates.user_confirmation.real_chat === 'pending_user_confirmation' && data.gates.user_confirmation.agent_mcp_runtime === 'pending_runtime_confirmation' && data.runtime_checks.summary.status === 'not_run' && data.connect.install_status === 'refresh_pending' && data.credentials.status === 'refresh_pending' && data.mcp.status === 'refresh_pending'"
+json_test_check "$reset_report" "data.operation_type === 'reset_app_data' && data.status === 'reset_remote_data_cleared_refresh_pending' && data.security.secrets_included === false && data.gates.user_confirmation.app_initialization === 'pending_user_confirmation' && data.gates.user_confirmation.real_chat === 'pending_user_confirmation' && data.gates.user_confirmation.agent_mcp_runtime === 'pending_runtime_confirmation' && data.runtime_checks.summary.status === 'not_run' && data.connect.install_status === 'refresh_pending' && data.credentials.status === 'refresh_pending' && data.mcp.status === 'refresh_pending' && data.mcp.install_status === 'refresh_pending'"
 
 echo "update reset ops ok"

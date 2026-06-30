@@ -209,6 +209,10 @@ grep -q 'direxio-connent@latest' SKILL.md
 grep -q 'DirexioDeployer' SKILL.md
 grep -q 'AdministratorAccess' SKILL.md
 grep -qi 'root access keys are allowed' SKILL.md
+grep -q 'Root access key (default fastest path)' SKILL.md
+grep -q 'Dedicated IAM deployment user' SKILL.md
+grep -q 'highly privileged, must be saved securely' SKILL.md
+grep -q 'safer because it avoids root keys' SKILL.md
 grep -q 'Destroy uses the same AWS identity boundary as deployment' SKILL.md
 grep -q 'Destroy allows root AWS access-key identity' references/deployment-workflow.md
 grep -q 'Recovery summary' SKILL.md
@@ -237,8 +241,8 @@ grep -q 'rerun the deployment workflow to refresh S4-S7' SKILL.md
 grep -q 'refresh_pending' references/token-refresh.md
 grep -q 'user_confirmations.*runtime_checks' references/token-refresh.md
 grep -q 'stops only the matching service-scoped direxio-connect daemon' references/token-refresh.md
-grep -q 'Local refresh:' references/token-refresh.md
-grep -q 'rerun the deployment workflow to refresh S4-S7' references/token-refresh.md
+grep -q '重新生成本地 credentials/MCP snippets' references/token-refresh.md
+grep -q '默认自动重新安装/重启 cc-connect 和 direxio-mcp' references/token-refresh.md
 grep -q 'DIREXIO_RESET_APP_DATA_CONFIRM=1' SKILL.md
 grep -q 'scripts/aws-credentials.sh import-csv' SKILL.md
 grep -q 'scripts/aws-credentials.sh verify' SKILL.md
@@ -315,7 +319,7 @@ grep -q 'verify runtime is an internal non-polluting check' references/deploymen
 grep -q 'user App initialization and real chat evidence' references/deployment-optimization-audit.md
 grep -q 'update/reset are now first-class scripts' references/deployment-optimization-audit.md
 grep -q 'Local refresh' references/deployment-optimization-audit.md
-grep -q 'cleared old credentials, user confirmations, runtime checks, and bridge install proof' references/deployment-optimization-audit.md
+grep -q 'clears old credentials, user confirmations, runtime checks, bridge install' references/deployment-optimization-audit.md
 grep -q 'stops only the matching service-scoped direxio-connect daemon' references/deployment-optimization-audit.md
 grep -q 'Lightsail remains deferred' references/deployment-optimization-audit.md
 

@@ -373,6 +373,7 @@ function cmdMutate(args) {
         delete data[key];
       }
       data.agent_install_status = "refresh_pending";
+      data.mcp_install_status = "refresh_pending";
       data.phase = startPhase;
       if (!isObject(data.phases)) data.phases = {};
       if (startPhase === "S4_BOOTSTRAP_STACK") {
@@ -513,6 +514,7 @@ function buildOperationReport(operation, status, stateFile, generatedAt, st) {
     },
     mcp: {
       status: localRefreshStatus,
+      install_status: st.mcp_install_status || "",
       package: st.mcp_npm_package || "direxio-mcp@latest",
       server_name: st.mcp_server_name || "",
       config_dir: st.mcp_config_dir || "",

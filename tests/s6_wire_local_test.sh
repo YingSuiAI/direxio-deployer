@@ -125,6 +125,7 @@ assert_active_runtime codex .codex/tmp PATH="/tmp/.codex/tmp/codex-arg123:/usr/b
 [ "$(DIREXIO_AGENT_INSTALL=skip _agent_install_policy)" = "skip" ]
 [ "$(DIREXIO_AGENT_INSTALL=recommend _agent_install_policy)" = "recommend" ]
 [ "$(DIREXIO_AGENT_INSTALL=auto _agent_install_policy)" = "auto" ]
+[ "$(_agent_install_policy)" = "auto" ]
 [ "$(_agent_install_mode hermes)" = "cc-connect" ]
 [ "$(_agent_install_mode openclaw)" = "cc-connect" ]
 [ "$(_agent_install_mode codex)" = "cc-connect" ]
@@ -377,6 +378,16 @@ STATE_CALLS="$tmp/state.calls"
 : > "$STATE_CALLS"
 PATH="$fakebin:$PATH" _maybe_auto_install_cc_connect auto codex codex "$tmp/service" "$tmp/service/cc-connect/config.toml" direxio-connect im.example.test
 grep -q '^agent_install_status=install_failed$' "$STATE_CALLS"
+
+STATE_CALLS="$tmp/mcp-state.calls"
+: > "$STATE_CALLS"
+PATH="$fakebin:$PATH" _maybe_auto_install_mcp auto
+grep -q '^mcp_install_status=installed$' "$STATE_CALLS"
+
+STATE_CALLS="$tmp/mcp-recommend-state.calls"
+: > "$STATE_CALLS"
+PATH="$fakebin:$PATH" _maybe_auto_install_mcp recommend
+grep -q '^mcp_install_status=recommend$' "$STATE_CALLS"
 
 # When explicit Gateway settings are not set, OpenClaw ACP should auto-discover
 # the Gateway from ~/.openclaw/openclaw.json.

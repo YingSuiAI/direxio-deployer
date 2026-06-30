@@ -196,7 +196,7 @@ local_refresh_pending() {
 
 status_local_refresh() {
   if local_refresh_pending; then
-    echo "update/reset cleared old credentials, user confirmations, runtime checks, and bridge install proof"
+    echo "reset/redeploy cleared old credentials, user confirmations, runtime checks, bridge install proof, and MCP install proof"
   fi
 }
 
@@ -204,7 +204,7 @@ status_next_action() {
   if local_refresh_pending; then
     case "$1" in
       S4_BOOTSTRAP_STACK|S5_INIT_TOKENS|S6_WIRE_LOCAL|S7_VERIFY_E2E|DONE)
-        echo "rerun the deployment workflow to refresh S4-S7, local credentials, MCP snippets, and runtime checks"
+        echo "rerun the deployment workflow to refresh S4-S7, local credentials, MCP snippets, automatic installs, and runtime checks"
         return 0
         ;;
     esac

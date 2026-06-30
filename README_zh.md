@@ -67,8 +67,9 @@ direxio-deployer skill update --agent codex
 
 ## 最小命令
 
-从 AWS CSV 导入并验证一个部署 profile。推荐使用临时 `DirexioDeployer` IAM
-用户；如果操作者明确选择 root access key，也允许继续：
+从 AWS CSV 导入并验证一个部署 profile。root access key 是首次部署最快路径，
+但权限极高；请安全保存 CSV，部署后轮换或删除密钥。临时
+`DirexioDeployer` IAM 用户更安全，但 AWS 控制台步骤更多：
 
 ```bash
 bash scripts/aws-credentials.sh import-csv /path/to/accessKeys.csv direxio-deployer us-east-1
@@ -108,16 +109,15 @@ $env:MESSAGE_SERVER_IMAGE = "direxio/message-server:latest"
 .\scripts\orchestrate.ps1
 ```
 
-仅写入并推荐本地 bridge：
+仅写入并推荐本地 bridge 和 MCP：
 
 ```bash
 DIREXIO_AGENT_INSTALL=recommend bash scripts/orchestrate.sh
 ```
 
-自动安装本地 bridge：
+默认会自动安装本地 bridge 和 MCP。只有自动检测不明确时才需要显式设置 runtime：
 
 ```bash
-DIREXIO_AGENT_INSTALL=auto \
 DIREXIO_AGENT_PLATFORM=auto \
 DIREXIO_CC_CONNECT_AGENT=claudecode \
 DIREXIO_AGENT_INSTALL_MODE=recommended \
@@ -155,8 +155,10 @@ service 目录。
 
 ```bash
 DOMAIN=<domain> MESSAGE_SERVER_IMAGE=direxio/message-server:latest bash scripts/update.sh
-P2P_EXISTING_STATE_ACTION=continue DOMAIN=<domain> bash scripts/orchestrate.sh
 ```
+
+镜像刷新只重启远端服务，不重置本地 credentials、`direxio-connect`、MCP
+配置、用户确认和 runtime checks。
 
 重置应用数据但保留 EC2、DNS、固定 IP 和 Caddy TLS：
 
@@ -164,6 +166,10 @@ P2P_EXISTING_STATE_ACTION=continue DOMAIN=<domain> bash scripts/orchestrate.sh
 DIREXIO_RESET_APP_DATA_CONFIRM=1 DOMAIN=<domain> bash scripts/reset-app-data.sh
 P2P_EXISTING_STATE_ACTION=continue DOMAIN=<domain> bash scripts/orchestrate.sh
 ```
+
+清理应用数据卷后，后续 orchestrate 会重新生成本地 credentials/MCP 配置，
+并默认自动重新安装/重启 `direxio-connect` 和 `direxio-mcp`；如需只写文件，
+显式设置 `DIREXIO_AGENT_INSTALL=recommend` 或 `skip`。
 
 ## 本地 Bridge
 
@@ -190,10 +196,10 @@ direxio-connect daemon install --config ~/.direxio/nodes/<service_id>/cc-connect
 direxio-connect daemon status --service-name <service_id>
 ```
 
-MCP 安装和检查：
+默认 `DIREXIO_AGENT_INSTALL=auto` 时，S6 会自动安装 MCP。手动恢复命令：
 
 ```bash
-npm install -g direxio-mcp
+npm install -g direxio-mcp@latest
 DIREXIO_CREDENTIALS_FILE=~/.direxio/nodes/<service_id>/credentials.json direxio-mcp doctor --json
 ```
 

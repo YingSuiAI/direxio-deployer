@@ -72,13 +72,19 @@ remain outside automatic destroy scope.
 
 ## Update / Reset Follow-Up
 
-After `scripts/update.sh` or `scripts/reset-app-data.sh`, rerun:
+After `scripts/reset-app-data.sh`, rerun:
 
 ```bash
 P2P_EXISTING_STATE_ACTION=continue DOMAIN=__DOMAIN__ bash scripts/orchestrate.sh
 ```
 
-The scripts intentionally mark S4-S7 pending and clear stale local secret
+The reset script intentionally marks S4-S7 pending and clears stale local secret
 fields. Do not copy old initialization codes or tokens from chat history,
 `state.json`, or `credentials.json`; S5 must fetch fresh bootstrap data and S6
-must rewrite service-scoped local credentials/MCP snippets.
+must rewrite service-scoped local credentials/MCP snippets and reinstall local
+packages by default.
+
+After `scripts/update.sh`, do not rerun S4-S7 just because the service was
+restarted. Image-only update preserves local credentials, cc-connect daemon
+state, MCP artifacts, confirmations, and runtime checks unless a separate
+verification shows the server regenerated bootstrap credentials.

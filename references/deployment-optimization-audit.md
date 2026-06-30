@@ -30,9 +30,10 @@ Current best plan is the stricter plan now encoded in this branch:
    whether to send a real message in the Agent chat box.
 6. Keep update/reset/destroy as separate operations with separate receipts;
    update/reset are now first-class scripts, not runbook-only manual actions.
-7. Treat update/reset follow-up as a Local refresh state: update/reset cleared
-   old credentials, user confirmations, runtime checks, and bridge install
-   proof, so the next action is to rerun S4-S7 and runtime checks.
+7. Treat reset/redeploy follow-up as a Local refresh state: reset/redeploy
+   clears old credentials, user confirmations, runtime checks, bridge install
+   proof, and MCP install proof, so the next action is to rerun S4-S7 and
+   runtime checks. Image-only update keeps local state intact.
 8. Keep Lightsail out of the current user-facing path. Lightsail remains
    deferred until it has an independent resource model, pricing, state,
    destroy, and test matrix.
@@ -132,14 +133,17 @@ Status: Deployer-side implemented.
 
 Current evidence:
 - `scripts/aws-credentials.sh import-csv|verify` imports local CSV credentials,
-  tightens file permissions, blocks root identity, and redacts identity output.
-- `SKILL.md` documents the temporary `DirexioDeployer` IAM user path with
+  tightens file permissions, allows root identity only with explicit operator
+  choice, and redacts identity output.
+- `SKILL.md` documents both the fast root access-key path with security
+  warnings and the safer temporary `DirexioDeployer` IAM user path with
   temporary `AdministratorAccess`, then cleanup.
 - Reports and tests assert secrets are redacted and not written to reports.
 
 Difference from the checklist:
-- The current branch chooses the practical MVP path: temporary IAM admin user,
-  no root access keys, and cleanup guidance after deployment.
+- The current branch chooses the practical MVP path: let the operator choose
+  fast root credentials or a safer temporary IAM admin user, with cleanup
+  guidance after deployment.
 
 Remaining evidence:
 - Long-term least-privilege IAM generation is still a future hardening task.
@@ -226,11 +230,11 @@ Current evidence:
 - S5 refreshes bootstrap credentials from the server.
 - S6 rewrites service-scoped `credentials.json`, `env`, cc-connect config, and
   MCP snippets.
-- Update/reset mark S4-S7 pending and report refresh-pending status.
-- Update/reset stops only the matching service-scoped direxio-connect daemon
+- Reset/redeploy mark S4-S7 pending and report refresh-pending status.
+- Reset/redeploy stops only the matching service-scoped direxio-connect daemon
   when its `WorkDir` matches the current service, so stale local bridge
   processes do not keep using old credentials.
-- `status` reports Local refresh when update/reset cleared old credentials, user confirmations, runtime checks, and bridge install proof.
+- `status` reports Local refresh when reset/redeploy cleared old credentials, user confirmations, runtime checks, bridge install proof, and MCP install proof.
 - Runtime checks fail closed when a stale service directory or wrong WorkDir is
   detected.
 
