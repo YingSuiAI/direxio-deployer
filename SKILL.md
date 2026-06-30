@@ -207,6 +207,18 @@ Step-by-step onboarding flow:
    - Give a short billing warning before the first mutating AWS command:
      "This will create paid AWS resources for the server. They keep billing
      until destroyed."
+   - When AWS CLI is available after credentials are verified, make a best
+     effort Free Tier account-plan check:
+     ```bash
+     aws freetier get-account-plan-state --output json
+     ```
+     If it returns `accountPlanRemainingCredits`, mention the remaining credit
+     amount and expiration without treating it as a guarantee. If the command
+     is unavailable or fails, use the fixed wording: "AWS currently advertises
+     100 USD initial credits for new customer accounts, plus possible
+     additional credits after completing Free Tier activities. These credits
+     may cover a small trial deployment, but coverage is account-specific and
+     must be verified in AWS Billing Console."
    - **Provide an upfront monthly cost estimate** based on the selected
      region and instance type, so the user can decide whether to proceed.
      `scripts/orchestrate.sh` records `cost_estimate` in state before the
@@ -252,10 +264,15 @@ Step-by-step onboarding flow:
    - If the user asks what is billed, mention EC2/server, fixed public IPv4 or
      Elastic IP, storage, DNS, network traffic, and call relay traffic.
 
-Required first-time deployment confirmation:
+Required first-time deployment confirmation. Fill in the concrete domain,
+profile, and region, and include the Free Tier sentence immediately before the
+confirmation line:
 
 ```text
-I confirm that I have an active AWS account, a real long-lived domain, and an AWS access key CSV or AWS profile for this deployment. I understand this can create billable AWS resources and that they keep billing until destroyed.
+Please confirm before I deploy. AWS new customer accounts may have Free Tier credits, currently advertised as 100 USD initial credits plus possible additional credits; these credits may cover a small trial deployment, but actual coverage must be verified in AWS Billing Console.
+
+Reply with this exact sentence:
+I confirm that I have an active AWS account, the long-lived domain <domain>, and authorize the current <profile-or-identity> AWS profile in <region> to create the Direxio service. I understand this can create billable AWS resources, credits are not guaranteed to cover all usage, and resources keep billing until destroyed.
 ```
 
 If any prerequisite is missing, stop deployment and guide the user through that
@@ -279,6 +296,13 @@ Lightsail is a future deployment mode, not a current automatic option. Lightsail
 ## Skill And Runtime Targets
 
 When the user asks to install or update this skill itself, or asks to wire Direxio into a local agent runtime, read `references/agent-targets.md` first. It is the source of truth for connent/connect agent targets, legacy host-runtime aliases, generic targets, and unknown targets.
+
+If the user says "install skills" and includes the GitHub repository URL
+`YingSuiAI/direxio-deployer`, do not use a generic GitHub skill installer for
+normal deployment use. First install the npm package and then run
+`direxio-deployer skill install --agent <runtime> --scope project --project
+<project-root>`. Use a Git clone only when the user explicitly asks for
+deployer development or local patching.
 
 For this skill repository itself, first determine whether the current working directory belongs to a project or workspace. Treat an explicit workspace root, project files, or an existing agent-specific directory such as `.codex/`, `.claude/`, `.gemini/`, `.cursor/`, `.github/copilot/`, `.devin/`, `.opencode/`, `.qoder/`, `.pi/`, `.openclaw/`, or `.hermes/` as a project target.
 

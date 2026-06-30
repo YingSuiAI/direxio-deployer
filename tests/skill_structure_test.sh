@@ -241,6 +241,14 @@ grep -q 'scripts/pricing-estimate.sh' SKILL.md
 grep -q 'pricing-estimate.sh --state' references/deployment-workflow.md
 grep -q 'cost_estimate' SKILL.md
 grep -q 'cost_estimate' references/deployment-workflow.md
+grep -q 'aws freetier get-account-plan-state --output json' SKILL.md
+grep -q 'aws freetier get-account-plan-state --output json' references/deployment-workflow.md
+grep -q '100 USD initial credits' SKILL.md
+grep -q '100 USD initial credits' references/deployment-workflow.md
+grep -q 'do not install the skill from GitHub' README.md
+grep -q '不要从 GitHub 安装 skill' README_zh.md
+grep -q 'do not use a generic GitHub skill installer' SKILL.md
+grep -q 'direxio-deployer skill install --agent codex --scope project --project .' references/agent-targets.md
 grep -q 'orchestrate.sh confirm app_initialization' SKILL.md
 grep -q 'orchestrate.sh confirm agent_mcp_runtime' SKILL.md
 grep -q 'DIREXIO_CONFIRM_RUNTIME_PROBE=1' SKILL.md

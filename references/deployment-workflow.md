@@ -55,9 +55,13 @@ bash scripts/pricing-estimate.sh --state ~/.direxio/nodes/<service_id>/state.jso
 selection and refreshes it in S3 after the final EC2 instance type is known.
 The estimate includes EC2, gp3 storage, public IPv4, and Route53 hosted-zone
 cost when applicable. It excludes data transfer, TURN relay traffic, domain
-registration, taxes, and AWS credits. Credit coverage is not guaranteed; verify
-credits and actual charges in AWS Billing Console, and set an AWS Budget or
-billing alert before leaving the node running.
+registration, taxes, and AWS credits. When available, check the Free Tier
+account plan with `aws freetier get-account-plan-state --output json`;
+otherwise tell the user that AWS currently advertises 100 USD initial credits
+for new customer accounts plus possible additional credits after Free Tier
+activities. Credit coverage is not guaranteed; verify credits and actual
+charges in AWS Billing Console, and set an AWS Budget or billing alert before
+leaving the node running.
 
 ## Destroy
 

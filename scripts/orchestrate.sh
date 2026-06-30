@@ -395,6 +395,25 @@ ensure_cost_estimate() {
   else
     warn "Could not write AWS cost estimate. Continue only after giving the user a manual billing estimate."
   fi
+  ensure_free_tier_credit_notice
+}
+
+ensure_free_tier_credit_notice() {
+  local output plan_status plan_type amount unit expires
+  if output=$(aws freetier get-account-plan-state --output json 2>/dev/null); then
+    plan_type=$(printf '%s\n' "$output" | json_stdin_get accountPlanType "unknown" 2>/dev/null)
+    plan_status=$(printf '%s\n' "$output" | json_stdin_get accountPlanStatus "unknown" 2>/dev/null)
+    amount=$(printf '%s\n' "$output" | json_stdin_get accountPlanRemainingCredits.amount "" 2>/dev/null)
+    unit=$(printf '%s\n' "$output" | json_stdin_get accountPlanRemainingCredits.unit "USD" 2>/dev/null)
+    expires=$(printf '%s\n' "$output" | json_stdin_get accountPlanExpirationDate "" 2>/dev/null)
+    if [ -n "$amount" ]; then
+      log "AWS Free Tier plan: type=${plan_type:-unknown}, status=${plan_status:-unknown}, remaining_credits=${amount} ${unit:-USD}${expires:+, expires=$expires}."
+      warn "Credits can reduce actual charges, but AWS resources still accrue charges until destroyed; verify credit coverage in AWS Billing Console."
+      return 0
+    fi
+  fi
+  warn "AWS new customer accounts may include Free Tier credits, currently advertised as 100 USD initial credits plus possible additional credits."
+  warn "Credits may cover a small trial deployment, but coverage is account-specific; verify credits in AWS Billing Console and destroy the node when finished."
 }
 
 precheck_new_deploy_domain_env() {
