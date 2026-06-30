@@ -2,6 +2,10 @@
 # pricing-estimate.sh - estimate monthly AWS costs for a Direxio EC2 node.
 set -euo pipefail
 
+HERE=$(cd "$(dirname "$0")" && pwd)
+# shellcheck disable=SC1090
+source "$HERE/lib/json.sh"
+
 usage() {
   cat >&2 <<'EOF'
 Usage:
@@ -38,13 +42,7 @@ price_from_get_products() {
     --filters "Type=TERM_MATCH,Field=location,Value=$location" "$@" \
     --max-results 1 \
     --output json 2>/dev/null) || return 1
-  printf '%s\n' "$json" | jq -r '
-    .PriceList[0]
-    | fromjson
-    | .terms.OnDemand
-    | to_entries[0].value.priceDimensions
-    | to_entries[0].value.pricePerUnit.USD
-  ' 2>/dev/null
+  printf '%s\n' "$json" | json_stdin_price_usd 2>/dev/null
 }
 
 numeric_or_empty() {
@@ -98,7 +96,7 @@ build_estimate() {
 
   if [ -z "$location" ]; then
     status=fallback
-    warnings_json=$(jq -cn --arg w "Region is not mapped to an AWS Pricing location; using conservative fallback estimates" '$ARGS.named | [.w]')
+    warnings_json='["Region is not mapped to an AWS Pricing location; using conservative fallback estimates"]'
   fi
 
   if [ "$status" = "queried" ] && ec2_hourly=$(lookup_ec2_hourly "$location" "$instance_type"); then
@@ -126,7 +124,11 @@ build_estimate() {
   fi
 
   if [ "$status" = "fallback" ]; then
-    warnings_json=$(printf '%s\n' "$warnings_json" | jq '. + ["AWS Pricing API unavailable; using conservative fallback estimates"] | unique')
+    case "$warnings_json" in
+      *"AWS Pricing API unavailable; using conservative fallback estimates"*) ;;
+      "[]") warnings_json='["AWS Pricing API unavailable; using conservative fallback estimates"]' ;;
+      *) warnings_json=${warnings_json%]}; warnings_json="$warnings_json,\"AWS Pricing API unavailable; using conservative fallback estimates\"]" ;;
+    esac
   fi
 
   if [ "$domain_mode" = "route53" ]; then
@@ -135,71 +137,25 @@ build_estimate() {
     route53_monthly=0
   fi
 
-  jq -n \
-    --arg pricing_status "$status" \
-    --arg region "$region" \
-    --arg location "$location" \
-    --arg instance_type "$instance_type" \
-    --arg domain_mode "$domain_mode" \
-    --arg ec2_source "$ec2_source" \
-    --arg gp3_source "$gp3_source" \
-    --arg ipv4_source "$ipv4_source" \
-    --argjson warnings "$warnings_json" \
-    --argjson hours "$hours" \
-    --argjson disk_gb "$disk_gb" \
-    --argjson ec2_hourly "$ec2_hourly" \
-    --argjson ec2_monthly "$(round2 "$(awk -v h="$ec2_hourly" -v m="$hours" 'BEGIN { print h*m }')")" \
-    --argjson gp3_rate "$gp3_rate" \
-    --argjson gp3_monthly "$(round2 "$(awk -v r="$gp3_rate" -v gb="$disk_gb" 'BEGIN { print r*gb }')")" \
-    --argjson ipv4_hourly "$public_ipv4_hourly" \
-    --argjson ipv4_monthly "$(round2 "$(awk -v h="$public_ipv4_hourly" -v m="$hours" 'BEGIN { print h*m }')")" \
-    --argjson route53_monthly "$route53_monthly" '
-      def total:
-        (.components.ec2_instance.monthly_usd
-        + .components.ebs_gp3.monthly_usd
-        + .components.public_ipv4.monthly_usd
-        + .components.route53_hosted_zone.monthly_usd);
-      {
-        pricing_status: $pricing_status,
-        region: $region,
-        location: $location,
-        hours_per_month: $hours,
-        warnings: $warnings,
-        components: {
-          ec2_instance: {
-            instance_type: $instance_type,
-            hourly_usd: $ec2_hourly,
-            monthly_usd: $ec2_monthly,
-            source: $ec2_source
-          },
-          ebs_gp3: {
-            storage_gb: $disk_gb,
-            gb_month_usd: $gp3_rate,
-            monthly_usd: $gp3_monthly,
-            source: $gp3_source
-          },
-          public_ipv4: {
-            hourly_usd: $ipv4_hourly,
-            monthly_usd: $ipv4_monthly,
-            billed_even_when_attached: true,
-            source: $ipv4_source
-          },
-          route53_hosted_zone: {
-            monthly_usd: $route53_monthly,
-            included: ($domain_mode == "route53")
-          }
-        },
-        notes: [
-          "Estimate excludes data transfer, TURN relay traffic, domain registration, taxes, and AWS credit eligibility.",
-          "Public IPv4 is billed hourly by AWS even when attached to a running instance.",
-          "AWS credits may reduce charges only when the account, plan, region, and service usage are eligible; verify in AWS Billing Console."
-        ],
-        recommendations: [
-          "Set an AWS Budget or billing alert before leaving the node running.",
-          "Review AWS Billing Console after deployment and after destroy to confirm actual charges and remaining credits."
-        ]
-      } | .total_monthly_usd = ((total * 100 | round) / 100)
-    '
+  json_build pricing-estimate \
+    "$status" \
+    "$region" \
+    "$location" \
+    "$instance_type" \
+    "$domain_mode" \
+    "$ec2_source" \
+    "$gp3_source" \
+    "$ipv4_source" \
+    "$warnings_json" \
+    "$hours" \
+    "$disk_gb" \
+    "$ec2_hourly" \
+    "$(round2 "$(awk -v h="$ec2_hourly" -v m="$hours" 'BEGIN { print h*m }')")" \
+    "$gp3_rate" \
+    "$(round2 "$(awk -v r="$gp3_rate" -v gb="$disk_gb" 'BEGIN { print r*gb }')")" \
+    "$public_ipv4_hourly" \
+    "$(round2 "$(awk -v h="$public_ipv4_hourly" -v m="$hours" 'BEGIN { print h*m }')")" \
+    "$route53_monthly"
 }
 
 state=""
@@ -227,10 +183,11 @@ if [ -n "$state" ]; then
     echo "state.json not found: $state" >&2
     exit 1
   }
-  region=${region:-$(jq -r '.region // empty' "$state")}
-  instance_type=${instance_type:-$(jq -r '.instance_type // empty' "$state")}
-  domain_mode=${domain_mode:-$(jq -r '.domain_mode // "user"' "$state")}
-  disk_gb=${disk_gb:-$(jq -r '.resources.root_volume_gb // .root_volume_gb // "8"' "$state")}
+  region=${region:-$(json_get "$state" region)}
+  instance_type=${instance_type:-$(json_get "$state" instance_type)}
+  domain_mode=${domain_mode:-$(json_get "$state" domain_mode user)}
+  disk_gb=${disk_gb:-$(json_get "$state" resources.root_volume_gb)}
+  disk_gb=${disk_gb:-$(json_get "$state" root_volume_gb 8)}
 fi
 
 region=${region:-${AWS_DEFAULT_REGION:-${AWS_REGION:-}}}
@@ -249,8 +206,7 @@ if [ "$write_state" = "1" ]; then
     echo "--write-state requires --state" >&2
     exit 1
   }
-  tmp="$state.tmp.$$"
-  jq --argjson estimate "$estimate" '.cost_estimate = $estimate' "$state" > "$tmp" && mv "$tmp" "$state"
+  json_mutate "$state" set-json cost_estimate "$estimate"
 fi
 
 printf '%s\n' "$estimate"

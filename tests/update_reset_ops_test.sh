@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck disable=SC1090
+source "$ROOT/tests/lib/json_test.sh"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
@@ -40,65 +42,33 @@ chmod 700 "$fakebin/direxio-connect"
 write_state() {
   local state=$1 service_dir=$2
   mkdir -p "$(dirname "$state")" "$service_dir"
-  jq -n \
-    --arg service_dir "$service_dir" \
-    '{
-      run_id: "ops-test",
-      region: "ap-northeast-1",
-      domain_mode: "user",
-      domain: "ops.example.test",
-      as_url: "https://ops.example.test",
-      instance_type: "t3.small",
-      password: "12345678",
-      access_token: "ACCESS_SECRET",
-      agent_token: "AGENT_SECRET",
-      agent_room_id: "!old:ops.example.test",
-      agent_service_id: "ops.example.test",
-      agent_service_dir: $service_dir,
-      agent_credentials_file: ($service_dir + "/credentials.json"),
-      agent_install_status: "installed",
-      cc_connect_config: ($service_dir + "/cc-connect/config.toml"),
-      cc_connect_binary: "direxio-connect",
-      cc_connect_agent: "codex",
-      mcp_config_dir: ($service_dir + "/mcp"),
-      mcp_codex_config: ($service_dir + "/mcp/codex.toml"),
-      mcp_openclaw_config: ($service_dir + "/mcp/openclaw.md"),
-      mcp_hermes_config: ($service_dir + "/mcp/hermes.mcp.json"),
-      mcp_doctor_command: ("DIREXIO_CREDENTIALS_FILE=" + $service_dir + "/credentials.json direxio-mcp doctor --json"),
-      resources: {
-        instance_id: "i-ops",
-        public_ip: "203.0.113.77",
-        eip_id: "eipalloc-ops",
-        key_file: "/tmp/ops.pem"
-      },
-      phases: {
-        S0_PREREQ_AWS: {status: "done"},
-        S1_PREFLIGHT: {status: "done"},
-        S2_DOMAIN: {status: "done"},
-        S3_PROVISION: {status: "done"},
-        S4_BOOTSTRAP_STACK: {status: "done"},
-        S5_INIT_TOKENS: {status: "done"},
-        S6_WIRE_LOCAL: {status: "done"},
-        S7_VERIFY_E2E: {status: "done"}
-      },
-      user_confirmations: {
-        app_initialization: {status: "confirmed", evidence: "old app confirmation"},
-        real_chat: {status: "confirmed", evidence: "old chat confirmation"},
-        agent_mcp_runtime: {
-          status: "confirmed",
-          evidence: "old runtime confirmation",
-          runtime_summary_status: "passed",
-          runtime_probe_confirmed: true
-        }
-      },
-      runtime_checks: {
-        summary: {status: "passed"},
-        connect_daemon: {status: "passed"},
-        mcp_doctor: {status: "passed"},
-        mcp_smoke: {status: "passed"},
-        mcp_tools: {status: "passed"}
-      }
-    }' > "$state"
+  json_build object \
+    run_id=ops-test \
+    region=ap-northeast-1 \
+    domain_mode=user \
+    domain=ops.example.test \
+    as_url=https://ops.example.test \
+    instance_type=t3.small \
+    password=12345678 \
+    access_token=ACCESS_SECRET \
+    agent_token=AGENT_SECRET \
+    'agent_room_id=!old:ops.example.test' \
+    agent_service_id=ops.example.test \
+    "agent_service_dir=$service_dir" \
+    "agent_credentials_file=$service_dir/credentials.json" \
+    agent_install_status=installed \
+    "cc_connect_config=$service_dir/cc-connect/config.toml" \
+    cc_connect_binary=direxio-connect \
+    cc_connect_agent=codex \
+    "mcp_config_dir=$service_dir/mcp" \
+    "mcp_codex_config=$service_dir/mcp/codex.toml" \
+    "mcp_openclaw_config=$service_dir/mcp/openclaw.md" \
+    "mcp_hermes_config=$service_dir/mcp/hermes.mcp.json" \
+    "mcp_doctor_command=DIREXIO_CREDENTIALS_FILE=$service_dir/credentials.json direxio-mcp doctor --json" \
+    'resources={"instance_id":"i-ops","public_ip":"203.0.113.77","eip_id":"eipalloc-ops","key_file":"/tmp/ops.pem"}' \
+    'phases={"S0_PREREQ_AWS":{"status":"done"},"S1_PREFLIGHT":{"status":"done"},"S2_DOMAIN":{"status":"done"},"S3_PROVISION":{"status":"done"},"S4_BOOTSTRAP_STACK":{"status":"done"},"S5_INIT_TOKENS":{"status":"done"},"S6_WIRE_LOCAL":{"status":"done"},"S7_VERIFY_E2E":{"status":"done"}}' \
+    'user_confirmations={"app_initialization":{"status":"confirmed","evidence":"old app confirmation"},"real_chat":{"status":"confirmed","evidence":"old chat confirmation"},"agent_mcp_runtime":{"status":"confirmed","evidence":"old runtime confirmation","runtime_summary_status":"passed","runtime_probe_confirmed":true}}' \
+    'runtime_checks={"summary":{"status":"passed"},"connect_daemon":{"status":"passed"},"mcp_doctor":{"status":"passed"},"mcp_smoke":{"status":"passed"},"mcp_tools":{"status":"passed"}}' > "$state"
 }
 
 assert_file_exists() {
@@ -146,34 +116,11 @@ assert_contains "$update_calls" 'direxio-connect daemon status --service-name op
 assert_contains "$update_calls" 'direxio-connect daemon stop --service-name ops\.example\.test'
 assert_not_contains "$update_calls" 'volume rm|down -v|postgres-data|message-config|message-data|caddy-data|caddy-config'
 
-jq -e '
-  (.password // "") == ""
-  and (.access_token // "") == ""
-  and (.agent_token // "") == ""
-  and (.agent_room_id // "") == ""
-  and .agent_install_status == "refresh_pending"
-  and .phases.S4_BOOTSTRAP_STACK.status == "pending"
-  and .phases.S5_INIT_TOKENS.status == "pending"
-  and .phases.S6_WIRE_LOCAL.status == "pending"
-  and .phases.S7_VERIFY_E2E.status == "pending"
-  and (.user_confirmations | not)
-  and (.runtime_checks | not)
-' "$state" >/dev/null
+json_test_check "$state" "!(data.password || data.access_token || data.agent_token || data.agent_room_id) && data.agent_install_status === 'refresh_pending' && data.phases.S4_BOOTSTRAP_STACK.status === 'pending' && data.phases.S5_INIT_TOKENS.status === 'pending' && data.phases.S6_WIRE_LOCAL.status === 'pending' && data.phases.S7_VERIFY_E2E.status === 'pending' && !data.user_confirmations && !data.runtime_checks"
 
 update_report="$service_dir/operation-report.json"
 assert_file_exists "$update_report"
-jq -e '
-  .operation_type == "update"
-  and .status == "update_remote_restart_complete_refresh_pending"
-  and .security.secrets_included == false
-  and .gates.user_confirmation.app_initialization == "pending_user_confirmation"
-  and .gates.user_confirmation.real_chat == "pending_user_confirmation"
-  and .gates.user_confirmation.agent_mcp_runtime == "pending_runtime_confirmation"
-  and .runtime_checks.summary.status == "not_run"
-  and .connect.install_status == "refresh_pending"
-  and .credentials.status == "refresh_pending"
-  and .mcp.status == "refresh_pending"
-' "$update_report" >/dev/null
+json_test_check "$update_report" "data.operation_type === 'update' && data.status === 'update_remote_restart_complete_refresh_pending' && data.security.secrets_included === false && data.gates.user_confirmation.app_initialization === 'pending_user_confirmation' && data.gates.user_confirmation.real_chat === 'pending_user_confirmation' && data.gates.user_confirmation.agent_mcp_runtime === 'pending_runtime_confirmation' && data.runtime_checks.summary.status === 'not_run' && data.connect.install_status === 'refresh_pending' && data.credentials.status === 'refresh_pending' && data.mcp.status === 'refresh_pending'"
 
 write_state "$state" "$service_dir"
 if CALLS="$tmp/reset-unconfirmed.calls" PATH="$fakebin:$PATH" bash "$ROOT/scripts/reset-app-data.sh" "$state" >/dev/null 2>&1; then
@@ -199,32 +146,10 @@ assert_contains "$reset_calls" 'direxio-connect daemon status --service-name ops
 assert_contains "$reset_calls" 'direxio-connect daemon stop --service-name ops\.example\.test'
 assert_not_contains "$reset_calls" 'caddy-data|caddy-config|down -v'
 
-jq -e '
-  (.password // "") == ""
-  and (.access_token // "") == ""
-  and (.agent_token // "") == ""
-  and (.agent_room_id // "") == ""
-  and .agent_install_status == "refresh_pending"
-  and .phases.S5_INIT_TOKENS.status == "pending"
-  and .phases.S6_WIRE_LOCAL.status == "pending"
-  and .phases.S7_VERIFY_E2E.status == "pending"
-  and (.user_confirmations | not)
-  and (.runtime_checks | not)
-' "$state" >/dev/null
+json_test_check "$state" "!(data.password || data.access_token || data.agent_token || data.agent_room_id) && data.agent_install_status === 'refresh_pending' && data.phases.S5_INIT_TOKENS.status === 'pending' && data.phases.S6_WIRE_LOCAL.status === 'pending' && data.phases.S7_VERIFY_E2E.status === 'pending' && !data.user_confirmations && !data.runtime_checks"
 
 reset_report="$service_dir/operation-report.json"
 assert_file_exists "$reset_report"
-jq -e '
-  .operation_type == "reset_app_data"
-  and .status == "reset_remote_data_cleared_refresh_pending"
-  and .security.secrets_included == false
-  and .gates.user_confirmation.app_initialization == "pending_user_confirmation"
-  and .gates.user_confirmation.real_chat == "pending_user_confirmation"
-  and .gates.user_confirmation.agent_mcp_runtime == "pending_runtime_confirmation"
-  and .runtime_checks.summary.status == "not_run"
-  and .connect.install_status == "refresh_pending"
-  and .credentials.status == "refresh_pending"
-  and .mcp.status == "refresh_pending"
-' "$reset_report" >/dev/null
+json_test_check "$reset_report" "data.operation_type === 'reset_app_data' && data.status === 'reset_remote_data_cleared_refresh_pending' && data.security.secrets_included === false && data.gates.user_confirmation.app_initialization === 'pending_user_confirmation' && data.gates.user_confirmation.real_chat === 'pending_user_confirmation' && data.gates.user_confirmation.agent_mcp_runtime === 'pending_runtime_confirmation' && data.runtime_checks.summary.status === 'not_run' && data.connect.install_status === 'refresh_pending' && data.credentials.status === 'refresh_pending' && data.mcp.status === 'refresh_pending'"
 
 echo "update reset ops ok"

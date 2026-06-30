@@ -38,8 +38,8 @@ run_phase() {
     phase_set S5_INIT_TOKENS failed "bootstrap.json missing password/access/agent credentials"
     fail "bootstrap.json must contain password as an eight-digit initialization-code string plus access_token and agent_token."
   fi
-  asurl=$(jq -r --arg domain "$domain" '.as_url // ("https://" + $domain)' "$out")
-  agent_room_id=$(jq -r '.agent_room_id // empty' "$out")
+  asurl=$(json_get "$out" as_url "https://$domain")
+  agent_room_id=$(json_get "$out" agent_room_id)
   if [ -z "$agent_room_id" ] || [[ "$agent_room_id" == \!agent:* ]]; then
     phase_set S5_INIT_TOKENS failed "bootstrap.json missing real agent_room_id"
     fail "bootstrap.json must contain a real Matrix agent_room_id; legacy !agent:<domain> ids are not supported."
@@ -59,9 +59,10 @@ run_phase() {
 
 _extract_output_tokens() {
   local out=$1 password token access_token
-  password=$(jq -r 'if (.password | type) == "string" then .password else empty end' "$out")
-  token=$(jq -r '.agent_token // empty' "$out")
-  access_token=$(jq -r '.access_token // empty' "$out")
+  [ "$(json_type "$out" password)" = "string" ] || return 1
+  password=$(json_get "$out" password)
+  token=$(json_get "$out" agent_token)
+  access_token=$(json_get "$out" access_token)
   [ -n "$password" ] && [ -n "$token" ] && [ -n "$access_token" ] || return 1
   printf '%s' "$password" | grep -Eq '^[0-9]{8}$' || return 1
   printf '%s\t%s\t%s\n' "$password" "$token" "$access_token"
@@ -91,18 +92,7 @@ _normalize_bootstrap_output() {
   local domain=$1 src=$2 out=$3
   local tmp
   tmp=$(mktemp)
-  if ! jq --arg domain "$domain" --arg asurl "https://$domain" '
-    . + {
-      domain: (.domain // $domain),
-      as_url: (.as_url // $asurl),
-      p2p_url: (.p2p_url // $asurl),
-      user_id: (.user_id // .owner_user_id // ""),
-      bot_mxid: (.bot_mxid // .owner_user_id // .user_id // ("@owner:" + $domain)),
-      access_token: (.access_token // ""),
-      agent_token: (.agent_token // ""),
-      agent_room_id: (.agent_room_id // "")
-    }
-  ' "$src" > "$tmp"; then
+  if ! json_build bootstrap-normalized "$src" "$domain" > "$tmp"; then
     rm -f "$tmp"
     return 1
   fi

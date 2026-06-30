@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck disable=SC1090
+source "$ROOT/tests/lib/json_test.sh"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
@@ -53,12 +55,7 @@ source "$ROOT/scripts/phases/s3_provision.sh"
 
 _upsert_route53_record auto-zone.example.test 203.0.113.88
 
-jq -e '
-  .resources.route53_zone_id == "ZCREATE"
-  and .resources.route53_zone_name == "auto-zone.example.test"
-  and .resources.route53_zone_created_by_deployer == "true"
-  and (.resources.route53_name_servers | contains("ns-1.awsdns.test"))
-' "$STATE_JSON" >/dev/null
+json_test_check "$STATE_JSON" "data.resources.route53_zone_id === 'ZCREATE' && data.resources.route53_zone_name === 'auto-zone.example.test' && data.resources.route53_zone_created_by_deployer === 'true' && data.resources.route53_name_servers.includes('ns-1.awsdns.test')"
 
 grep -q 'route53 create-hosted-zone' "$CALLS"
 grep -q 'route53 change-resource-record-sets' "$CALLS"

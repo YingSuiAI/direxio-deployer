@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck disable=SC1090
+source "$ROOT/tests/lib/json_test.sh"
 tmp=$(mktemp -d "$ROOT/.tmp-runtime-summary.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 
@@ -132,56 +134,33 @@ if command -v cygpath >/dev/null 2>&1; then
   expected_credentials=$(cygpath -m "$expected_credentials")
 fi
 state="$service_dir/state.json"
-jq -n \
-  --arg service_dir "$service_dir" \
-  --arg credentials "$credentials" \
-  --arg config "$config" \
-  --arg mcp_command "$mcp_command" \
-  '{
-    run_id: "runtime-summary-test",
-    region: "ap-northeast-1",
-    domain_mode: "user",
-    domain: "runtime-summary.example.test",
-    as_url: "https://runtime-summary.example.test",
-    agent_service_id: "runtime-summary.example.test",
-    agent_service_dir: $service_dir,
-    agent_credentials_file: $credentials,
-    mcp_credentials_file: $credentials,
-    mcp_command: $mcp_command,
-    agent_token: "AGENT_TOKEN_RUNTIME",
-    agent_room_id: "!agent:runtime-summary.example.test",
-    cc_connect_config: $config,
-    cc_connect_binary: "direxio-connect",
-    phase: "S7_VERIFY_E2E",
-    phases: {
-      S0_PREREQ_AWS: {status: "done"},
-      S1_PREFLIGHT: {status: "done"},
-      S2_DOMAIN: {status: "done"},
-      S3_PROVISION: {status: "done"},
-      S4_BOOTSTRAP_STACK: {status: "done"},
-      S5_INIT_TOKENS: {status: "done"},
-      S6_WIRE_LOCAL: {status: "done"},
-      S7_VERIFY_E2E: {status: "done"}
-    },
-    resources: {}
-  }' > "$state"
+json_build object \
+  run_id=runtime-summary-test \
+  region=ap-northeast-1 \
+  domain_mode=user \
+  domain=runtime-summary.example.test \
+  as_url=https://runtime-summary.example.test \
+  agent_service_id=runtime-summary.example.test \
+  "agent_service_dir=$service_dir" \
+  "agent_credentials_file=$credentials" \
+  "mcp_credentials_file=$credentials" \
+  "mcp_command=$mcp_command" \
+  agent_token=AGENT_TOKEN_RUNTIME \
+  'agent_room_id=!agent:runtime-summary.example.test' \
+  "cc_connect_config=$config" \
+  cc_connect_binary=direxio-connect \
+  phase=S7_VERIFY_E2E \
+  'phases={"S0_PREREQ_AWS":{"status":"done"},"S1_PREFLIGHT":{"status":"done"},"S2_DOMAIN":{"status":"done"},"S3_PROVISION":{"status":"done"},"S4_BOOTSTRAP_STACK":{"status":"done"},"S5_INIT_TOKENS":{"status":"done"},"S6_WIRE_LOCAL":{"status":"done"},"S7_VERIFY_E2E":{"status":"done"}}' \
+  'resources={}' > "$state"
 
 verify_output=$(P2P_WORKDIR="$service_dir" PATH="$fakebin:$PATH" EXPECTED_CREDENTIALS_FILE="$expected_credentials" CONNECT_WORK_DIR="$service_dir/cc-connect" bash "$ROOT/scripts/orchestrate.sh" verify runtime)
 printf '%s\n' "$verify_output" | grep -q 'verified runtime checks: passed'
 
-jq -e '
-  .runtime_checks.summary.status == "passed"
-  and .runtime_checks.summary.failed_count == 0
-  and .runtime_checks.summary.checks.connect_daemon == "passed"
-  and .runtime_checks.summary.checks.mcp_doctor == "passed"
-  and .runtime_checks.summary.checks.mcp_tools == "passed"
-  and .runtime_checks.summary.checks.mcp_smoke == "passed"
-  and (.user_confirmations.agent_mcp_runtime | not)
-' "$state" >/dev/null
+json_test_check "$state" "data.runtime_checks.summary.status === 'passed' && data.runtime_checks.summary.failed_count === 0 && data.runtime_checks.summary.checks.connect_daemon === 'passed' && data.runtime_checks.summary.checks.mcp_doctor === 'passed' && data.runtime_checks.summary.checks.mcp_tools === 'passed' && data.runtime_checks.summary.checks.mcp_smoke === 'passed' && !data.user_confirmations?.agent_mcp_runtime"
 
 report_output=$(P2P_WORKDIR="$service_dir" bash "$ROOT/scripts/orchestrate.sh" report new_deploy)
 report_path=$(printf '%s\n' "$report_output" | sed -nE 's/^operation report: //p' | tail -n 1)
-jq -e '.runtime_checks.summary.status == "passed"' "$report_path" >/dev/null
+json_test_check "$report_path" "data.runtime_checks.summary.status === 'passed'"
 
 set +e
 P2P_WORKDIR="$service_dir" PATH="$fakebin:$PATH" EXPECTED_CREDENTIALS_FILE="$expected_credentials" CONNECT_WORK_DIR="$HOME/.direxio/nodes/other.example.test/cc-connect" bash "$ROOT/scripts/orchestrate.sh" verify runtime > "$tmp/runtime-fail.out" 2>&1
@@ -191,13 +170,6 @@ set -e
   echo "runtime summary must fail when any runtime check fails" >&2
   exit 1
 }
-jq -e '
-  .runtime_checks.summary.status == "failed"
-  and .runtime_checks.summary.failed_count == 1
-  and .runtime_checks.summary.checks.connect_daemon == "failed"
-  and .runtime_checks.summary.checks.mcp_doctor == "passed"
-  and .runtime_checks.summary.checks.mcp_tools == "passed"
-  and .runtime_checks.summary.checks.mcp_smoke == "passed"
-' "$state" >/dev/null
+json_test_check "$state" "data.runtime_checks.summary.status === 'failed' && data.runtime_checks.summary.failed_count === 1 && data.runtime_checks.summary.checks.connect_daemon === 'failed' && data.runtime_checks.summary.checks.mcp_doctor === 'passed' && data.runtime_checks.summary.checks.mcp_tools === 'passed' && data.runtime_checks.summary.checks.mcp_smoke === 'passed'"
 
 echo "runtime summary check ok"

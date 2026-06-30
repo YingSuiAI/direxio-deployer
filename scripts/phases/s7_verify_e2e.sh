@@ -45,8 +45,8 @@ _check_p2p_agent_auth() {
     -X POST "https://$domain/_p2p/query" \
     -H 'Content-Type: application/json' \
     -H "Authorization: Bearer $token" \
-    -d "{\"action\":\"mcp.messages.list\",\"params\":{\"room_id\":\"$room_id\",\"limit\":1}}" 2>/dev/null)
-  if [ "$code" = "200" ] && jq -e '(.messages | type == "array") and (.room_id | type == "string")' "$body" >/dev/null 2>&1; then
+    -d "$(json_build mcp-messages-list "$room_id")" 2>/dev/null)
+  if [ "$code" = "200" ] && json_assert "$body" messages-response >/dev/null 2>&1; then
     rm -f "$body"
     ok "  ✓ _p2p/query mcp.messages.list (agent token)"
     return 0
@@ -61,7 +61,7 @@ _p2p_access_token() {
   local args=()
   while IFS= read -r arg; do args+=("$arg"); done < <(curl_resolve_args "$domain")
   at=$(curl -sk "${args[@]}" -X POST "https://$domain/_p2p/command" -H 'Content-Type: application/json' \
-        -d "{\"action\":\"portal.auth\",\"params\":{\"password\":\"$password\"}}" 2>/dev/null | jq -r '.access_token // empty')
+        -d "{\"action\":\"portal.auth\",\"params\":{\"password\":\"$password\"}}" 2>/dev/null | json_stdin_get access_token)
   printf '%s' "$at"
 }
 
@@ -97,7 +97,7 @@ _check_matrix_server_wellknown() {
   local args=()
   while IFS= read -r arg; do args+=("$arg"); done < <(curl_resolve_args "$domain")
   body=$(curl -sk "${args[@]}" "https://$domain/.well-known/matrix/server" 2>/dev/null)
-  if printf '%s' "$body" | jq -e --arg want "$domain:443" '.["m.server"] == $want' >/dev/null 2>&1; then
+  if printf '%s' "$body" | json_stdin_assert well-known-server "$domain:443" >/dev/null 2>&1; then
     ok "  ✓ matrix federation well-known ($domain:443)"; return 0
   fi
   warn "  x matrix federation well-known invalid:$(printf '%s' "$body" | head -c 120)"; return 1
@@ -128,7 +128,7 @@ _check_turn() {
   if [ -z "$at" ]; then warn "  x TURN (failed to exchange access_token; cannot verify turnServer)"; return 1; fi
   turn=$(curl -sk "${args[@]}" "https://$domain/_matrix/client/v3/voip/turnServer" \
           -H "Authorization: Bearer $at" 2>/dev/null)
-  if printf '%s' "$turn" | jq -e '(.uris|type=="array" and length>0) and (any(.uris[]; test("^turns?:"))) and (.username|tostring|length>0) and (.password|tostring|length>0) and (.ttl>0)' >/dev/null 2>&1; then
+  if printf '%s' "$turn" | json_stdin_assert turn-credentials >/dev/null 2>&1; then
     ok "  ✓ TURN turnServer non-empty and valid"; return 0
   else
     warn "  x TURN turnServer invalid/empty:$(printf '%s' "$turn" | head -c 120)"; return 1

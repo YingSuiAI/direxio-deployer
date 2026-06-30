@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck disable=SC1090
+source "$ROOT/tests/lib/json_test.sh"
 tmp=$(mktemp -d "$ROOT/.tmp-mcp-tools.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 
@@ -72,52 +74,27 @@ if command -v cygpath >/dev/null 2>&1; then
   expected_credentials=$(cygpath -m "$expected_credentials")
 fi
 state="$service_dir/state.json"
-jq -n \
-  --arg service_dir "$service_dir" \
-  --arg credentials "$credentials" \
-  --arg mcp_command "$mcp_command" \
-  '{
-    run_id: "mcp-tools-test",
-    region: "ap-northeast-1",
-    domain_mode: "user",
-    domain: "mcp-tools.example.test",
-    agent_service_id: "mcp-tools.example.test",
-    agent_service_dir: $service_dir,
-    agent_credentials_file: $credentials,
-    mcp_credentials_file: $credentials,
-    mcp_command: $mcp_command,
-    phase: "S7_VERIFY_E2E",
-    phases: {
-      S0_PREREQ_AWS: {status: "done"},
-      S1_PREFLIGHT: {status: "done"},
-      S2_DOMAIN: {status: "done"},
-      S3_PROVISION: {status: "done"},
-      S4_BOOTSTRAP_STACK: {status: "done"},
-      S5_INIT_TOKENS: {status: "done"},
-      S6_WIRE_LOCAL: {status: "done"},
-      S7_VERIFY_E2E: {status: "done"}
-    },
-    resources: {}
-  }' > "$state"
+json_build object \
+  run_id=mcp-tools-test \
+  region=ap-northeast-1 \
+  domain_mode=user \
+  domain=mcp-tools.example.test \
+  agent_service_id=mcp-tools.example.test \
+  "agent_service_dir=$service_dir" \
+  "agent_credentials_file=$credentials" \
+  "mcp_credentials_file=$credentials" \
+  "mcp_command=$mcp_command" \
+  phase=S7_VERIFY_E2E \
+  'phases={"S0_PREREQ_AWS":{"status":"done"},"S1_PREFLIGHT":{"status":"done"},"S2_DOMAIN":{"status":"done"},"S3_PROVISION":{"status":"done"},"S4_BOOTSTRAP_STACK":{"status":"done"},"S5_INIT_TOKENS":{"status":"done"},"S6_WIRE_LOCAL":{"status":"done"},"S7_VERIFY_E2E":{"status":"done"}}' \
+  'resources={}' > "$state"
 
 verify_output=$(P2P_WORKDIR="$service_dir" PATH="$fakebin:$PATH" EXPECTED_CREDENTIALS_FILE="$expected_credentials" bash "$ROOT/scripts/orchestrate.sh" verify mcp_tools)
 printf '%s\n' "$verify_output" | grep -q 'verified runtime check: mcp_tools'
 
-jq -e '
-  .runtime_checks.mcp_tools.status == "passed"
-  and .runtime_checks.mcp_tools.tool_count == 3
-  and (.runtime_checks.mcp_tools.tools | index("search_rooms") != null)
-  and (.runtime_checks.mcp_tools.tools | index("send_message") != null)
-  and (.runtime_checks.mcp_tools.tools | index("list_messages") != null)
-  and (.user_confirmations.agent_mcp_runtime | not)
-' "$state" >/dev/null
+json_test_check "$state" "data.runtime_checks.mcp_tools.status === 'passed' && data.runtime_checks.mcp_tools.tool_count === 3 && data.runtime_checks.mcp_tools.tools.includes('search_rooms') && data.runtime_checks.mcp_tools.tools.includes('send_message') && data.runtime_checks.mcp_tools.tools.includes('list_messages') && !data.user_confirmations?.agent_mcp_runtime"
 
 report_output=$(P2P_WORKDIR="$service_dir" bash "$ROOT/scripts/orchestrate.sh" report new_deploy)
 report_path=$(printf '%s\n' "$report_output" | sed -nE 's/^operation report: //p' | tail -n 1)
-jq -e '
-  .runtime_checks.mcp_tools.status == "passed"
-  and .runtime_checks.mcp_tools.tool_count == 3
-  and .gates.user_confirmation.agent_mcp_runtime == "pending_runtime_confirmation"
-' "$report_path" >/dev/null
+json_test_check "$report_path" "data.runtime_checks.mcp_tools.status === 'passed' && data.runtime_checks.mcp_tools.tool_count === 3 && data.gates.user_confirmation.agent_mcp_runtime === 'pending_runtime_confirmation'"
 
 echo "mcp tools runtime check ok"

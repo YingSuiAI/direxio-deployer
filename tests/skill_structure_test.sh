@@ -16,13 +16,17 @@ required=(
   scripts/aws-credentials.sh
   scripts/destroy.sh
   scripts/destroy.ps1
+  scripts/json.mjs
   scripts/update.sh
   scripts/reset-app-data.sh
   scripts/pricing-estimate.sh
   scripts/mcp-tools-list.mjs
   scripts/lib/ops.sh
   scripts/lib/operation_report.sh
+  scripts/lib/json.sh
   scripts/phases/s6_wire_local.sh
+  tests/json_helper_test.sh
+  tests/lib/json_test.sh
   tests/operation_report_test.sh
   tests/npm_skill_distribution_test.sh
   tests/orchestrate_status_recovery_test.sh
@@ -52,6 +56,14 @@ for path in "${required[@]}"; do
     exit 1
   }
 done
+
+legacy_json_cli_name=$(printf '\152\161')
+legacy_json_cli_pattern="(^|[^[:alnum:]_])${legacy_json_cli_name}([^[:alnum:]_]|$)|${legacy_json_cli_name}\\.exe"
+if grep -R -n -E "$legacy_json_cli_pattern" scripts tests README.md README_zh.md SKILL.md references AGENTS.md package.json docs >/dev/null; then
+  echo "current docs/scripts/tests must use scripts/json.mjs instead of the legacy external JSON CLI" >&2
+  grep -R -n -E "$legacy_json_cli_pattern" scripts tests README.md README_zh.md SKILL.md references AGENTS.md package.json docs >&2
+  exit 1
+fi
 
 grep -q 'direxio/message-server:latest' SKILL.md
 grep -q 'direxio-deployer' package.json

@@ -2,7 +2,7 @@
 # lib/state.sh - state.json helpers for the deployment state machine.
 #
 # Sourced by orchestrate.sh and phases/*.sh. All state.json reads/writes go
-# through this file to keep structure and fields consistent. Requires jq.
+# through this file to keep structure and fields consistent. Requires Node.js.
 #
 # state.json path: $P2P_WORKDIR/state.json.
 # By default, DOMAIN=__DOMAIN__ maps to ~/.direxio/nodes/<service_id>/state.json.
@@ -12,6 +12,8 @@
 STATE_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1090
 source "$STATE_LIB_DIR/paths.sh"
+# shellcheck disable=SC1090
+source "$STATE_LIB_DIR/json.sh"
 
 # Phase list; order matters.
 PHASES=(
@@ -48,30 +50,8 @@ is_yes() {
 state_init() {
   mkdir -p "$P2P_WORKDIR"
   local run_id=${RUN_ID:-p2p-$(date -u +%Y%m%d-%H%M%S)}
-  local phases_json="{}"
-  local p
-  for p in "${PHASES[@]}"; do
-    phases_json=$(echo "$phases_json" | jq --arg k "$p" '. + {($k): {"status":"pending"}}')
-  done
-  jq -n \
-    --arg run_id "$run_id" \
-    --arg region "${AWS_DEFAULT_REGION:-${AWS_REGION:-}}" \
-    --argjson phases "$phases_json" \
-    --arg ts "$(_now)" \
-    '{
-       run_id: $run_id,
-       region: (if $region == "" then null else $region end),
-       domain_mode: null,
-       domain: null,
-       domain_confirmed_irreversible: false,
-       instance_type: null,
-       dns_ready: false,
-       existing_state_confirmed: false,
-       phase: "S0_PREREQ_AWS",
-       created_at: $ts,
-       phases: $phases,
-       resources: {}
-     }' > "$STATE_JSON"
+  : > "$STATE_JSON"
+  json_mutate "$STATE_JSON" state-init "$run_id" "${AWS_DEFAULT_REGION:-${AWS_REGION:-}}" "$(_now)" "${PHASES[@]}"
   log "Initialized state.json -> $STATE_JSON (run_id=$run_id)"
 }
 
@@ -80,35 +60,29 @@ state_ensure() {
   [ -f "$STATE_JSON" ] || state_init
 }
 
-# Atomic write using a jq filter.
-_state_write() {
-  local filter=$1; shift
-  local tmp="$STATE_JSON.tmp.$$"
-  jq "$@" "$filter" "$STATE_JSON" > "$tmp" && mv "$tmp" "$STATE_JSON"
+# Top-level field accessors.
+state_get()      { json_get "$STATE_JSON" "$1"; }
+state_set()      { json_mutate "$STATE_JSON" set-string "$1" "$2"; }
+state_set_raw()  { json_mutate "$STATE_JSON" set-json "$1" "$2"; }
+state_set_object() {
+  local path=$1 object_json
+  shift
+  object_json=$(json_build object "$@")
+  json_mutate "$STATE_JSON" set-json "$path" "$object_json"
 }
 
-# Top-level field accessors.
-state_get()      { jq -r --arg k "$1" '.[$k] // empty' "$STATE_JSON"; }
-state_set()      { _state_write '.[$k] = $v' --arg k "$1" --arg v "$2"; }
-state_set_raw()  { _state_write ".$1 = $2"; }
-
 # Resource records used by destroy.sh.
-res_set() { _state_write '.resources[$k] = $v' --arg k "$1" --arg v "$2"; }
-res_get() { jq -r --arg k "$1" '.resources[$k] // empty' "$STATE_JSON"; }
+res_set() { json_mutate "$STATE_JSON" set-string "resources.$1" "$2"; }
+res_get() { json_get "$STATE_JSON" "resources.$1"; }
 
 # Phase status helpers.
 # phase_status <PHASE>
-phase_status() { jq -r --arg p "$1" '.phases[$p].status // "pending"' "$STATE_JSON"; }
+phase_status() { json_get "$STATE_JSON" "phases.$1.status" "pending"; }
 
 # phase_set <PHASE> <status> [evidence]
 phase_set() {
   local p=$1 st=$2 ev=${3:-}
-  _state_write '
-    .phases[$p].status = $st
-    | .phases[$p].ts = $ts
-    | (if $ev != "" then .phases[$p].evidence = $ev else . end)
-    | .phase = $p
-  ' --arg p "$p" --arg st "$st" --arg ev "$ev" --arg ts "$(_now)"
+  json_mutate "$STATE_JSON" phase-set "$p" "$st" "$(_now)" "$ev"
 }
 
 # Find the first phase whose status is not done.

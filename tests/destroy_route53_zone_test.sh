@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck disable=SC1090
+source "$ROOT/tests/lib/json_test.sh"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
@@ -47,20 +49,12 @@ chmod 700 "$fakebin/aws"
 service_dir="$HOME/.direxio/nodes/route53-destroy.example.test"
 mkdir -p "$service_dir"
 state="$service_dir/state.json"
-jq -n \
-  --arg service_dir "$service_dir" \
-  '{
-    region: "us-east-1",
-    domain_mode: "route53",
-    domain: "route53-destroy.example.test",
-    agent_service_dir: $service_dir,
-    resources: {
-      public_ip: "203.0.113.99",
-      route53_zone_id: "ZCREATE",
-      route53_zone_name: "route53-destroy.example.test",
-      route53_zone_created_by_deployer: "true"
-    }
-  }' > "$state"
+json_build object \
+  region=us-east-1 \
+  domain_mode=route53 \
+  domain=route53-destroy.example.test \
+  "agent_service_dir=$service_dir" \
+  'resources={"public_ip":"203.0.113.99","route53_zone_id":"ZCREATE","route53_zone_name":"route53-destroy.example.test","route53_zone_created_by_deployer":"true"}' > "$state"
 
 calls="$tmp/aws.calls"
 CALLS="$calls" PATH="$fakebin:$PATH" bash "$ROOT/scripts/destroy.sh" "$state" >/dev/null

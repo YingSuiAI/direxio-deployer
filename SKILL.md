@@ -439,7 +439,7 @@ NS nameservers before authoritative DNS can resolve. Never use temporary
 ## Deployment Flow
 
 1. Complete the Cloud Account And Domain Onboarding gate above for first-time users or whenever AWS credentials, domain ownership, or DNS authority are unclear.
-2. Read `references/tooling.md`; inspect the user OS and install or prepare missing `bash`, `aws`, `jq`, `ssh`, `scp`, `curl`, and DNS lookup capability only after approval.
+2. Read `references/tooling.md`; inspect the user OS and install or prepare missing `bash`, `node`, `aws`, `ssh`, `scp`, `curl`, and DNS lookup capability only after approval.
 3. Inspect DNS, AWS credentials, region defaults, local tooling, and existing deployment state before asking the user anything that can be discovered automatically.
    **DNS tool preflight:** Before any DNS propagation or Route53 delegation
    check, confirm the environment has at least one working DNS lookup path:
@@ -649,7 +649,7 @@ Ask once, plainly and in the user's language. The confirmation message must summ
 - AWS credentials source, including whether root access keys are being used.
 - AWS/domain onboarding status: active AWS account, real long-lived domain, access key CSV or AWS profile, DNS authority, and billing/deletion acknowledgement.
 - Existing state action: `continue`, `destroy`, or different `DOMAIN`/service directory.
-- Network/system installs: package managers, AWS CLI, jq, Git Bash/MSYS2/WSL, Homebrew, apt/dnf/yum/pacman/zypper.
+- Network/system installs: package managers, Node.js, AWS CLI, Git Bash/MSYS2/WSL, Homebrew, apt/dnf/yum/pacman/zypper.
 
 After the user confirms the summary, proceed without re-confirming individual fields. Ask again only when the configuration materially changes, an unapproved destructive action becomes necessary, or an external action such as DNS must be completed by the user.
 

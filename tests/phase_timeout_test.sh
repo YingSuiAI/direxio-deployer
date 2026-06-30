@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck disable=SC1090
+source "$ROOT/tests/lib/json_test.sh"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
@@ -65,7 +67,7 @@ grep -q 'BatchMode=yes' "$SSH_LOG"
 grep -q 'ServerAliveInterval=4' "$SSH_LOG"
 grep -q 'ServerAliveCountMax=3' "$SSH_LOG"
 grep -q '^19$' "$TIMEOUT_LOG"
-jq -e '.password == "12345678" and .agent_token == "agent" and .access_token == "access"' "$tmp/bootstrap.json" >/dev/null
+json_test_check "$tmp/bootstrap.json" "data.password === '12345678' && data.agent_token === 'agent' && data.access_token === 'access'"
 
 printf '{"password":"01234567","agent_token":"agent","access_token":"access"}\n' > "$tmp/bootstrap-leading-zero.json"
 IFS=$'\t' read -r password token access_token < <(_extract_output_tokens "$tmp/bootstrap-leading-zero.json")

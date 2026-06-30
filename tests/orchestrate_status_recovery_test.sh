@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck disable=SC1090
+source "$ROOT/tests/lib/json_test.sh"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
@@ -20,34 +22,28 @@ assert_contains() {
 
 write_state() {
   local workdir=$1 phase=$2 status=$3 resources_json=$4
+  local s0=pending s1=pending s2=pending s3=pending s4=pending s5=pending s6=pending s7=pending
   mkdir -p "$workdir"
-  jq -n \
-    --arg run_id "status-test" \
-    --arg region "ap-northeast-1" \
-    --arg domain "status.example.test" \
-    --arg phase "$phase" \
-    --arg status "$status" \
-    --argjson resources "$resources_json" \
-    '{
-      run_id: $run_id,
-      region: $region,
-      domain_mode: "user",
-      domain: $domain,
-      instance_type: "t3.small",
-      dns_ready: false,
-      phase: $phase,
-      phases: {
-        S0_PREREQ_AWS: {status: (if $phase == "S0_PREREQ_AWS" then $status else "done" end)},
-        S1_PREFLIGHT: {status: (if $phase == "S0_PREREQ_AWS" then "pending" elif $phase == "S1_PREFLIGHT" then $status else "done" end)},
-        S2_DOMAIN: {status: (if ($phase == "S0_PREREQ_AWS" or $phase == "S1_PREFLIGHT") then "pending" elif $phase == "S2_DOMAIN" then $status else "done" end)},
-        S3_PROVISION: {status: (if ($phase == "S0_PREREQ_AWS" or $phase == "S1_PREFLIGHT" or $phase == "S2_DOMAIN") then "pending" elif $phase == "S3_PROVISION" then $status else "done" end)},
-        S4_BOOTSTRAP_STACK: {status: (if ($phase == "S0_PREREQ_AWS" or $phase == "S1_PREFLIGHT" or $phase == "S2_DOMAIN" or $phase == "S3_PROVISION") then "pending" elif $phase == "S4_BOOTSTRAP_STACK" then $status else "done" end)},
-        S5_INIT_TOKENS: {status: (if ($phase == "S0_PREREQ_AWS" or $phase == "S1_PREFLIGHT" or $phase == "S2_DOMAIN" or $phase == "S3_PROVISION" or $phase == "S4_BOOTSTRAP_STACK") then "pending" elif $phase == "S5_INIT_TOKENS" then $status else "done" end)},
-        S6_WIRE_LOCAL: {status: (if ($phase == "S0_PREREQ_AWS" or $phase == "S1_PREFLIGHT" or $phase == "S2_DOMAIN" or $phase == "S3_PROVISION" or $phase == "S4_BOOTSTRAP_STACK" or $phase == "S5_INIT_TOKENS") then "pending" elif $phase == "S6_WIRE_LOCAL" then $status else "done" end)},
-        S7_VERIFY_E2E: {status: (if $phase == "S7_VERIFY_E2E" then $status else "pending" end)}
-      },
-      resources: $resources
-    }' > "$workdir/state.json"
+  case "$phase" in
+    S0_PREREQ_AWS) s0=$status ;;
+    S1_PREFLIGHT) s0=done; s1=$status ;;
+    S2_DOMAIN) s0=done; s1=done; s2=$status ;;
+    S3_PROVISION) s0=done; s1=done; s2=done; s3=$status ;;
+    S4_BOOTSTRAP_STACK) s0=done; s1=done; s2=done; s3=done; s4=$status ;;
+    S5_INIT_TOKENS) s0=done; s1=done; s2=done; s3=done; s4=done; s5=$status ;;
+    S6_WIRE_LOCAL) s0=done; s1=done; s2=done; s3=done; s4=done; s5=done; s6=$status ;;
+    S7_VERIFY_E2E) s0=done; s1=done; s2=done; s3=done; s4=done; s5=done; s6=done; s7=$status ;;
+  esac
+  json_build object \
+    run_id=status-test \
+    region=ap-northeast-1 \
+    domain_mode=user \
+    domain=status.example.test \
+    instance_type=t3.small \
+    dns_ready=false \
+    "phase=$phase" \
+    "phases={\"S0_PREREQ_AWS\":{\"status\":\"$s0\"},\"S1_PREFLIGHT\":{\"status\":\"$s1\"},\"S2_DOMAIN\":{\"status\":\"$s2\"},\"S3_PROVISION\":{\"status\":\"$s3\"},\"S4_BOOTSTRAP_STACK\":{\"status\":\"$s4\"},\"S5_INIT_TOKENS\":{\"status\":\"$s5\"},\"S6_WIRE_LOCAL\":{\"status\":\"$s6\"},\"S7_VERIFY_E2E\":{\"status\":\"$s7\"}}" \
+    "resources=$resources_json" > "$workdir/state.json"
 }
 
 pre_resource_workdir="$tmp/pre-resource"
@@ -75,13 +71,10 @@ assert_contains "$billable_output" "destroy.sh"
 
 refresh_workdir="$tmp/refresh-pending"
 write_state "$refresh_workdir" "S4_BOOTSTRAP_STACK" "pending" '{"instance_id":"i-refresh","root_volume_id":"vol-refresh-root","public_ip":"203.0.113.20"}'
-jq '
-  .agent_install_status = "refresh_pending"
-  | .agent_service_id = "status.example.test"
-  | .user_confirmations.app_initialization = {status:"confirmed", evidence:"old app proof"}
-  | .runtime_checks.summary = {status:"passed"}
-' "$refresh_workdir/state.json" > "$refresh_workdir/state.json.tmp"
-mv "$refresh_workdir/state.json.tmp" "$refresh_workdir/state.json"
+json_mutate "$refresh_workdir/state.json" set-string agent_install_status refresh_pending
+json_mutate "$refresh_workdir/state.json" set-string agent_service_id status.example.test
+json_mutate "$refresh_workdir/state.json" set-json user_confirmations.app_initialization '{"status":"confirmed","evidence":"old app proof"}'
+json_mutate "$refresh_workdir/state.json" set-json runtime_checks.summary '{"status":"passed"}'
 refresh_output=$(P2P_WORKDIR="$refresh_workdir" bash "$ROOT/scripts/orchestrate.sh" status)
 
 assert_contains "$refresh_output" "Recovery summary"

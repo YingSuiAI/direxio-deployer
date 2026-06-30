@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck disable=SC1090
+source "$ROOT/tests/lib/json_test.sh"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
@@ -36,6 +38,6 @@ source "$ROOT/scripts/phases/s3_provision.sh"
 
 _record_root_volume_id i-root-test
 
-jq -e '.resources.root_volume_id == "vol-root-test"' "$STATE_JSON" >/dev/null
+json_test_check "$STATE_JSON" "data.resources.root_volume_id === 'vol-root-test'"
 
 echo "root volume tracking ok"

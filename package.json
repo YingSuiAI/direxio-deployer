@@ -1,6 +1,6 @@
 {
   "name": "direxio-deployer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Versioned Direxio deployer agent skill and portable deployment orchestration tools.",
   "type": "module",
   "bin": {
@@ -15,8 +15,7 @@
     "agents/",
     "bin/",
     "references/",
-    "scripts/",
-    "tests/"
+    "scripts/"
   ],
   "scripts": {
     "test": "bash tests/npm_skill_distribution_test.sh && bash tests/skill_structure_test.sh && bash tests/s6_wire_local_test.sh && bash tests/render_userdata_remote_nodes_test.sh"

@@ -4,6 +4,9 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 
+# shellcheck disable=SC1090
+source "$ROOT/scripts/lib/json.sh"
+
 assert_file_exists() {
   [ -f "$1" ] || {
     echo "missing expected file: $1" >&2
@@ -22,7 +25,8 @@ assert_contains() {
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-NODE_BIN=${NODE:-node}
+NODE_BIN=$(json_node)
+export PATH="$(dirname "$NODE_BIN"):$PATH"
 
 "$NODE_BIN" -e '
 const pkg = require("./package.json");
@@ -31,6 +35,19 @@ if (!pkg.bin || pkg.bin["direxio-deployer"] !== "bin/direxio-deployer.mjs") {
   throw new Error("missing direxio-deployer bin");
 }
 '
+
+npm pack --dry-run --json > "$tmp/pack.json"
+"$NODE_BIN" - "$tmp/pack.json" <<'NODE'
+const fs = require("node:fs");
+const pack = JSON.parse(fs.readFileSync(process.argv[2], "utf8"))[0];
+const files = pack.files.map((entry) => entry.path);
+for (const required of ["SKILL.md", "bin/direxio-deployer.mjs", "scripts/json.mjs", "scripts/orchestrate.sh"]) {
+  if (!files.includes(required)) throw new Error(`missing package file: ${required}`);
+}
+if (files.some((file) => file === "tests" || file.startsWith("tests/"))) {
+  throw new Error("npm package must not include tests/");
+}
+NODE
 
 project="$tmp/project"
 mkdir -p "$project"
@@ -41,6 +58,10 @@ assert_file_exists "$target/SKILL.md"
 assert_file_exists "$target/references/agent-targets.md"
 assert_file_exists "$target/scripts/orchestrate.sh"
 assert_file_exists "$target/.direxio-skill-install.json"
+[ ! -e "$target/tests" ] || {
+  echo "installed skill should not include tests/" >&2
+  exit 1
+}
 assert_contains "$target/.direxio-skill-install.json" '"agent": "codex"'
 assert_contains "$target/.direxio-skill-install.json" '"scope": "project"'
 

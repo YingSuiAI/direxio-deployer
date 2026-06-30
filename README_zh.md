@@ -19,6 +19,8 @@
 
 通过 npm 安装 deployer skill，再把它写入当前智能体运行时的 skill 目录。默认推荐 project-local 安装，让部署 skill 跟随当前 workspace。
 
+GitHub 仓库保留测试用于维护和 CI，但发布到 npm 的包以及安装到智能体 skill 目录的副本不包含 `tests/`，以减小用户安装体积。
+
 POSIX shell：
 
 ```bash
@@ -49,7 +51,7 @@ direxio-deployer skill install --agent codex --scope global
 安装器会在目标目录写入 `.direxio-skill-install.json`，并拒绝覆盖没有该 manifest 的既有目录，除非显式传入 `--force`。如需固定版本，先安装指定 npm 版本：
 
 ```bash
-npm install -g direxio-deployer@0.1.0
+npm install -g direxio-deployer@0.1.1
 direxio-deployer skill update --agent codex --scope project --project .
 ```
 

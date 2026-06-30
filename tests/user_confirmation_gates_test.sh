@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck disable=SC1090
+source "$ROOT/tests/lib/json_test.sh"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
@@ -11,28 +13,16 @@ mkdir -p "$HOME"
 service_dir="$HOME/.direxio/nodes/confirm.example.test"
 mkdir -p "$service_dir"
 state="$service_dir/state.json"
-jq -n \
-  --arg service_dir "$service_dir" \
-  '{
-    run_id: "confirm-test",
-    region: "ap-northeast-1",
-    domain_mode: "user",
-    domain: "confirm.example.test",
-    agent_service_id: "confirm.example.test",
-    agent_service_dir: $service_dir,
-    phase: "S7_VERIFY_E2E",
-    phases: {
-      S0_PREREQ_AWS: {status: "done"},
-      S1_PREFLIGHT: {status: "done"},
-      S2_DOMAIN: {status: "done"},
-      S3_PROVISION: {status: "done"},
-      S4_BOOTSTRAP_STACK: {status: "done"},
-      S5_INIT_TOKENS: {status: "done"},
-      S6_WIRE_LOCAL: {status: "done"},
-      S7_VERIFY_E2E: {status: "done"}
-    },
-    resources: {}
-  }' > "$state"
+json_build object \
+  run_id=confirm-test \
+  region=ap-northeast-1 \
+  domain_mode=user \
+  domain=confirm.example.test \
+  agent_service_id=confirm.example.test \
+  "agent_service_dir=$service_dir" \
+  phase=S7_VERIFY_E2E \
+  'phases={"S0_PREREQ_AWS":{"status":"done"},"S1_PREFLIGHT":{"status":"done"},"S2_DOMAIN":{"status":"done"},"S3_PROVISION":{"status":"done"},"S4_BOOTSTRAP_STACK":{"status":"done"},"S5_INIT_TOKENS":{"status":"done"},"S6_WIRE_LOCAL":{"status":"done"},"S7_VERIFY_E2E":{"status":"done"}}' \
+  'resources={}' > "$state"
 
 set +e
 P2P_WORKDIR="$service_dir" bash "$ROOT/scripts/orchestrate.sh" confirm app_initialization > "$tmp/missing-app-evidence.out" 2>&1
@@ -43,7 +33,7 @@ set -e
   exit 1
 }
 grep -q 'requires DIREXIO_CONFIRM_EVIDENCE' "$tmp/missing-app-evidence.out"
-jq -e '(.user_confirmations.app_initialization | not)' "$state" >/dev/null
+json_test_check "$state" "!data.user_confirmations?.app_initialization"
 
 set +e
 P2P_WORKDIR="$service_dir" bash "$ROOT/scripts/orchestrate.sh" confirm real_chat > "$tmp/missing-real-chat-evidence.out" 2>&1
@@ -54,7 +44,7 @@ set -e
   exit 1
 }
 grep -q 'requires DIREXIO_CONFIRM_EVIDENCE' "$tmp/missing-real-chat-evidence.out"
-jq -e '(.user_confirmations.real_chat | not)' "$state" >/dev/null
+json_test_check "$state" "!data.user_confirmations?.real_chat"
 
 set +e
 P2P_WORKDIR="$service_dir" \
@@ -67,24 +57,16 @@ set -e
   exit 1
 }
 grep -q 'DIREXIO_CONFIRM_EVIDENCE is too short' "$tmp/short-app-evidence.out"
-jq -e '(.user_confirmations.app_initialization | not)' "$state" >/dev/null
+json_test_check "$state" "!data.user_confirmations?.app_initialization"
 
 confirm_output=$(P2P_WORKDIR="$service_dir" DIREXIO_CONFIRM_EVIDENCE="user completed app initialization" bash "$ROOT/scripts/orchestrate.sh" confirm app_initialization)
 printf '%s\n' "$confirm_output" | grep -q 'confirmed gate: app_initialization'
 
-jq -e '
-  .user_confirmations.app_initialization.status == "confirmed"
-  and .user_confirmations.app_initialization.evidence == "user completed app initialization"
-  and (.user_confirmations.app_initialization.ts | type == "string")
-' "$state" >/dev/null
+json_test_check "$state" "data.user_confirmations.app_initialization.status === 'confirmed' && data.user_confirmations.app_initialization.evidence === 'user completed app initialization' && typeof data.user_confirmations.app_initialization.ts === 'string'"
 
 report_output=$(P2P_WORKDIR="$service_dir" bash "$ROOT/scripts/orchestrate.sh" report new_deploy)
 report_path=$(printf '%s\n' "$report_output" | sed -nE 's/^operation report: //p' | tail -n 1)
-jq -e '
-  .gates.user_confirmation.app_initialization == "confirmed"
-  and .gates.user_confirmation.real_chat == "pending_user_confirmation"
-  and .gates.user_confirmation.agent_mcp_runtime == "pending_runtime_confirmation"
-' "$report_path" >/dev/null
+json_test_check "$report_path" "data.gates.user_confirmation.app_initialization === 'confirmed' && data.gates.user_confirmation.real_chat === 'pending_user_confirmation' && data.gates.user_confirmation.agent_mcp_runtime === 'pending_runtime_confirmation'"
 
 set +e
 P2P_WORKDIR="$service_dir" \
@@ -97,19 +79,9 @@ set -e
   exit 1
 }
 grep -q 'requires runtime_checks.summary.status=passed' "$tmp/mcp-runtime-blocked.out"
-jq -e '(.user_confirmations.agent_mcp_runtime | not)' "$state" >/dev/null
+json_test_check "$state" "!data.user_confirmations?.agent_mcp_runtime"
 
-jq '.runtime_checks.summary = {
-  status: "passed",
-  failed_count: 0,
-  evidence: "all runtime checks passed",
-  checks: {
-    connect_daemon: "passed",
-    mcp_doctor: "passed",
-    mcp_tools: "passed",
-    mcp_smoke: "passed"
-  }
-}' "$state" > "$state.tmp" && mv "$state.tmp" "$state"
+json_mutate "$state" set-json runtime_checks.summary '{"status":"passed","failed_count":0,"evidence":"all runtime checks passed","checks":{"connect_daemon":"passed","mcp_doctor":"passed","mcp_tools":"passed","mcp_smoke":"passed"}}'
 
 set +e
 P2P_WORKDIR="$service_dir" \
@@ -122,7 +94,7 @@ set -e
   exit 1
 }
 grep -q 'requires DIREXIO_CONFIRM_RUNTIME_PROBE=1' "$tmp/mcp-runtime-missing-probe.out"
-jq -e '(.user_confirmations.agent_mcp_runtime | not)' "$state" >/dev/null
+json_test_check "$state" "!data.user_confirmations?.agent_mcp_runtime"
 
 mcp_confirm_output=$(
   P2P_WORKDIR="$service_dir" \
@@ -132,12 +104,7 @@ mcp_confirm_output=$(
 )
 printf '%s\n' "$mcp_confirm_output" | grep -q 'confirmed gate: agent_mcp_runtime'
 
-jq -e '
-  .user_confirmations.agent_mcp_runtime.status == "confirmed"
-  and .user_confirmations.agent_mcp_runtime.evidence == "runtime channel probe confirmed in Codex"
-  and .user_confirmations.agent_mcp_runtime.runtime_summary_status == "passed"
-  and .user_confirmations.agent_mcp_runtime.runtime_probe_confirmed == true
-' "$state" >/dev/null
+json_test_check "$state" "data.user_confirmations.agent_mcp_runtime.status === 'confirmed' && data.user_confirmations.agent_mcp_runtime.evidence === 'runtime channel probe confirmed in Codex' && data.user_confirmations.agent_mcp_runtime.runtime_summary_status === 'passed' && data.user_confirmations.agent_mcp_runtime.runtime_probe_confirmed === true"
 
 set +e
 P2P_WORKDIR="$service_dir" bash "$ROOT/scripts/orchestrate.sh" confirm unknown_gate > "$tmp/invalid.out" 2>&1

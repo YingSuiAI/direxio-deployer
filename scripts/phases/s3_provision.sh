@@ -253,12 +253,7 @@ _route53_existing_a_value() {
   local zone_id=$1 domain=$2 records name
   name="${domain}."
   records=$(aws route53 list-resource-record-sets --hosted-zone-id "$zone_id" --output json 2>/dev/null) || return 0
-  printf '%s\n' "$records" | jq -r --arg name "$name" '
-    .ResourceRecordSets[]?
-    | select(.Name == $name and .Type == "A")
-    | [.ResourceRecords[]?.Value]
-    | join(",")
-  ' | sed -n '1p'
+  printf '%s\n' "$records" | json_stdin_route53_a_values "$name" | sed -n '1p'
 }
 
 _guard_route53_a_overwrite() {
@@ -342,7 +337,7 @@ _find_route53_zone() {
         fi
         ;;
     esac
-  done < <(printf '%s\n' "$zones_json" | jq -r '.HostedZones[] | [.Id, .Name] | @tsv')
+  done < <(printf '%s\n' "$zones_json" | json_stdin_tsv HostedZones Id Name)
   [ -n "$best_id" ] || return 1
   printf '%s\t%s\n' "$best_id" "$best_name"
 }
@@ -355,9 +350,9 @@ _create_route53_zone() {
     --name "$zone_name" \
     --caller-reference "$caller" \
     --output json) || return 1
-  zone_id=$(printf '%s\n' "$created" | jq -r '.HostedZone.Id // empty' | sed 's#^/hostedzone/##')
-  returned_name=$(printf '%s\n' "$created" | jq -r '.HostedZone.Name // empty')
-  name_servers=$(printf '%s\n' "$created" | jq -r '(.DelegationSet.NameServers // []) | join(",")')
+  zone_id=$(printf '%s\n' "$created" | json_stdin_get HostedZone.Id | sed 's#^/hostedzone/##')
+  returned_name=$(printf '%s\n' "$created" | json_stdin_get HostedZone.Name)
+  name_servers=$(printf '%s\n' "$created" | json_stdin_join DelegationSet.NameServers ",")
   [ -n "$zone_id" ] && [ -n "$returned_name" ] || return 1
 
   _record_route53_zone "$zone_id" "${returned_name%.}" true "$name_servers"

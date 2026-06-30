@@ -4,11 +4,15 @@
 # Some local proxy setups truncate AWS API TLS (UNEXPECTED_EOF). Bypass proxies
 # for AWS endpoints in every phase that calls aws.
 
+AWS_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1090
+source "$AWS_LIB_DIR/json.sh"
+
 aws_env_prep() {
   local region=${AWS_DEFAULT_REGION:-${AWS_REGION:-}}
   if [ -n "${STATE_JSON:-}" ] && [ -f "$STATE_JSON" ]; then
     local state_region
-    state_region=$(jq -r '.region // empty' "$STATE_JSON" 2>/dev/null || true)
+    state_region=$(json_get "$STATE_JSON" region 2>/dev/null || true)
     [ -n "$state_region" ] && region="$state_region"
   fi
   if [ -z "$region" ]; then

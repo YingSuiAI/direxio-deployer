@@ -1,21 +1,21 @@
 # Tooling By OS
 
-Prepare `bash`, `aws`, `jq`, `ssh`, `scp`, `curl`, and at least one DNS lookup
+Prepare `bash`, `node`, `aws`, `ssh`, `scp`, `curl`, and at least one DNS lookup
 tool. Always inspect first, then ask before installing or downloading.
 
 ## Detect
 
 ```bash
-command -v bash aws jq ssh scp curl
+command -v bash node aws ssh scp curl
 command -v dig nslookup getent
+node --version
 aws --version
-jq --version
 ```
 
 On Windows PowerShell:
 
 ```powershell
-Get-Command "C:\Program Files\Git\bin\bash.exe","C:\Program Files\Git\usr\bin\bash.exe",aws,jq,ssh,scp,curl,nslookup,Resolve-DnsName -ErrorAction SilentlyContinue
+Get-Command "C:\Program Files\Git\bin\bash.exe","C:\Program Files\Git\usr\bin\bash.exe",node,aws,ssh,scp,curl,nslookup,Resolve-DnsName -ErrorAction SilentlyContinue
 ```
 
 ## Windows
@@ -29,15 +29,14 @@ Common system installs:
 
 ```powershell
 winget install --id Git.Git --exact
+winget install --id OpenJS.NodeJS.LTS --exact
 winget install --id Amazon.AWSCLI --exact
-winget install --id jqlang.jq --exact
 ```
 
 Workspace-local fallback when package managers are unavailable:
 
 ```powershell
 New-Item -ItemType Directory -Force -Path .tools\bin | Out-Null
-Invoke-WebRequest -Uri https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-windows-amd64.exe -OutFile .tools\bin\jq.exe
 python -m venv .tools\awscli-venv
 .\.tools\awscli-venv\Scripts\python.exe -m pip install --upgrade pip awscli
 ```
@@ -61,7 +60,7 @@ Run ops from Git Bash:
 Preferred installs:
 
 ```bash
-brew install awscli jq
+brew install node awscli
 ```
 
 If Homebrew is unavailable, ask before using the official AWS CLI pkg installer.
@@ -72,11 +71,11 @@ macOS already includes `ssh`, `scp`, `curl`, and `dig`.
 Choose the detected package manager:
 
 ```bash
-sudo apt-get update && sudo apt-get install -y awscli jq openssh-client curl dnsutils
-sudo dnf install -y awscli jq openssh-clients curl bind-utils
-sudo yum install -y awscli jq openssh-clients curl bind-utils
-sudo pacman -Sy --needed aws-cli jq openssh curl bind-tools
-sudo zypper install -y aws-cli jq openssh-clients curl bind-utils
+sudo apt-get update && sudo apt-get install -y nodejs awscli openssh-client curl dnsutils
+sudo dnf install -y nodejs awscli openssh-clients curl bind-utils
+sudo yum install -y nodejs awscli openssh-clients curl bind-utils
+sudo pacman -Sy --needed nodejs aws-cli openssh curl bind-tools
+sudo zypper install -y nodejs aws-cli openssh-clients curl bind-utils
 ```
 
 If distro packages are too old or missing, ask before using the official AWS CLI zip installer.

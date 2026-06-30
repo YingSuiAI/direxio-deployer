@@ -30,7 +30,8 @@ When running `orchestrate.sh` as a background process, bash may buffer stdout be
 Poll progress with:
 
 ```bash
-cat ~/.direxio/nodes/<service_id>/state.json | jq '{phase, phases}'
+node scripts/json.mjs get ~/.direxio/nodes/<service_id>/state.json phase
+node scripts/json.mjs get ~/.direxio/nodes/<service_id>/state.json phases
 ```
 
 For real-time tailing, use `stdbuf` when available:

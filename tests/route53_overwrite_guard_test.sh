@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck disable=SC1090
+source "$ROOT/tests/lib/json_test.sh"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
@@ -67,20 +69,12 @@ if grep -q 'route53 change-resource-record-sets' "$CALLS"; then
   cat "$CALLS" >&2
   exit 1
 fi
-jq -e '
-  .phases.S3_PROVISION.status == "waiting_user"
-  and .resources.route53_existing_a_value == "198.51.100.10"
-  and .resources.route53_pending_a_value == "203.0.113.88"
-' "$STATE_JSON" >/dev/null
+json_test_check "$STATE_JSON" "data.phases.S3_PROVISION.status === 'waiting_user' && data.resources.route53_existing_a_value === '198.51.100.10' && data.resources.route53_pending_a_value === '203.0.113.88'"
 
 CALLS="$tmp/confirmed.calls"
 export CALLS
 DIREXIO_CONFIRM_DNS_OVERWRITE=1 _upsert_route53_record overwrite.example.test 203.0.113.88
 grep -q 'route53 change-resource-record-sets' "$CALLS"
-jq -e '
-  .resources.route53_existing_a_value == "198.51.100.10"
-  and .resources.route53_pending_a_value == "203.0.113.88"
-  and .resources.route53_overwrite_confirmed == "true"
-' "$STATE_JSON" >/dev/null
+json_test_check "$STATE_JSON" "data.resources.route53_existing_a_value === '198.51.100.10' && data.resources.route53_pending_a_value === '203.0.113.88' && data.resources.route53_overwrite_confirmed === 'true'"
 
 echo "route53 overwrite guard ok"

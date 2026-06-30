@@ -282,7 +282,7 @@ If the domain is registered outside Route53, delegate the recorded nameservers
 at the current registrar or through a provider API:
 
 ```bash
-jq '.resources | {route53_zone_id, route53_zone_name, route53_name_servers}' ~/.direxio/nodes/<service_id>/state.json
+node scripts/json.mjs get ~/.direxio/nodes/<service_id>/state.json resources
 ```
 
 After authoritative DNS returns the new IP, continue with the same state:

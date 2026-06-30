@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck disable=SC1090
+source "$ROOT/tests/lib/json_test.sh"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
@@ -197,16 +199,16 @@ grep -q '\[mcp_servers."direxio-im_example_test"\]' "$mcp_service_dir/mcp/codex.
 grep -q 'command = "direxio-mcp"' "$mcp_service_dir/mcp/codex.toml"
 grep -q 'DIREXIO_CREDENTIALS_FILE' "$mcp_service_dir/mcp/codex.toml"
 grep -q "$mcp_credentials" "$mcp_service_dir/mcp/codex.toml"
-jq -e '.command == "direxio-mcp"' "$mcp_service_dir/mcp/openclaw-server.json" >/dev/null
-jq -e '.env.DIREXIO_CREDENTIALS_FILE == "'"$expected_mcp_credentials"'"' "$mcp_service_dir/mcp/openclaw-server.json" >/dev/null
-if jq -e 'has("mcp") or has("mcpServers")' "$mcp_service_dir/mcp/openclaw-server.json" >/dev/null; then
+json_test_check "$mcp_service_dir/mcp/openclaw-server.json" "data.command === 'direxio-mcp'"
+json_test_check "$mcp_service_dir/mcp/openclaw-server.json" "data.env.DIREXIO_CREDENTIALS_FILE === '$expected_mcp_credentials'"
+if json_check "$mcp_service_dir/mcp/openclaw-server.json" "'mcp' in data || 'mcpServers' in data" >/dev/null; then
   echo "OpenClaw server object must not be a root openclaw.json or mcpServers snippet" >&2
   exit 1
 fi
 grep -q 'openclaw mcp set direxio-im_example_test' "$mcp_service_dir/mcp/openclaw.md"
 grep -q 'Do not paste' "$mcp_service_dir/mcp/openclaw.md"
 grep -q 'openclaw.json' "$mcp_service_dir/mcp/openclaw.md"
-jq -e '.mcpServers["direxio-im_example_test"].env.DIREXIO_CREDENTIALS_FILE == "'"$expected_mcp_credentials"'"' "$mcp_service_dir/mcp/hermes.mcp.json" >/dev/null
+json_test_check "$mcp_service_dir/mcp/hermes.mcp.json" "data.mcpServers['direxio-im_example_test'].env.DIREXIO_CREDENTIALS_FILE === '$expected_mcp_credentials'"
 grep -q 'DIREXIO_AGENT_NODE_ID=codex-im-example' "$mcp_service_dir/mcp/env"
 mcp_install_command=$(_mcp_install_command)
 [[ "$mcp_install_command" == *"npm install -g"*"direxio-mcp@latest"* ]]

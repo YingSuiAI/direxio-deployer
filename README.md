@@ -21,6 +21,8 @@
 
 Install the deployer skill from npm, then place it into the current agent runtime's skill directory. Project-local installs are preferred because they keep the deployment skill scoped to the workspace that uses it.
 
+The GitHub repository keeps tests for maintainers and CI, but the published npm package and installed skill copy exclude `tests/` to keep user installs small.
+
 POSIX shells:
 
 ```bash
@@ -51,7 +53,7 @@ direxio-deployer skill install --agent codex --scope global
 The installer writes `.direxio-skill-install.json` into the target directory and refuses to overwrite unmanaged existing content unless `--force` is provided. To pin a version, install that package version first:
 
 ```bash
-npm install -g direxio-deployer@0.1.0
+npm install -g direxio-deployer@0.1.1
 direxio-deployer skill update --agent codex --scope project --project .
 ```
 

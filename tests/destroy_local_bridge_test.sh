@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck disable=SC1090
+source "$ROOT/tests/lib/json_test.sh"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
@@ -60,24 +62,14 @@ write_state() {
   local state=$1 domain=$2 service_dir=$3
   mkdir -p "$(dirname "$state")" "$service_dir/cc-connect"
   : > "$service_dir/cc-connect/config.toml"
-  jq -n \
-    --arg region "us-east-1" \
-    --arg domain "$domain" \
-    --arg service_dir "$service_dir" \
-    '{
-      region: $region,
-      domain_mode: "user",
-      domain: $domain,
-      as_url: ("https://" + $domain),
-      agent_service_dir: $service_dir,
-      agent_service_id: $domain,
-      resources: {
-        instance_id: "i-test",
-        eip_id: "eipalloc-test",
-        sg_id: "sg-test",
-        key_name: "direxio-test"
-      }
-    }' > "$state"
+  json_build object \
+    region=us-east-1 \
+    domain_mode=user \
+    "domain=$domain" \
+    "as_url=https://$domain" \
+    "agent_service_dir=$service_dir" \
+    "agent_service_id=$domain" \
+    'resources={"instance_id":"i-test","eip_id":"eipalloc-test","sg_id":"sg-test","key_name":"direxio-test"}' > "$state"
 }
 
 run_destroy() {

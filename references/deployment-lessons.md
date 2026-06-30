@@ -39,7 +39,7 @@ Use a POSIX shell that actually runs the deployment scripts:
 
 ```powershell
 Get-Command bash.exe -All
-bash -lc 'echo ok; command -v aws; command -v jq; command -v ssh; command -v scp; command -v curl'
+bash -lc 'echo ok; command -v node; command -v aws; command -v ssh; command -v scp; command -v curl'
 ```
 
 If `bash` prints the Windows Subsystem for Linux installation prompt or exits
@@ -47,11 +47,9 @@ before running `echo ok`, it is only the Windows WSL launcher and cannot run ops
 until a WSL distro is installed. Use another POSIX shell such as Git Bash, MSYS2,
 Cygwin, or a working WSL distro.
 
-The orchestrator now prepends workspace-local `.tools/bin` when present. This
-directory is an optional local tool cache that may be downloaded by the operator
-or system; it is not assumed to come from the original repo or from the skill.
-When `.tools/bin/jq.exe` exists, compatible Windows POSIX shells can discover it
-without manual PATH surgery.
+The orchestrator uses the repository's Node.js JSON helper for local JSON
+processing, so the POSIX shell that runs deployment scripts must be able to run
+`node` against the same path style it passes to the scripts.
 
 Prefer the `ssh`/`scp` that belongs to the same POSIX environment used for
 `bash`. Windows OpenSSH can reject EC2 private keys because inherited ACLs make
@@ -132,7 +130,7 @@ Fix procedure:
 
 1. Read the created or reused zone details from `state.json`:
    ```bash
-   jq '.resources | {route53_zone_id, route53_zone_name, route53_name_servers}' ~/.direxio/nodes/<service_id>/state.json
+   node scripts/json.mjs get ~/.direxio/nodes/<service_id>/state.json resources
    ```
 2. Delegate those NS servers at the current registrar, or use the provider API
    if credentials are available.

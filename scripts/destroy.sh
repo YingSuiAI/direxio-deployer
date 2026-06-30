@@ -27,20 +27,8 @@ destroy_now() {
 }
 
 destroy_evidence_set() {
-  local key=$1 status=$2 detail=${3:-} tmp
-  tmp="$SRC.tmp.destroy.$$"
-  if jq --arg key "$key" \
-        --arg status "$status" \
-        --arg detail "$detail" \
-        --arg checked_at "$(destroy_now)" \
-        '.destroy_evidence[$key] = {
-          status: $status,
-          detail: $detail,
-          checked_at: $checked_at
-        }' "$SRC" > "$tmp"; then
-    mv "$tmp" "$SRC"
-  else
-    rm -f "$tmp"
+  local key=$1 status=$2 detail=${3:-}
+  if ! json_mutate "$SRC" destroy-evidence "$key" "$status" "$detail" "$(destroy_now)"; then
     log "  (failed to record destroy evidence for $key)"
   fi
 }
@@ -48,13 +36,7 @@ destroy_evidence_set() {
 route53_a_record_present() {
   local zone_id=$1 domain=$2 public_ip=$3 rrsets present
   rrsets=$(aws route53 list-resource-record-sets --hosted-zone-id "$zone_id" --output json 2>/dev/null) || return 2
-  present=$(printf '%s\n' "$rrsets" | jq -r --arg name "$domain." --arg ip "$public_ip" '
-    any(.ResourceRecordSets[]?;
-      .Name == $name
-      and .Type == "A"
-      and any(.ResourceRecords[]?; .Value == $ip)
-    )
-  ' 2>/dev/null) || return 2
+  present=$(printf '%s\n' "$rrsets" | json_stdin_route53_a_present "$domain." "$public_ip" 2>/dev/null) || return 2
   [ "$present" = "true" ]
 }
 
@@ -187,26 +169,25 @@ fi
 [ -f "$SRC" ] || { echo "$SRC not found."; exit 1; }
 P2P_ROOT=$(cd "${DIREXIO_HOME:-$HOME/.direxio}" 2>/dev/null && pwd -P || printf '%s' "${DIREXIO_HOME:-$HOME/.direxio}")
 
-command -v jq >/dev/null 2>&1 || { echo "jq is required to parse state.json."; exit 1; }
-REGION=$(jq -r '.region // empty' "$SRC")
-INSTANCE_ID=$(jq -r '.resources.instance_id // empty' "$SRC")
-ROOT_VOLUME_ID=$(jq -r '.resources.root_volume_id // empty' "$SRC")
-EIP_ID=$(jq -r '.resources.eip_id // empty' "$SRC")
-SG_ID=$(jq -r '.resources.sg_id // empty' "$SRC")
-KEY_NAME=$(jq -r '.resources.key_name // empty' "$SRC")
-KEY_FILE=$(jq -r '.resources.key_file // empty' "$SRC")
-DOMAIN_MODE=$(jq -r '.domain_mode // empty' "$SRC")
-DOMAIN=$(jq -r '.domain // empty' "$SRC")
-AS_URL=$(jq -r '.as_url // empty' "$SRC")
-PUBLIC_IP=$(jq -r '.resources.public_ip // empty' "$SRC")
-ROUTE53_ZONE_ID=$(jq -r '.resources.route53_zone_id // empty' "$SRC")
-ROUTE53_ZONE_NAME=$(jq -r '.resources.route53_zone_name // empty' "$SRC")
-ROUTE53_ZONE_CREATED_BY_DEPLOYER=$(jq -r '.resources.route53_zone_created_by_deployer // empty' "$SRC")
-CC_CONNECT_CONFIG=$(jq -r '.cc_connect_config // empty' "$SRC")
-CC_CONNECT_BINARY=$(jq -r '.cc_connect_binary // empty' "$SRC")
-CC_CONNECT_RUNTIME_DIR=$(jq -r '.cc_connect_runtime_dir // empty' "$SRC")
-AGENT_SERVICE_DIR=$(jq -r '.agent_service_dir // empty' "$SRC")
-AGENT_SERVICE_ID=$(jq -r '.agent_service_id // empty' "$SRC")
+REGION=$(json_get "$SRC" region)
+INSTANCE_ID=$(json_get "$SRC" resources.instance_id)
+ROOT_VOLUME_ID=$(json_get "$SRC" resources.root_volume_id)
+EIP_ID=$(json_get "$SRC" resources.eip_id)
+SG_ID=$(json_get "$SRC" resources.sg_id)
+KEY_NAME=$(json_get "$SRC" resources.key_name)
+KEY_FILE=$(json_get "$SRC" resources.key_file)
+DOMAIN_MODE=$(json_get "$SRC" domain_mode)
+DOMAIN=$(json_get "$SRC" domain)
+AS_URL=$(json_get "$SRC" as_url)
+PUBLIC_IP=$(json_get "$SRC" resources.public_ip)
+ROUTE53_ZONE_ID=$(json_get "$SRC" resources.route53_zone_id)
+ROUTE53_ZONE_NAME=$(json_get "$SRC" resources.route53_zone_name)
+ROUTE53_ZONE_CREATED_BY_DEPLOYER=$(json_get "$SRC" resources.route53_zone_created_by_deployer)
+CC_CONNECT_CONFIG=$(json_get "$SRC" cc_connect_config)
+CC_CONNECT_BINARY=$(json_get "$SRC" cc_connect_binary)
+CC_CONNECT_RUNTIME_DIR=$(json_get "$SRC" cc_connect_runtime_dir)
+AGENT_SERVICE_DIR=$(json_get "$SRC" agent_service_dir)
+AGENT_SERVICE_ID=$(json_get "$SRC" agent_service_id)
 
 export NO_PROXY="*"; export no_proxy="*"
 unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy 2>/dev/null || true
@@ -240,7 +221,7 @@ find_route53_zone() {
         fi
         ;;
     esac
-  done < <(aws route53 list-hosted-zones --output json 2>/dev/null | jq -r '.HostedZones[] | [.Id, .Name] | @tsv')
+  done < <(aws route53 list-hosted-zones --output json 2>/dev/null | json_stdin_tsv HostedZones Id Name)
   [ -n "$best_id" ] && printf '%s\t%s\n' "$best_id" "$best_name"
 }
 
@@ -289,7 +270,7 @@ EOF
     || log "  (Route53 A record may already be absent or changed; check DNS manually)"
   rm -f "$change_file"
   if [ -n "${change_json:-}" ]; then
-    change_id=$(printf '%s\n' "$change_json" | jq -r '.ChangeInfo.Id // empty' 2>/dev/null)
+    change_id=$(printf '%s\n' "$change_json" | json_stdin_get ChangeInfo.Id 2>/dev/null)
     [ -n "$change_id" ] && aws route53 wait resource-record-sets-changed --id "$change_id" 2>/dev/null || true
   fi
   verify_route53_a_record_deleted "$zone_id" "$domain" "$public_ip"

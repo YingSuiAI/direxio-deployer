@@ -65,15 +65,32 @@ function send(message) {
 
 function readFrames() {
   while (true) {
+    const headerEnd = stdout.indexOf("\r\n\r\n");
+    if (headerEnd >= 0) {
+      const header = stdout.subarray(0, headerEnd).toString("utf8");
+      const match = /^Content-Length:\s*(\d+)/im.exec(header);
+      if (match) {
+        const length = Number.parseInt(match[1], 10);
+        const bodyStart = headerEnd + 4;
+        if (stdout.length < bodyStart + length) return;
+        const body = stdout.subarray(bodyStart, bodyStart + length).toString("utf8");
+        stdout = stdout.subarray(bodyStart + length);
+        recordMessage(JSON.parse(body));
+        continue;
+      }
+    }
     const lineEnd = stdout.indexOf("\n");
     if (lineEnd < 0) return;
     const line = stdout.subarray(0, lineEnd).toString("utf8").replace(/\r$/, "");
     stdout = stdout.subarray(lineEnd + 1);
     if (line.length === 0) continue;
-    const message = JSON.parse(line);
-    if (typeof message.id !== "undefined") {
-      responses.set(message.id, message);
-    }
+    recordMessage(JSON.parse(line));
+  }
+}
+
+function recordMessage(message) {
+  if (typeof message.id !== "undefined") {
+    responses.set(message.id, message);
   }
 }
 

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # lib/ops.sh - existing-node update/reset helpers.
 
+OPS_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1090
+source "$OPS_LIB_DIR/json.sh"
+
 ops_state_path() {
   local explicit=${1:-}
   if [ -n "$explicit" ]; then
@@ -20,7 +24,8 @@ ops_require_state() {
 
 ops_state_get() {
   local state=$1 path=$2
-  jq -r "$path // empty" "$state"
+  path=${path#\.}
+  json_get "$state" "$path"
 }
 
 ops_sh_quote() {
@@ -201,26 +206,8 @@ EOF
 }
 
 ops_mark_refresh_pending() {
-  local state=$1 start_phase=${2:-S4_BOOTSTRAP_STACK} tmp
-  tmp="$state.tmp.$$"
-  jq --arg start "$start_phase" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
-    del(
-      .password,
-      .access_token,
-      .agent_token,
-      .agent_room_id,
-      .user_confirmations,
-      .runtime_checks
-    )
-    | .agent_install_status = "refresh_pending"
-    | .phase = $start
-    | (if ($start == "S4_BOOTSTRAP_STACK") then
-        .phases.S4_BOOTSTRAP_STACK = {status:"pending", ts:$ts, evidence:"existing node operation requires fresh health check"}
-      else . end)
-    | .phases.S5_INIT_TOKENS = {status:"pending", ts:$ts, evidence:"existing node operation requires fresh bootstrap credentials"}
-    | .phases.S6_WIRE_LOCAL = {status:"pending", ts:$ts, evidence:"existing node operation requires local credentials and MCP refresh"}
-    | .phases.S7_VERIFY_E2E = {status:"pending", ts:$ts, evidence:"existing node operation requires fresh verification"}
-  ' "$state" > "$tmp" && mv "$tmp" "$state"
+  local state=$1 start_phase=${2:-S4_BOOTSTRAP_STACK}
+  json_mutate "$state" ops-refresh-pending "$start_phase" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
 
 ops_write_report() {

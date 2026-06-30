@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck disable=SC1090
+source "$ROOT/tests/lib/json_test.sh"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
@@ -35,7 +37,7 @@ rm -rf "$HOME/.direxio"
 [ ! -e "$HOME/.direxio/nodes/state.json" ]
 
 mkdir -p "$HOME/.direxio/nodes/solo.example.test"
-jq -n '{domain:"solo.example.test", phase:"S3_PROVISION", resources:{instance_id:"i-solo"}}' > "$HOME/.direxio/nodes/solo.example.test/state.json"
+json_build object domain=solo.example.test phase=S3_PROVISION 'resources={"instance_id":"i-solo"}' > "$HOME/.direxio/nodes/solo.example.test/state.json"
 (
   unset DOMAIN P2P_WORKDIR DIREXIO_WORKDIR
   # shellcheck disable=SC1090
@@ -45,7 +47,7 @@ jq -n '{domain:"solo.example.test", phase:"S3_PROVISION", resources:{instance_id
 )
 
 mkdir -p "$HOME/.direxio/nodes/second.example.test"
-jq -n '{domain:"second.example.test", phase:"S6_WIRE_LOCAL", resources:{instance_id:"i-second"}}' > "$HOME/.direxio/nodes/second.example.test/state.json"
+json_build object domain=second.example.test phase=S6_WIRE_LOCAL 'resources={"instance_id":"i-second"}' > "$HOME/.direxio/nodes/second.example.test/state.json"
 status_output=$(
   unset DOMAIN P2P_WORKDIR DIREXIO_WORKDIR
   HOME="$HOME" bash "$ROOT/scripts/orchestrate.sh" status

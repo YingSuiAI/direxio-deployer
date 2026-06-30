@@ -768,22 +768,7 @@ _write_mcp_json_config() {
   local path=$1 server_name=$2 command=$3 credentials_file=$4 node_id=${5:-}
   mkdir -p "$(dirname "$path")"
   umask 077
-  jq -n \
-    --arg server_name "$server_name" \
-    --arg command "$command" \
-    --arg credentials_file "$credentials_file" \
-    --arg node_id "$node_id" \
-    '{
-      mcpServers: {
-        ($server_name): {
-          command: $command,
-          env: {
-            DIREXIO_CREDENTIALS_FILE: $credentials_file,
-            DIREXIO_AGENT_NODE_ID: $node_id
-          }
-        }
-      }
-    }' > "$path"
+  json_build mcp-json-config "$server_name" "$command" "$credentials_file" "$node_id" > "$path"
   chmod 600 "$path" 2>/dev/null || true
 }
 
@@ -791,17 +776,7 @@ _write_mcp_openclaw_server_config() {
   local path=$1 command=$2 credentials_file=$3 node_id=${4:-}
   mkdir -p "$(dirname "$path")"
   umask 077
-  jq -n \
-    --arg command "$command" \
-    --arg credentials_file "$credentials_file" \
-    --arg node_id "$node_id" \
-    '{
-      command: $command,
-      env: {
-        DIREXIO_CREDENTIALS_FILE: $credentials_file,
-        DIREXIO_AGENT_NODE_ID: $node_id
-      }
-    }' > "$path"
+  json_build mcp-openclaw-server-config "$command" "$credentials_file" "$node_id" > "$path"
   chmod 600 "$path" 2>/dev/null || true
 }
 
@@ -905,7 +880,7 @@ EOF
 
 _create_cc_connect_matrix_session() {
   local asurl=$1 access_token=$2 device_id=$3 out=$4 body code http_body
-  body=$(jq -n --arg device_id "$device_id" '{action:"agent.matrix_session.create",params:{device_id:$device_id}}')
+  body=$(json_build matrix-session-create "$device_id")
   http_body=$(mktemp)
   code=$(curl -sk -o "$http_body" -w '%{http_code}' -X POST "$asurl/_p2p/command" \
     -H 'Content-Type: application/json' \
@@ -916,7 +891,7 @@ _create_cc_connect_matrix_session() {
     rm -f "$http_body"
     return 1
   fi
-  if ! jq -e '.access_token and .device_id and .user_id and .homeserver' "$http_body" >/dev/null; then
+  if ! json_assert "$http_body" matrix-session >/dev/null; then
     warn "agent.matrix_session.create response is missing Matrix session fields: $(head -c 200 "$http_body" 2>/dev/null)"
     rm -f "$http_body"
     return 1
@@ -1221,8 +1196,7 @@ _agent_node_id_matches_host() {
 _write_credentials_file() {
   local cred=$1 domain=$2 asurl=$3 token=$4 password=$5 access_token=$6 agent_room_id=$7 node_id=$8
   mkdir -p "$(dirname "$cred")"
-  jq -n --arg domain "$domain" --arg url "$asurl" --arg tok "$token" --arg password "$password" --arg access "$access_token" --arg room "$agent_room_id" --arg node_id "$node_id" \
-    '{profiles:{default:{domain:$domain,password:$password,access_token:$access,agent_room_id:$room,direxio_domain:$url,direxio_agent_token:$tok,direxio_agent_room_id:$room,direxio_agent_node_id:$node_id}}}' > "$cred"
+  json_build credentials-profile "$domain" "$asurl" "$token" "$password" "$access_token" "$agent_room_id" "$node_id" > "$cred"
   chmod 600 "$cred"
 }
 
@@ -1358,10 +1332,10 @@ run_phase() {
     phase_set S6_WIRE_LOCAL failed "agent Matrix session creation failed"
     fail "failed to create cc-connect Matrix session via agent.matrix_session.create."
   fi
-  matrix_token=$(jq -r '.access_token' "$cc_session")
-  matrix_user=$(jq -r '.user_id' "$cc_session")
-  matrix_device=$(jq -r '.device_id' "$cc_session")
-  matrix_homeserver=$(jq -r '.homeserver' "$cc_session")
+  matrix_token=$(json_get "$cc_session" access_token)
+  matrix_user=$(json_get "$cc_session" user_id)
+  matrix_device=$(json_get "$cc_session" device_id)
+  matrix_homeserver=$(json_get "$cc_session" homeserver)
   if [ "$matrix_user" = "@owner:$domain" ]; then
     phase_set S6_WIRE_LOCAL failed "agent Matrix session returned owner user"
     fail "agent.matrix_session.create returned owner Matrix user; deploy a message-server build with agent Matrix session support."

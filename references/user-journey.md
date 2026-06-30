@@ -13,7 +13,7 @@ Confirm these items before calling `scripts/orchestrate.sh`:
 1. The final Matrix domain is selected, for example `__DOMAIN__`.
 2. The user understands that Matrix `server_name` is bound to that domain.
 3. The user has confirmed `CONFIRM_DOMAIN_BINDING=1`.
-4. AWS CLI v2, `jq`, `ssh`, `scp`, and `curl` are available.
+4. Node.js, AWS CLI v2, `ssh`, `scp`, and `curl` are available.
 5. AWS credentials are configured through `AWS_PROFILE` or environment variables.
 6. `AWS_DEFAULT_REGION` is explicit.
 7. `MESSAGE_SERVER_IMAGE` is selected, or the default `direxio/message-server:latest` is accepted.
@@ -23,7 +23,7 @@ On Windows, first verify that `bash` is a usable POSIX shell:
 
 ```powershell
 Get-Command bash.exe -All
-bash -lc 'echo ok; command -v aws; command -v jq; command -v ssh; command -v scp; command -v curl'
+bash -lc 'echo ok; command -v node; command -v aws; command -v ssh; command -v scp; command -v curl'
 ```
 
 ## Domain Modes

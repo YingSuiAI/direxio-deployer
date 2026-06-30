@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck disable=SC1090
+source "$ROOT/tests/lib/json_test.sh"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
@@ -39,21 +41,13 @@ chmod 700 "$fakebin/aws"
 service_dir="$HOME/.direxio/nodes/root-destroy.example.test"
 mkdir -p "$service_dir"
 state="$service_dir/state.json"
-jq -n \
-  --arg service_dir "$service_dir" \
-  '{
-    region: "us-east-1",
-    domain_mode: "user",
-    domain: "root-destroy.example.test",
-    agent_service_dir: $service_dir,
-    agent_service_id: "root-destroy.example.test",
-    resources: {
-      instance_id: "i-root-destroy",
-      eip_id: "eipalloc-root-destroy",
-      sg_id: "sg-root-destroy",
-      key_name: "direxio-root-destroy"
-    }
-  }' > "$state"
+json_build object \
+  region=us-east-1 \
+  domain_mode=user \
+  domain=root-destroy.example.test \
+  "agent_service_dir=$service_dir" \
+  agent_service_id=root-destroy.example.test \
+  'resources={"instance_id":"i-root-destroy","eip_id":"eipalloc-root-destroy","sg_id":"sg-root-destroy","key_name":"direxio-root-destroy"}' > "$state"
 
 calls="$tmp/aws.calls"
 : > "$calls"
