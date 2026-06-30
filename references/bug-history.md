@@ -3,12 +3,12 @@
 部署链路上所有真实踩过的坑。**已全部修进 `scripts/` 下的部署文件**,新部署不会再撞;
 列在这里是为了:① 理解每个设计决策的来由;② 若有人改坏了哪处,能快速定位回退点。
 
-## p2p-matrix-as 仓库
+## Legacy pre-Direxio message-server 仓库
 
 ### AS PR #4 — 镜像多架构
 - **症状**:ARM 架构 EC2(t4g 系列)`docker pull` 后 `exec format error`。
 - **根因**:镜像只 build 了 amd64。
-- **修复**:CI 用 buildx 出 `amd64+arm64` 多架构镜像。`xuyanzu01/p2p-im-as:latest` 已是多架构。
+- **修复**:CI 用 buildx 出 `amd64+arm64` 多架构镜像。legacy pre-Direxio AS 镜像已是多架构。
 
 ### AS PR #5 — 容器化体验
 - **卷权限**:命名卷默认 root:700,AS 降权到 asd(UID 10001)后打不开 sqlite → `SQLITE_CANTOPEN`。

@@ -8,7 +8,7 @@ run_phase() {
   domain=$(state_get domain)
   pubip=$(res_get public_ip)
   keyfile=$(res_get key_file)
-  local out="$P2P_WORKDIR/outputs.json" raw
+  local out="$DIREXIO_WORKDIR/outputs.json" raw
   raw=$(mktemp)
   trap 'rm -f "${raw:-}"; trap - RETURN' RETURN
 

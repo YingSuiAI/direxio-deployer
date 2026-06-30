@@ -47,7 +47,7 @@ Rerun the same command after fixing the blocker; state resumes from the first un
 
 After S3, do not reset or delete state just to silence an error. If EC2, public
 IPv4/EIP, or other AWS resources are recorded, preserve `state.json`, repair the
-blocker, and rerun with `P2P_EXISTING_STATE_ACTION=continue`; or destroy first
+blocker, and rerun with `DIREXIO_EXISTING_STATE_ACTION=continue`; or destroy first
 if the user wants to stop billing.
 
 ## Destroy
@@ -75,7 +75,7 @@ remain outside automatic destroy scope.
 After `scripts/reset-app-data.sh`, rerun:
 
 ```bash
-P2P_EXISTING_STATE_ACTION=continue DOMAIN=__DOMAIN__ bash scripts/orchestrate.sh
+DIREXIO_EXISTING_STATE_ACTION=continue DOMAIN=__DOMAIN__ bash scripts/orchestrate.sh
 ```
 
 The reset script intentionally marks S4-S7 pending and clears stale local secret

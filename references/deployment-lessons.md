@@ -15,7 +15,7 @@ S5_INIT_TOKENS failed: read bootstrap.json timed out
 
 Cause:
 
-Current `p2p-matrix-as` builds initialize on service startup and write
+Current Direxio message-server builds initialize on service startup and write
 `/opt/p2p/bootstrap.json` with the login `password`, `agent_token`, and owner
 metadata. Calling the old bootstrap HTTP endpoint or scraping logs is no longer
 part of the deploy path.
@@ -80,7 +80,7 @@ Fix now in ops:
   the local `timeout` command is available.
 - If a deployment was interrupted, inspect `scripts/orchestrate.sh status`,
   stop only leftover local `orchestrate.sh`/`curl`/`ssh` children for that run,
-  and resume with `P2P_EXISTING_STATE_ACTION=continue`.
+  and resume with `DIREXIO_EXISTING_STATE_ACTION=continue`.
 - If SSH to the instance is blocked but AWS access still works, attach a
   temporary SSM role and use SSM Run Command to read `/opt/p2p/bootstrap.json`
   without printing secrets. Remove or audit the temporary role after recovery.
@@ -94,7 +94,7 @@ resolves correctly. This avoids Caddy and Let's Encrypt racing DNS propagation.
 When rerunning after a resource was created, set:
 
 ```bash
-P2P_EXISTING_STATE_ACTION=continue
+DIREXIO_EXISTING_STATE_ACTION=continue
 ```
 
 This is deliberate. It prevents accidental duplicate EC2/EIP creation or unsafe
@@ -136,7 +136,7 @@ Fix procedure:
 2. Delegate those NS servers at the current registrar, or use the provider API
    if credentials are available.
 3. Wait for authoritative NS and A-record propagation.
-4. Re-run `scripts/orchestrate.sh` with `P2P_EXISTING_STATE_ACTION=continue`.
+4. Re-run `scripts/orchestrate.sh` with `DIREXIO_EXISTING_STATE_ACTION=continue`.
 
 DNS propagation of new NS records can take minutes to hours. After the user
 confirms the change, verify with `nslookup -type=NS <DOMAIN>` or
@@ -186,7 +186,7 @@ Workaround (use when the health check is the only blocker and the rate limit is 
 
 4. Resume orchestrate.sh with:
    ```bash
-   P2P_EXISTING_STATE_ACTION=continue bash scripts/orchestrate.sh
+   DIREXIO_EXISTING_STATE_ACTION=continue bash scripts/orchestrate.sh
    ```
 
 5. **After deployment completes**, restore the original Caddyfile (remove `tls internal`) and restart Caddy. Caddy will retry the production Let's Encrypt cert when the rate limit resets. The self-signed cert is a temporary bridge; HTTPS will show a browser warning until the production cert is obtained.

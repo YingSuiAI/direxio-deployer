@@ -56,7 +56,7 @@ json_build object \
   'phases={"S0_PREREQ_AWS":{"status":"done"},"S1_PREFLIGHT":{"status":"done"},"S2_DOMAIN":{"status":"done"},"S3_PROVISION":{"status":"done"},"S4_BOOTSTRAP_STACK":{"status":"done"},"S5_INIT_TOKENS":{"status":"done"},"S6_WIRE_LOCAL":{"status":"done"},"S7_VERIFY_E2E":{"status":"done"}}' \
   'resources={}' > "$state"
 
-verify_output=$(P2P_WORKDIR="$service_dir" PATH="$fakebin:$PATH" CONNECT_WORK_DIR="$service_dir/cc-connect" bash "$ROOT/scripts/orchestrate.sh" verify connect_daemon)
+verify_output=$(DIREXIO_WORKDIR="$service_dir" PATH="$fakebin:$PATH" CONNECT_WORK_DIR="$service_dir/cc-connect" bash "$ROOT/scripts/orchestrate.sh" verify connect_daemon)
 printf '%s\n' "$verify_output" | grep -q 'verified runtime check: connect_daemon'
 
 expected_work_dir="$service_dir/cc-connect"
@@ -67,7 +67,7 @@ fi
 json_test_check "$state" "data.runtime_checks.connect_daemon.status === 'passed' && data.runtime_checks.connect_daemon.service_name === 'connect-check.example.test' && data.runtime_checks.connect_daemon.daemon_status === 'Running' && data.runtime_checks.connect_daemon.work_dir === '$expected_work_dir' && !data.user_confirmations?.agent_mcp_runtime"
 
 set +e
-P2P_WORKDIR="$service_dir" PATH="$fakebin:$PATH" CONNECT_WORK_DIR="$service_dir/cc-connect" CONNECT_LOG_OUTPUT='ACP error (ACP_SESSION_INIT_FAILED): ACP metadata is missing for agent:main:acp:a18569b4-1f24-4f8a-aec6-f6a54530d50e. Recreate this ACP session with /acp spawn and rebind the thread.' bash "$ROOT/scripts/orchestrate.sh" verify connect_daemon > "$tmp/acp-error.out" 2>&1
+DIREXIO_WORKDIR="$service_dir" PATH="$fakebin:$PATH" CONNECT_WORK_DIR="$service_dir/cc-connect" CONNECT_LOG_OUTPUT='ACP error (ACP_SESSION_INIT_FAILED): ACP metadata is missing for agent:main:acp:a18569b4-1f24-4f8a-aec6-f6a54530d50e. Recreate this ACP session with /acp spawn and rebind the thread.' bash "$ROOT/scripts/orchestrate.sh" verify connect_daemon > "$tmp/acp-error.out" 2>&1
 acp_rc=$?
 set -e
 [ "$acp_rc" -ne 0 ] || {
@@ -76,12 +76,12 @@ set -e
 }
 json_test_check "$state" "data.runtime_checks.connect_daemon.status === 'failed' && data.runtime_checks.connect_daemon.evidence.includes('ACP session initialization failure') && data.runtime_checks.connect_daemon.agent_error.includes('ACP_SESSION_INIT_FAILED')"
 
-report_output=$(P2P_WORKDIR="$service_dir" bash "$ROOT/scripts/orchestrate.sh" report new_deploy)
+report_output=$(DIREXIO_WORKDIR="$service_dir" bash "$ROOT/scripts/orchestrate.sh" report new_deploy)
 report_path=$(printf '%s\n' "$report_output" | sed -nE 's/^operation report: //p' | tail -n 1)
 json_test_check "$report_path" "data.runtime_checks.connect_daemon.status === 'failed' && data.gates.user_confirmation.agent_mcp_runtime === 'pending_runtime_confirmation'"
 
 set +e
-P2P_WORKDIR="$service_dir" PATH="$fakebin:$PATH" CONNECT_WORK_DIR="$HOME/.direxio/nodes/other.example.test/cc-connect" bash "$ROOT/scripts/orchestrate.sh" verify connect_daemon > "$tmp/wrong.out" 2>&1
+DIREXIO_WORKDIR="$service_dir" PATH="$fakebin:$PATH" CONNECT_WORK_DIR="$HOME/.direxio/nodes/other.example.test/cc-connect" bash "$ROOT/scripts/orchestrate.sh" verify connect_daemon > "$tmp/wrong.out" 2>&1
 wrong_rc=$?
 set -e
 [ "$wrong_rc" -ne 0 ] || {

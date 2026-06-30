@@ -75,9 +75,9 @@ if (-not $env:DIREXIO_AGENT_WORKSPACE) {
   $env:DIREXIO_AGENT_WORKSPACE_WINDOWS = (Get-Location).ProviderPath
 }
 
-if ($env:P2P_WORKDIR) {
-  $env:P2P_WORKDIR_WINDOWS = $env:P2P_WORKDIR
-  $env:P2P_WORKDIR = ConvertTo-GitBashPath $env:P2P_WORKDIR
+if ($env:DIREXIO_WORKDIR) {
+  $env:DIREXIO_WORKDIR_WINDOWS = $env:DIREXIO_WORKDIR
+  $env:DIREXIO_WORKDIR = ConvertTo-GitBashPath $env:DIREXIO_WORKDIR
 }
 
 if (-not $env:DIREXIO_CODEX_COMMAND) {

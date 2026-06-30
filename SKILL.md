@@ -1,6 +1,6 @@
 ---
 name: direxio-deployer
-description: Deploy, resume, verify, destroy, and locally wire a production P2P-IM Matrix server on AWS for any connent/connect-supported local agent runtime. Use when installing or updating this skill itself; install the versioned npm package `direxio-deployer` and use its CLI to place the skill in the runtime-specific global path from references/agent-targets.md unless the user explicitly asks for a project-local installation.
+description: Deploy, resume, verify, destroy, and locally wire a production Direxio message server on AWS for any connent/connect-supported local agent runtime. Use when installing or updating this skill itself; install the versioned npm package `direxio-deployer` and use its CLI to place the skill in the runtime-specific global path from references/agent-targets.md unless the user explicitly asks for a project-local installation.
 ---
 
 # Direxio Deployer
@@ -49,7 +49,7 @@ when it is safe and does not overwrite local edits. If the clone has local
 changes, do not discard them; report the divergence and continue from the local
 copy unless the user approves a specific update action.
 
-Do not fall back to older P2P-IM skill repositories or unmanaged copied skill bundles unless the user explicitly asks for one of those repositories. Never print or commit AWS credentials, initialization codes, agent tokens, or local credential files while refreshing the Skill.
+Do not fall back to older pre-Direxio skill repositories or unmanaged copied skill bundles unless the user explicitly asks for one of those repositories. Never print or commit AWS credentials, initialization codes, agent tokens, or local credential files while refreshing the Skill.
 
 ## Cloud Account And Domain Onboarding
 
@@ -357,7 +357,7 @@ Use a Git clone only for development or local patching of this deployer, not as 
 
 ## Agent Recognition
 
-Use this skill when the user asks to deploy, resume, verify, destroy, repair, or wire a P2P-IM Matrix server. The instructions are runtime-neutral and can be followed by any agent that can run shell commands and read files. The local bridge target must be one of the connent/connect agents unless the user explicitly supplies compatible custom TOML. OpenClaw and Hermes are host runtimes that S6 wires through the generic connent/connect `acp` agent.
+Use this skill when the user asks to deploy, resume, verify, destroy, repair, or wire a Direxio message server. The instructions are runtime-neutral and can be followed by any agent that can run shell commands and read files. The local bridge target must be one of the connent/connect agents unless the user explicitly supplies compatible custom TOML. OpenClaw and Hermes are host runtimes that S6 wires through the generic connent/connect `acp` agent.
 
 For local agent integration after deployment, S6 writes service-specific credentials and environment files under `~/.direxio/nodes/<service_id>/`, where `service_id` is derived from the deployed domain. It also writes MCP client snippets under `~/.direxio/nodes/<service_id>/mcp/` for MCP-capable hosts such as Codex, OpenClaw, and Hermes. It does not write root-level compatibility credentials, shell profiles, Windows user environment variables, or mutate each host's global MCP config.
 
@@ -588,7 +588,7 @@ for the current service before giving advice. The status output includes a
   and may still be billing.
 - Resume safety: whether rerunning the same command is safe, or whether the
   operator must preserve `state.json` and continue with
-  `P2P_EXISTING_STATE_ACTION=continue`.
+  `DIREXIO_EXISTING_STATE_ACTION=continue`.
 - Local refresh: if `agent_install_status=refresh_pending`, reset/redeploy
   cleared old credentials, user confirmations, runtime checks, bridge install
   proof, and MCP install proof; the next action is to rerun the deployment workflow to refresh S4-S7, local credentials, MCP snippets, automatic installs, and runtime checks.
@@ -686,7 +686,7 @@ identity is allowed when the operator explicitly chose root credentials. Prefer
 using the same temporary `DirexioDeployer` IAM user/profile for teardown when
 that was used for provisioning.
 
-If an operator needs to preserve local state files for debugging, run destroy with `P2P_KEEP_WORKDIR=1` and explicitly report that the stale service directory remains.
+If an operator needs to preserve local state files for debugging, run destroy with `DIREXIO_KEEP_WORKDIR=1` and explicitly report that the stale service directory remains.
 
 ### Full reset / "treat me as a brand new user"
 
@@ -783,7 +783,7 @@ security     : delete or disable any temporary DirexioDeployer access key after 
 report       : <operation-report.json path>
 ```
 
-Mention that AWS resources keep billing until destroyed. User-managed DNS and purchased domains are not removed by destroy. After destroy, report which `~/.direxio/nodes/<service_id>` service directory was removed or, if `P2P_KEEP_WORKDIR=1` was used, which local directory remains.
+Mention that AWS resources keep billing until destroyed. User-managed DNS and purchased domains are not removed by destroy. After destroy, report which `~/.direxio/nodes/<service_id>` service directory was removed or, if `DIREXIO_KEEP_WORKDIR=1` was used, which local directory remains.
 
 If `DIREXIO_AGENT_INSTALL=auto` was not used, or if it recorded `install_failed`, give the manual command:
 

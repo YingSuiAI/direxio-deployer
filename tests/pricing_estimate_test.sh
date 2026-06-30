@@ -100,7 +100,7 @@ AWS_DEFAULT_REGION=ap-northeast-1 \
 DOMAIN=auto-pricing.example.test \
 DOMAIN_MODE=user \
 CONFIRM_DOMAIN_BINDING=1 \
-P2P_WORKDIR="$auto_workdir" \
+DIREXIO_WORKDIR="$auto_workdir" \
 bash "$ROOT/scripts/orchestrate.sh" > "$tmp/orchestrate.out" 2> "$tmp/orchestrate.err"
 auto_rc=$?
 set -e
@@ -110,7 +110,7 @@ set -e
 }
 json_test_check "$auto_workdir/state.json" "data.cost_estimate.pricing_status === 'queried' && data.cost_estimate.region === 'ap-northeast-1'"
 
-report_output=$(P2P_WORKDIR="$service_dir" bash "$ROOT/scripts/orchestrate.sh" report new_deploy)
+report_output=$(DIREXIO_WORKDIR="$service_dir" bash "$ROOT/scripts/orchestrate.sh" report new_deploy)
 report_path=$(printf '%s\n' "$report_output" | sed -nE 's/^operation report: //p' | tail -n 1)
 assert_file_exists "$report_path"
 json_test_check "$report_path" "data.billing.cost_estimate.pricing_status === 'queried' && data.billing.cost_estimate.components.public_ipv4.billed_even_when_attached === true"

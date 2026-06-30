@@ -18,7 +18,7 @@ run_phase() {
   if [ -z "$instance_type" ]; then
     instance_type=${INSTANCE_TYPE:-}
     if [ -z "$instance_type" ]; then
-      if [ "${P2P_ASSUME_DEFAULTS:-0}" = "1" ]; then
+      if [ "${DIREXIO_ASSUME_DEFAULTS:-0}" = "1" ]; then
         instance_type=t3.small
       elif [ -t 0 ]; then
         warn "Default EC2 instance type is t3.small (2 vCPU / 2GB). Do you need a larger instance?"
@@ -50,10 +50,10 @@ run_phase() {
   vpc=$(res_get vpc_id)
   local message_server_image
   message_server_image=${MESSAGE_SERVER_IMAGE:-direxio/message-server:latest}
-  local scripts_dir=${P2P_INSTALL_SCRIPTS_DIR:-${HERE:-$S3_PHASE_DIR}}
+  local scripts_dir=${DIREXIO_INSTALL_SCRIPTS_DIR:-${HERE:-$S3_PHASE_DIR}}
 
   # 1) Key pair (idempotent).
-  local keyfile="$P2P_WORKDIR/${name}.pem"
+  local keyfile="$DIREXIO_WORKDIR/${name}.pem"
   if [ -z "$(res_get key_name)" ]; then
     log "Creating key pair $name ..."
     aws ec2 create-key-pair --key-name "$name" --query KeyMaterial --output text > "$keyfile"
@@ -69,7 +69,7 @@ run_phase() {
     warn "Security group opens 22/80/443, TURN 3478 tcp/udp, and 49160-49200/udp to 0.0.0.0/0."
     warn "Keep the SSH private key, AWS credentials, and password secure."
     sg=$(aws ec2 create-security-group --group-name "$name" \
-         --description "p2p-matrix $name" --vpc-id "$vpc" --query GroupId --output text)
+         --description "direxio $name" --vpc-id "$vpc" --query GroupId --output text)
     res_set sg_id "$sg"
     local p
     for p in 22 80 443; do
@@ -95,7 +95,7 @@ run_phase() {
     warn "S3 requires a production DOMAIN. Complete S2_DOMAIN first."
     return 2
   fi
-  local userdata="$P2P_WORKDIR/user-data.yaml"
+  local userdata="$DIREXIO_WORKDIR/user-data.yaml"
   log "Rendering cloud-init (domain_mode=$domain_mode)..."
   bash "$scripts_dir/render/render-userdata.sh" \
     --domain "$domain" \
@@ -215,7 +215,7 @@ _upsert_route53_record() {
   change_file=$(mktemp)
   cat > "$change_file" <<EOF
 {
-  "Comment": "p2p-matrix deployment",
+  "Comment": "Direxio deployment",
   "Changes": [
     {
       "Action": "UPSERT",

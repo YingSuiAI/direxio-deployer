@@ -58,7 +58,7 @@ skill 不部署 coturn,只把服务商给的 `uris + username/password` 写进 D
   # DOMAIN/PUBLIC_IP/TURN_SECRET 由 .env 注入(user-data 写)。
   coturn:
     image: coturn/coturn:latest
-    network_mode: host          # relay 必须;不要放进 p2p-net 桥接网络
+    network_mode: host          # relay 必须;不要放进 direxio-net 桥接网络
     restart: unless-stopped
     command:
       - -n
@@ -74,7 +74,7 @@ skill 不部署 coturn,只把服务商给的 `uris + username/password` 写进 D
       - --no-tls
       - --no-dtls
 ```
-> 注:`network_mode: host` 与现有 `networks: [p2p-net]` 不兼容,coturn 单独用 host 网络。
+> 注:`network_mode: host` 与现有 `networks: [direxio-net]` 不兼容,coturn 单独用 host 网络。
 > 其余服务不变。
 
 ### 2. `phases/s3_provision.sh` — 安全组加 TURN 端口

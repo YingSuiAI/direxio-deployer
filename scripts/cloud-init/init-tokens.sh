@@ -2,8 +2,8 @@
 # init-tokens.sh - wait for message-server bootstrap credentials after compose is up.
 set -euo pipefail
 
-P2P_DIR=${P2P_DIR:-/opt/p2p}
-COMPOSE="docker compose -f ${P2P_DIR}/docker-compose.yml --env-file ${P2P_DIR}/.env"
+DIREXIO_DIR=${DIREXIO_DIR:-/opt/p2p}
+COMPOSE="docker compose -f ${DIREXIO_DIR}/docker-compose.yml --env-file ${DIREXIO_DIR}/.env"
 DOMAIN=${DOMAIN:?DOMAIN is required (e.g. __DOMAIN__)}
 CONTAINER_BOOTSTRAP_FILE=${CONTAINER_BOOTSTRAP_FILE:-/var/direxio-message-server/p2p/bootstrap.json}
 BOOTSTRAP_FILE=${BOOTSTRAP_FILE:-/opt/p2p/bootstrap.json}
@@ -13,7 +13,7 @@ log() { echo "[init-tokens] $*" >&2; }
 
 env_string() {
   local key=$1
-  grep -E "^${key}=" "${P2P_DIR}/.env" 2>/dev/null \
+  grep -E "^${key}=" "${DIREXIO_DIR}/.env" 2>/dev/null \
     | tail -1 \
     | cut -d= -f2- \
     || true
@@ -94,7 +94,7 @@ bootstrap_portal() {
   password=${P2P_PORTAL_PASSWORD:-}
   [ -n "$password" ] || password=$(env_string P2P_PORTAL_PASSWORD)
   if [ -z "$password" ]; then
-    log "FATAL: P2P_PORTAL_PASSWORD is missing from environment and ${P2P_DIR}/.env"
+    log "FATAL: P2P_PORTAL_PASSWORD is missing from environment and ${DIREXIO_DIR}/.env"
     return 1
   fi
   tmp=$(mktemp)

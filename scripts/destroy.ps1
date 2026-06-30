@@ -35,9 +35,9 @@ $env:DIREXIO_WINDOWS_HOME = $windowsDirexioHome
 $env:DIREXIO_HOME = ConvertTo-GitBashPath $windowsDirexioHome
 $env:DIREXIO_LOCAL_PATH_STYLE = 'windows'
 
-if ($env:P2P_WORKDIR) {
-  $env:P2P_WORKDIR_WINDOWS = $env:P2P_WORKDIR
-  $env:P2P_WORKDIR = ConvertTo-GitBashPath $env:P2P_WORKDIR
+if ($env:DIREXIO_WORKDIR) {
+  $env:DIREXIO_WORKDIR_WINDOWS = $env:DIREXIO_WORKDIR
+  $env:DIREXIO_WORKDIR = ConvertTo-GitBashPath $env:DIREXIO_WORKDIR
 }
 
 $repoRootForBash = ConvertTo-GitBashPath $RepoRoot

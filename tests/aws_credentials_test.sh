@@ -121,7 +121,7 @@ root_verify_out=$(AWS_PROFILE=root-profile bash "$ROOT/scripts/aws-credentials.s
 
 set +e
 s0_output=$(
-  P2P_WORKDIR="$tmp/state-root" AWS_PROFILE=root-profile bash -c '
+  DIREXIO_WORKDIR="$tmp/state-root" AWS_PROFILE=root-profile bash -c '
     set -uo pipefail
     cd "$1"
     source scripts/lib/state.sh

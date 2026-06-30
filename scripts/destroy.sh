@@ -2,7 +2,7 @@
 # destroy.sh - remove AWS resources recorded by deployment state.
 #
 # Source:
-#   1. $P2P_WORKDIR/state.json written by orchestrate.sh; by default
+#   1. $DIREXIO_WORKDIR/state.json written by orchestrate.sh; by default
 #      DOMAIN=__DOMAIN__ maps to ~/.direxio/nodes/<service_id>/state.json.
 #   2. explicit argument: bash destroy.sh /path/to/state.json
 #
@@ -18,7 +18,7 @@ source "$HERE/lib/paths.sh"
 source "$HERE/lib/aws.sh"
 # shellcheck disable=SC1090
 source "$HERE/lib/operation_report.sh"
-P2P_WORKDIR=$(direxio_default_workdir)
+DIREXIO_WORKDIR=$(direxio_default_workdir)
 
 log() { echo -e "\033[33m[destroy]\033[0m $*"; }
 
@@ -162,12 +162,12 @@ verify_key_pair_deleted() {
 # Resolve source and load INSTANCE_ID/EIP_ID/SG_ID/KEY_NAME/KEY_FILE/REGION.
 SRC=${1:-}
 if [ -z "$SRC" ]; then
-  if   [ -f "$P2P_WORKDIR/state.json" ]; then SRC="$P2P_WORKDIR/state.json"
-  else echo "state.json not found; set DOMAIN=<service domain> or P2P_WORKDIR=<service dir> to destroy a specific deployment."; exit 1
+  if   [ -f "$DIREXIO_WORKDIR/state.json" ]; then SRC="$DIREXIO_WORKDIR/state.json"
+  else echo "state.json not found; set DOMAIN=<service domain> or DIREXIO_WORKDIR=<service dir> to destroy a specific deployment."; exit 1
   fi
 fi
 [ -f "$SRC" ] || { echo "$SRC not found."; exit 1; }
-P2P_ROOT=$(cd "${DIREXIO_HOME:-$HOME/.direxio}" 2>/dev/null && pwd -P || printf '%s' "${DIREXIO_HOME:-$HOME/.direxio}")
+DIREXIO_ROOT=$(cd "${DIREXIO_HOME:-$HOME/.direxio}" 2>/dev/null && pwd -P || printf '%s' "${DIREXIO_HOME:-$HOME/.direxio}")
 
 REGION=$(json_get "$SRC" region)
 INSTANCE_ID=$(json_get "$SRC" resources.instance_id)
@@ -245,7 +245,7 @@ delete_route53_record() {
   change_file=$(mktemp)
   cat > "$change_file" <<EOF
 {
-  "Comment": "p2p-matrix destroy",
+  "Comment": "Direxio destroy",
   "Changes": [
     {
       "Action": "DELETE",
@@ -470,8 +470,8 @@ stop_current_cc_connect_daemon() {
 cleanup_local_service_dir() {
   local service_dir=$1 root=$2 nodes_root src_real nodes_real src_norm nodes_norm name
 
-  if [ "${P2P_KEEP_WORKDIR:-0}" = "1" ]; then
-    log "keeping local service dir because P2P_KEEP_WORKDIR=1: $service_dir"
+  if [ "${DIREXIO_KEEP_WORKDIR:-0}" = "1" ]; then
+    log "keeping local service dir because DIREXIO_KEEP_WORKDIR=1: $service_dir"
     return 0
   fi
 
@@ -567,4 +567,4 @@ if REPORT_PATH=$(operation_report_write destroy destroy_processed "$SRC" 2>/dev/
 else
   log "operation report was not written; keep destroy logs for audit"
 fi
-cleanup_local_service_dir "$CURRENT_SERVICE_DIR" "$P2P_ROOT"
+cleanup_local_service_dir "$CURRENT_SERVICE_DIR" "$DIREXIO_ROOT"

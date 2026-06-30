@@ -23,9 +23,7 @@ direxio_service_dir() {
 }
 
 direxio_default_workdir() {
-  if [ -n "${P2P_WORKDIR:-}" ]; then
-    printf '%s\n' "$P2P_WORKDIR"
-  elif [ -n "${DIREXIO_WORKDIR:-}" ]; then
+  if [ -n "${DIREXIO_WORKDIR:-}" ]; then
     printf '%s\n' "$DIREXIO_WORKDIR"
   elif [ -n "${DOMAIN:-}" ]; then
     direxio_service_dir "$DOMAIN"

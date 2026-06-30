@@ -164,7 +164,7 @@ DOMAIN=<domain> MESSAGE_SERVER_IMAGE=direxio/message-server:latest bash scripts/
 
 ```bash
 DIREXIO_RESET_APP_DATA_CONFIRM=1 DOMAIN=<domain> bash scripts/reset-app-data.sh
-P2P_EXISTING_STATE_ACTION=continue DOMAIN=<domain> bash scripts/orchestrate.sh
+DIREXIO_EXISTING_STATE_ACTION=continue DOMAIN=<domain> bash scripts/orchestrate.sh
 ```
 
 清理应用数据卷后，后续 orchestrate 会重新生成本地 credentials/MCP 配置，

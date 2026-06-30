@@ -1,11 +1,11 @@
 # docker-compose.yml - cloud-side Direxio message-server stack.
 #
-# Layers: Caddy (public 443/TLS) -> Direxio message-server (Matrix + P2P API).
-# PostgreSQL 18 persists Matrix and P2P business tables. The local agent bridge
+# Layers: Caddy (public 443/TLS) -> Direxio message-server (Matrix + Direxio API).
+# PostgreSQL 18 persists Matrix and Direxio business tables. The local agent bridge
 # process is not started in the cloud by default.
 
 networks:
-  p2p-net:
+  direxio-net:
 
 volumes:
   postgres-data:
@@ -17,7 +17,7 @@ volumes:
 services:
   postgres:
     image: postgres:18-alpine
-    networks: [p2p-net]
+    networks: [direxio-net]
     environment:
       POSTGRES_USER: direxio_message_server
       POSTGRES_PASSWORD: direxio_message_server
@@ -33,7 +33,7 @@ services:
 
   message-init:
     image: ${MESSAGE_SERVER_IMAGE}
-    networks: [p2p-net]
+    networks: [direxio-net]
     depends_on:
       postgres:
         condition: service_healthy
@@ -58,7 +58,7 @@ services:
 
   message-server:
     image: ${MESSAGE_SERVER_IMAGE}
-    networks: [p2p-net]
+    networks: [direxio-net]
     depends_on:
       postgres:
         condition: service_healthy
@@ -86,7 +86,7 @@ services:
 
   caddy:
     image: caddy:2
-    networks: [p2p-net]
+    networks: [direxio-net]
     depends_on:
       message-server:
         condition: service_healthy

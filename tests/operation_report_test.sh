@@ -59,7 +59,7 @@ json_build object \
   'user_confirmations={"app_initialization":{"status":"confirmed","ts":"2026-06-28T01:02:03Z","evidence":"user completed app initialization with code 12345678; old screenshot showed code 87654321"},"real_chat":{"status":"confirmed","ts":"2026-06-28T01:03:04Z","evidence":"user saw the agent reply; token ACCESS_SECRET stayed local"},"agent_mcp_runtime":{"status":"confirmed","ts":"2026-06-28T01:04:05Z","evidence":"runtime channel probe confirmed with agent token AGENT_SECRET","runtime_summary_status":"passed","runtime_probe_confirmed":true}}' \
   'resources={"instance_id":"i-report","root_volume_id":"vol-report-root","public_ip":"203.0.113.42","eip_id":"eipalloc-report","route53_zone_id":"ZREPORT","route53_zone_name":"report.example.test","route53_zone_created_by_deployer":"true","route53_existing_a_value":"198.51.100.20","route53_pending_a_value":"203.0.113.42","route53_overwrite_confirmed":"true","sg_id":"sg-report","key_name":"direxio-report"}' > "$state"
 
-report_output=$(P2P_WORKDIR="$service_dir" bash "$ROOT/scripts/orchestrate.sh" report new_deploy)
+report_output=$(DIREXIO_WORKDIR="$service_dir" bash "$ROOT/scripts/orchestrate.sh" report new_deploy)
 report_path=$(printf '%s\n' "$report_output" | sed -nE 's/^operation report: //p' | tail -n 1)
 assert_file_exists "$report_path"
 assert_not_contains_secret "$report_path"
@@ -131,7 +131,7 @@ json_build object \
   'resources={"instance_id":"i-residual","root_volume_id":"vol-residual","eip_id":"eipalloc-residual","route53_zone_id":"ZRESIDUAL"}' \
   'destroy_evidence={"ec2_instance":{"status":"running"},"ebs_root_volume":{"status":"available"},"elastic_ip":{"status":"still_allocated"},"route53_hosted_zone":{"status":"still_present"}}' > "$residual_state"
 
-residual_report_output=$(P2P_WORKDIR="$residual_dir" bash "$ROOT/scripts/orchestrate.sh" report destroy)
+residual_report_output=$(DIREXIO_WORKDIR="$residual_dir" bash "$ROOT/scripts/orchestrate.sh" report destroy)
 residual_report_path=$(printf '%s\n' "$residual_report_output" | sed -nE 's/^operation report: //p' | tail -n 1)
 assert_file_exists "$residual_report_path"
 json_test_check "$residual_report_path" "data.operation_type === 'destroy' && data.billing.destroy_cleanup_status === 'possible_billable_resource_residue' && data.billing.possible_remaining_billable_resources.includes('EC2 i-residual status=running') && data.billing.possible_remaining_billable_resources.includes('EBS root volume vol-residual status=available') && data.billing.possible_remaining_billable_resources.includes('Elastic IP eipalloc-residual status=still_allocated') && data.billing.possible_remaining_billable_resources.includes('Route53 hosted zone ZRESIDUAL status=still_present')"

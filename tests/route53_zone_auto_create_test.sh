@@ -8,8 +8,8 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
 export HOME="$tmp/home"
-export P2P_WORKDIR="$tmp/work"
-mkdir -p "$HOME" "$P2P_WORKDIR"
+export DIREXIO_WORKDIR="$tmp/work"
+mkdir -p "$HOME" "$DIREXIO_WORKDIR"
 
 fakebin="$tmp/bin"
 mkdir -p "$fakebin"

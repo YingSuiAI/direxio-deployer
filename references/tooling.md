@@ -99,8 +99,8 @@ Existing profiles can still be used, including root profiles when the operator
 explicitly chooses root credentials:
 
 ```bash
-aws configure --profile p2p-matrix
-export AWS_PROFILE=p2p-matrix
+aws configure --profile direxio-deployer
+export AWS_PROFILE=direxio-deployer
 export AWS_DEFAULT_REGION=us-east-1
 aws sts get-caller-identity
 ```

@@ -105,7 +105,7 @@ update_calls="$tmp/update.calls"
 CALLS="$update_calls" PATH="$fakebin:$PATH" CONNECT_WORK_DIR="$service_dir/cc-connect" MESSAGE_SERVER_IMAGE="direxio/message-server:test" bash "$ROOT/scripts/update.sh" "$state" > "$tmp/update.out"
 assert_not_contains "$tmp/update.out" 'Old user confirmations and runtime checks were cleared'
 assert_not_contains "$tmp/update.out" 'Scoped local bridge daemon was stopped'
-assert_not_contains "$tmp/update.out" 'rerun orchestrate with P2P_EXISTING_STATE_ACTION=continue'
+assert_not_contains "$tmp/update.out" 'rerun orchestrate with DIREXIO_EXISTING_STATE_ACTION=continue'
 
 assert_contains "$update_calls" 'docker compose --env-file \.env pull'
 assert_contains "$update_calls" 'docker compose --env-file \.env up -d'
@@ -142,7 +142,7 @@ reset_calls="$tmp/reset.calls"
 CALLS="$reset_calls" PATH="$fakebin:$PATH" CONNECT_WORK_DIR="$service_dir/cc-connect" DIREXIO_RESET_APP_DATA_CONFIRM=1 bash "$ROOT/scripts/reset-app-data.sh" "$state" > "$tmp/reset.out"
 assert_contains "$tmp/reset.out" 'Old user confirmations and runtime checks were cleared'
 assert_contains "$tmp/reset.out" 'Scoped local bridge daemon was stopped'
-assert_contains "$tmp/reset.out" 'rerun orchestrate with P2P_EXISTING_STATE_ACTION=continue'
+assert_contains "$tmp/reset.out" 'rerun orchestrate with DIREXIO_EXISTING_STATE_ACTION=continue'
 
 assert_contains "$reset_calls" 'docker compose --env-file \.env down'
 assert_contains "$reset_calls" 'docker volume rm'

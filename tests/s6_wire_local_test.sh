@@ -51,24 +51,25 @@ export DIREXIO_AGENT_DETECT_PROCESS=0
 unset DIREXIO_HOME
 [ "$(_direxio_home)" = "$HOME/.direxio" ]
 [ "$(DIREXIO_HOME="$tmp/custom-direxio" _direxio_home)" = "$tmp/custom-direxio" ]
-[ "$(_direxio_service_id "https://IM.Example.test:8443/_p2p")" = "im.example.test-8443" ]
-[ "$(_direxio_service_dir "https://IM.Example.test:8443/_p2p")" = "$HOME/.direxio/nodes/im.example.test-8443" ]
+[ "$(_direxio_service_id "https://Service.Example.test:8443/_p2p")" = "service.example.test-8443" ]
+[ "$(_direxio_service_dir "https://Service.Example.test:8443/_p2p")" = "$HOME/.direxio/nodes/service.example.test-8443" ]
 
-envfile=$(_write_agent_env_file "https://im.example.test" "agent-token" "access-token" "!agents-real:im.example.test")
+envfile=$(_write_agent_env_file "https://service.example.test" "agent-token" "access-token" "!agents-real:service.example.test")
 
 [ "$envfile" = "$HOME/.direxio/env" ]
-grep -q 'DIREXIO_DOMAIN=https://im.example.test' "$envfile"
+grep -q 'DIREXIO_DOMAIN=https://service.example.test' "$envfile"
 grep -q 'DIREXIO_AGENT_TOKEN=agent-token' "$envfile"
-grep -q 'DIREXIO_AGENT_ROOM_ID=\\!agents-real:im.example.test' "$envfile"
+grep -q 'DIREXIO_AGENT_ROOM_ID=\\!agents-real:service.example.test' "$envfile"
 ! grep -q '^export P2P_' "$envfile"
 ! grep -q 'P2P_ADMIN_ACCESS_TOKEN' "$envfile"
 ! grep -q 'P2P_MATRIX_ACCESS_TOKEN' "$envfile"
 
 # shellcheck disable=SC1090
 source "$envfile"
-[ "$DIREXIO_AGENT_ROOM_ID" = "!agents-real:im.example.test" ]
+[ "$DIREXIO_AGENT_ROOM_ID" = "!agents-real:service.example.test" ]
 
-if grep -R 'P2P_MATRIX_AS_URL\|P2P_MATRIX_AGENT_TOKEN\|P2P_AGENT_RUNTIME\|p2p-agent-skill\|p2p-matrix-agent' "$ROOT/scripts" "$ROOT/SKILL.md" "$ROOT/references/runtime-wiring.md"; then
+legacy_p2p_agent_pattern='P2P_MATRIX_AS_URL\|P2P_MATRIX_AGENT_TOKEN\|P2P_AGENT_RUNTIME\|p2p-agent-skill\|p2p-''matrix-agent'
+if grep -R "$legacy_p2p_agent_pattern" "$ROOT/scripts" "$ROOT/SKILL.md" "$ROOT/references/runtime-wiring.md"; then
   echo "deprecated Matrix-AS env names or old agent skill wiring must not be used by deployer wiring" >&2
   exit 1
 fi
@@ -166,7 +167,7 @@ elif [ "$count" -lt "${MATRIX_SUCCESS_AFTER:-2}" ]; then
   printf 'action not ready' > "$out"
   printf '404'
 else
-  printf '{"access_token":"matrix-token","device_id":"DEVICE","user_id":"@agent:im.example.test","homeserver":"https://im.example.test"}' > "$out"
+  printf '{"access_token":"matrix-token","device_id":"DEVICE","user_id":"@agent:service.example.test","homeserver":"https://service.example.test"}' > "$out"
   printf '200'
 fi
 EOF
@@ -175,18 +176,18 @@ MATRIX_RETRY_COUNT="$matrix_retry_dir/count" \
 DIREXIO_MATRIX_SESSION_CREATE_MAX=2 \
 DIREXIO_MATRIX_SESSION_RETRY_INTERVAL=0 \
 PATH="$matrix_retry_dir/bin:$PATH" \
-  _create_cc_connect_matrix_session "https://im.example.test" "agent-token" "DEVICE" "$matrix_retry_dir/session.json"
+  _create_cc_connect_matrix_session "https://service.example.test" "agent-token" "DEVICE" "$matrix_retry_dir/session.json"
 [ "$(cat "$matrix_retry_dir/count")" = "2" ]
-json_test_check "$matrix_retry_dir/session.json" "data.user_id === '@agent:im.example.test' && data.access_token === 'matrix-token'"
+json_test_check "$matrix_retry_dir/session.json" "data.user_id === '@agent:service.example.test' && data.access_token === 'matrix-token'"
 
 rm -f "$matrix_retry_dir/count" "$matrix_retry_dir/session.json"
 MATRIX_RETRY_COUNT="$matrix_retry_dir/count" \
 MATRIX_SUCCESS_AFTER=6 \
 DIREXIO_MATRIX_SESSION_RETRY_INTERVAL=0 \
 PATH="$matrix_retry_dir/bin:$PATH" \
-  _create_cc_connect_matrix_session "https://im.example.test" "agent-token" "DEVICE" "$matrix_retry_dir/session.json"
+  _create_cc_connect_matrix_session "https://service.example.test" "agent-token" "DEVICE" "$matrix_retry_dir/session.json"
 [ "$(cat "$matrix_retry_dir/count")" = "6" ]
-json_test_check "$matrix_retry_dir/session.json" "data.user_id === '@agent:im.example.test' && data.access_token === 'matrix-token'"
+json_test_check "$matrix_retry_dir/session.json" "data.user_id === '@agent:service.example.test' && data.access_token === 'matrix-token'"
 
 [ "$(_agent_skill_install_path codex)" = "PROJECT_ROOT/.codex/skills/direxio-deployer" ]
 [ "$(_agent_skill_install_path claude-code)" = "PROJECT_ROOT/.claude/skills/direxio-deployer" ]
@@ -209,15 +210,15 @@ json_test_check "$matrix_retry_dir/session.json" "data.user_id === '@agent:im.ex
 [ "$(_agent_workspace "$tmp/service")" = "$tmp/service/workspace" ]
 [ "$(DIREXIO_AGENT_WORKSPACE="$tmp/custom-workspace" _agent_workspace "$tmp/service")" = "$tmp/custom-workspace" ]
 
-install_command=$(_agent_install_command "direxio-connect" "$HOME/.direxio/nodes/im.example.test/cc-connect/config.toml" "im.example.test")
+install_command=$(_agent_install_command "direxio-connect" "$HOME/.direxio/nodes/service.example.test/cc-connect/config.toml" "service.example.test")
 case "$install_command" in
-  *"npm install -g"*"direxio-connent@latest"*"direxio-connect"*"daemon install"*"--config"*"im.example.test/cc-connect/config.toml"*"--service-name"*"im.example.test"*"--force"*) ;;
+  *"npm install -g"*"direxio-connent@latest"*"direxio-connect"*"daemon install"*"--config"*"service.example.test/cc-connect/config.toml"*"--service-name"*"service.example.test"*"--force"*) ;;
   *)
     echo "install command did not include expected cc-connect daemon flags: $install_command" >&2
     exit 1
     ;;
 esac
-custom_install_command=$(DIREXIO_CC_CONNECT_NPM_PACKAGE='direxio-connent@1.3.11' _agent_install_command "direxio-connect" "$HOME/.direxio/nodes/im.example.test/cc-connect/config.toml" "im.example.test")
+custom_install_command=$(DIREXIO_CC_CONNECT_NPM_PACKAGE='direxio-connent@1.3.11' _agent_install_command "direxio-connect" "$HOME/.direxio/nodes/service.example.test/cc-connect/config.toml" "service.example.test")
 [[ "$custom_install_command" == *"direxio-connent@1.3.11"* ]]
 
 [ "$(DIREXIO_LOCAL_PATH_STYLE=windows _local_connect_path '/mnt/c/Users/alice/.direxio/nodes/im/cc-connect/config.toml')" = "C:/Users/alice/.direxio/nodes/im/cc-connect/config.toml" ]
@@ -226,7 +227,7 @@ windows_install_command=$(DIREXIO_LOCAL_PATH_STYLE=windows _agent_install_comman
 [[ "$windows_install_command" == *"C:/Users/alice/.direxio/nodes/im/cc-connect/config.toml"* ]]
 [[ "$windows_install_command" == *"--service-name im"* ]]
 
-[ "$(_mcp_server_name "im.example.test")" = "direxio-im_example_test" ]
+[ "$(_mcp_server_name "service.example.test")" = "direxio-service_example_test" ]
 [ "$(_mcp_server_name "T1.Direxio.AI")" = "direxio-t1_direxio_ai" ]
 
 mcp_service_dir="$tmp/mcp-service"
@@ -239,7 +240,7 @@ expected_mcp_credentials="$mcp_credentials"
 if command -v cygpath >/dev/null 2>&1; then
   expected_mcp_credentials=$(cygpath -m "$expected_mcp_credentials")
 fi
-_write_mcp_config_artifacts "im.example.test" "$mcp_service_dir" "$mcp_credentials" "codex-im-example"
+_write_mcp_config_artifacts "service.example.test" "$mcp_service_dir" "$mcp_credentials" "codex-service-example"
 [ -s "$mcp_service_dir/mcp/codex.toml" ]
 [ -s "$mcp_service_dir/mcp/openclaw.md" ]
 [ -s "$mcp_service_dir/mcp/openclaw-server.json" ]
@@ -247,7 +248,7 @@ _write_mcp_config_artifacts "im.example.test" "$mcp_service_dir" "$mcp_credentia
 [ -s "$mcp_service_dir/mcp/hermes.mcp.json" ]
 [ -s "$mcp_service_dir/mcp/mcp-servers.json" ]
 [ -s "$mcp_service_dir/mcp/env" ]
-grep -q '\[mcp_servers."direxio-im_example_test"\]' "$mcp_service_dir/mcp/codex.toml"
+grep -q '\[mcp_servers."direxio-service_example_test"\]' "$mcp_service_dir/mcp/codex.toml"
 grep -q 'command = "direxio-mcp"' "$mcp_service_dir/mcp/codex.toml"
 grep -q 'DIREXIO_CREDENTIALS_FILE' "$mcp_service_dir/mcp/codex.toml"
 grep -q "$mcp_credentials" "$mcp_service_dir/mcp/codex.toml"
@@ -257,16 +258,16 @@ if json_check "$mcp_service_dir/mcp/openclaw-server.json" "'mcp' in data || 'mcp
   echo "OpenClaw server object must not be a root openclaw.json or mcpServers snippet" >&2
   exit 1
 fi
-grep -q 'openclaw mcp set direxio-im_example_test' "$mcp_service_dir/mcp/openclaw.md"
+grep -q 'openclaw mcp set direxio-service_example_test' "$mcp_service_dir/mcp/openclaw.md"
 grep -q 'Do not paste' "$mcp_service_dir/mcp/openclaw.md"
 grep -q 'openclaw.json' "$mcp_service_dir/mcp/openclaw.md"
-json_test_check "$mcp_service_dir/mcp/hermes.mcp.json" "data.mcpServers['direxio-im_example_test'].env.DIREXIO_CREDENTIALS_FILE === '$expected_mcp_credentials'"
-grep -q 'DIREXIO_AGENT_NODE_ID=codex-im-example' "$mcp_service_dir/mcp/env"
+json_test_check "$mcp_service_dir/mcp/hermes.mcp.json" "data.mcpServers['direxio-service_example_test'].env.DIREXIO_CREDENTIALS_FILE === '$expected_mcp_credentials'"
+grep -q 'DIREXIO_AGENT_NODE_ID=codex-service-example' "$mcp_service_dir/mcp/env"
 mcp_install_command=$(_mcp_install_command)
 [[ "$mcp_install_command" == *"npm install -g"*"direxio-mcp@latest"* ]]
 custom_mcp_install_command=$(DIREXIO_MCP_NPM_PACKAGE='direxio-mcp@0.1.7' _mcp_install_command)
 [[ "$custom_mcp_install_command" == *"direxio-mcp@0.1.7"* ]]
-mcp_doctor_command=$(_mcp_doctor_command "$mcp_credentials" "codex-im-example")
+mcp_doctor_command=$(_mcp_doctor_command "$mcp_credentials" "codex-service-example")
 [[ "$mcp_doctor_command" == *"DIREXIO_CREDENTIALS_FILE="* ]]
 [[ "$mcp_doctor_command" == *"direxio-mcp doctor --json"* ]]
 
@@ -277,16 +278,16 @@ matching_node_id=$(DIREXIO_AGENT_NODE_ID=codex-new.example.test-123 _agent_node_
 [ "$matching_node_id" = "codex-new.example.test-123" ]
 
 config_path="$tmp/cc-connect/config.toml"
-_write_cc_connect_config "$config_path" "$tmp/cc-connect/data" "codex-node" "codex" "$tmp/workspace" "https://im.example.test" "matrix-token" "@agent:im.example.test" "!agents-real:im.example.test" "@owner:im.example.test"
+_write_cc_connect_config "$config_path" "$tmp/cc-connect/data" "codex-node" "codex" "$tmp/workspace" "https://service.example.test" "matrix-token" "@agent:service.example.test" "!agents-real:service.example.test" "@owner:service.example.test"
 grep -q 'type = "matrix"' "$config_path"
 grep -q 'type = "codex"' "$config_path"
-grep -q 'admin_from = "@owner:im.example.test"' "$config_path"
+grep -q 'admin_from = "@owner:service.example.test"' "$config_path"
 awk '/^\[projects.agent.options\]/{in_options=1} /^admin_from = / && in_options{exit 1}' "$config_path"
 grep -q 'backend = "app_server"' "$config_path"
 grep -q 'app_server_url = "stdio"' "$config_path"
 grep -q 'mode = "yolo"' "$config_path"
-grep -q 'room_id = "!agents-real:im.example.test"' "$config_path"
-grep -q 'user_id = "@agent:im.example.test"' "$config_path"
+grep -q 'room_id = "!agents-real:service.example.test"' "$config_path"
+grep -q 'user_id = "@agent:service.example.test"' "$config_path"
 grep -q 'share_session_in_channel = true' "$config_path"
 grep -q 'group_reply_all = true' "$config_path"
 grep -q 'auto_join = false' "$config_path"
@@ -297,7 +298,7 @@ speech_config_path="$tmp/cc-connect/config-with-speech.toml"
 DIREXIO_SPEECH_API_KEY=speech-key \
 DIREXIO_SPEECH_BASE_URL=https://stt.example.test/v1 \
 DIREXIO_SPEECH_MODEL=whisper-test \
-  _write_cc_connect_config "$speech_config_path" "$tmp/cc-connect/data-speech" "codex-node" "codex" "$tmp/workspace" "https://im.example.test" "matrix-token" "@agent:im.example.test" "!agents-real:im.example.test" "@owner:im.example.test"
+  _write_cc_connect_config "$speech_config_path" "$tmp/cc-connect/data-speech" "codex-node" "codex" "$tmp/workspace" "https://service.example.test" "matrix-token" "@agent:service.example.test" "!agents-real:service.example.test" "@owner:service.example.test"
 grep -q '^\[speech\]$' "$speech_config_path"
 grep -q 'enabled = true' "$speech_config_path"
 grep -q 'provider = "openai"' "$speech_config_path"
@@ -328,17 +329,17 @@ grep -q 'model = "whisper-test"' "$speech_config_path"
 [ "$(DIREXIO_HERMES_COMMAND=/opt/hermes/bin/hermes _cc_connect_agent_command acp hermes)" = "direxio-connect" ]
 
 cmd_config_path="$tmp/cc-connect/config-with-cmd.toml"
-_write_cc_connect_config "$cmd_config_path" "$tmp/cc-connect/data-cmd" "codex-node" "codex" "$tmp/workspace" "https://im.example.test" "matrix-token" "@agent:im.example.test" "!agents-real:im.example.test" "@owner:im.example.test" "/opt/codex/bin/codex"
+_write_cc_connect_config "$cmd_config_path" "$tmp/cc-connect/data-cmd" "codex-node" "codex" "$tmp/workspace" "https://service.example.test" "matrix-token" "@agent:service.example.test" "!agents-real:service.example.test" "@owner:service.example.test" "/opt/codex/bin/codex"
 grep -q 'cmd = "/opt/codex/bin/codex"' "$cmd_config_path"
 
 options_config_path="$tmp/cc-connect/config-with-extra-options.toml"
-_write_cc_connect_config "$options_config_path" "$tmp/cc-connect/data-options" "reasonix-node" "reasonix" "$tmp/workspace" "https://im.example.test" "matrix-token" "@agent:im.example.test" "!agents-real:im.example.test" "@owner:im.example.test" "" 'serve_url = "http://127.0.0.1:8080"'
+_write_cc_connect_config "$options_config_path" "$tmp/cc-connect/data-options" "reasonix-node" "reasonix" "$tmp/workspace" "https://service.example.test" "matrix-token" "@agent:service.example.test" "!agents-real:service.example.test" "@owner:service.example.test" "" 'serve_url = "http://127.0.0.1:8080"'
 grep -q 'type = "reasonix"' "$options_config_path"
 grep -q 'serve_url = "http://127.0.0.1:8080"' "$options_config_path"
 ! grep -q 'backend = "app_server"' "$options_config_path"
 
 codex_options_config_path="$tmp/cc-connect/config-with-codex-extra-options.toml"
-_write_cc_connect_config "$codex_options_config_path" "$tmp/cc-connect/data-codex-options" "codex-node" "codex" "$tmp/workspace" "https://im.example.test" "matrix-token" "@agent:im.example.test" "!agents-real:im.example.test" "@owner:im.example.test" "" $'mode = "full-auto"\nmodel = "gpt-5.5"'
+_write_cc_connect_config "$codex_options_config_path" "$tmp/cc-connect/data-codex-options" "codex-node" "codex" "$tmp/workspace" "https://service.example.test" "matrix-token" "@agent:service.example.test" "!agents-real:service.example.test" "@owner:service.example.test" "" $'mode = "full-auto"\nmodel = "gpt-5.5"'
 grep -q 'backend = "app_server"' "$codex_options_config_path"
 grep -q 'app_server_url = "stdio"' "$codex_options_config_path"
 grep -q 'mode = "full-auto"' "$codex_options_config_path"
@@ -356,12 +357,12 @@ cat > "$fakebin/direxio-connect" <<'EOF'
 set -euo pipefail
 if [ "${1:-}" = "daemon" ] && [ "${2:-}" = "install" ]; then
   [ "${5:-}" = "--service-name" ]
-  [ "${6:-}" = "im.example.test" ]
+  [ "${6:-}" = "service.example.test" ]
   exit 0
 fi
 if [ "${1:-}" = "daemon" ] && [ "${2:-}" = "status" ]; then
   [ "${3:-}" = "--service-name" ]
-  [ "${4:-}" = "im.example.test" ]
+  [ "${4:-}" = "service.example.test" ]
   cat <<STATUS
 direxio-connect daemon status
 
@@ -376,7 +377,7 @@ EOF
 chmod 700 "$fakebin/npm" "$fakebin/direxio-connect"
 STATE_CALLS="$tmp/state.calls"
 : > "$STATE_CALLS"
-PATH="$fakebin:$PATH" _maybe_auto_install_cc_connect auto codex codex "$tmp/service" "$tmp/service/cc-connect/config.toml" direxio-connect im.example.test
+PATH="$fakebin:$PATH" _maybe_auto_install_cc_connect auto codex codex "$tmp/service" "$tmp/service/cc-connect/config.toml" direxio-connect service.example.test
 grep -q '^agent_install_status=install_failed$' "$STATE_CALLS"
 
 STATE_CALLS="$tmp/mcp-state.calls"
@@ -442,21 +443,21 @@ hermes_custom_args_options=$(DIREXIO_HERMES_ACP_ARGS_TOML='["acp", "--profile", 
 [[ "$hermes_custom_args_options" == *'args = ["hermes-acp-adapter", "--", "hermes", "acp", "--profile", "direxio"]'* ]]
 
 openclaw_config_path="$tmp/cc-connect/config-openclaw.toml"
-_write_cc_connect_config "$openclaw_config_path" "$tmp/cc-connect/data-openclaw" "openclaw-node" "$(_cc_connect_agent_type openclaw)" "$tmp/workspace" "https://im.example.test" "matrix-token" "@agent:im.example.test" "!agents-real:im.example.test" "@owner:im.example.test" "$(_cc_connect_agent_command acp openclaw)" "$openclaw_options"
+_write_cc_connect_config "$openclaw_config_path" "$tmp/cc-connect/data-openclaw" "openclaw-node" "$(_cc_connect_agent_type openclaw)" "$tmp/workspace" "https://service.example.test" "matrix-token" "@agent:service.example.test" "!agents-real:service.example.test" "@owner:service.example.test" "$(_cc_connect_agent_command acp openclaw)" "$openclaw_options"
 grep -q 'type = "acp"' "$openclaw_config_path"
 grep -q 'cmd = "openclaw"' "$openclaw_config_path"
 grep -q 'args = \["acp", "--url", "ws://127.0.0.1:18790", "--token-file", "/mnt/c/Users/alice/.openclaw/gateway.token", "--session", "agent:main:main"\]' "$openclaw_config_path"
 grep -q 'display_name = "OpenClaw ACP"' "$openclaw_config_path"
 
 hermes_config_path="$tmp/cc-connect/config-hermes.toml"
-_write_cc_connect_config "$hermes_config_path" "$tmp/cc-connect/data-hermes" "hermes-node" "$(_cc_connect_agent_type hermes)" "$tmp/workspace" "https://im.example.test" "matrix-token" "@agent:im.example.test" "!agents-real:im.example.test" "@owner:im.example.test" "$(_cc_connect_agent_command acp hermes)" "$(_cc_connect_agent_options_toml hermes acp)"
+_write_cc_connect_config "$hermes_config_path" "$tmp/cc-connect/data-hermes" "hermes-node" "$(_cc_connect_agent_type hermes)" "$tmp/workspace" "https://service.example.test" "matrix-token" "@agent:service.example.test" "!agents-real:service.example.test" "@owner:service.example.test" "$(_cc_connect_agent_command acp hermes)" "$(_cc_connect_agent_options_toml hermes acp)"
 grep -q 'type = "acp"' "$hermes_config_path"
 grep -q 'cmd = "direxio-connect"' "$hermes_config_path"
 grep -q 'args = \["hermes-acp-adapter", "--", "hermes", "acp"\]' "$hermes_config_path"
 grep -q 'display_name = "Hermes ACP"' "$hermes_config_path"
 
 guidance=$(
-  _print_cc_connect_guidance codex https://im.example.test "$HOME/.direxio/nodes/im.example.test/credentials.json" "$HOME/.direxio/nodes/im.example.test/env" recommend cc-connect "install command" codex-im "$config_path" "$HOME/.direxio/nodes/im.example.test/cc-connect/bin/direxio-connect" codex "/opt/codex/bin/codex" im.example.test 2>&1 >/dev/null
+  _print_cc_connect_guidance codex https://service.example.test "$HOME/.direxio/nodes/service.example.test/credentials.json" "$HOME/.direxio/nodes/service.example.test/env" recommend cc-connect "install command" codex-service "$config_path" "$HOME/.direxio/nodes/service.example.test/cc-connect/bin/direxio-connect" codex "/opt/codex/bin/codex" service.example.test 2>&1 >/dev/null
 )
 [[ "$guidance" == *"DIREXIO_DOMAIN"* ]]
 [[ "$guidance" == *"DIREXIO_AGENT_TOKEN"* ]]

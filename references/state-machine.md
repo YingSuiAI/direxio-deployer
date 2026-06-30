@@ -17,7 +17,7 @@
 
 - `postgres`: PostgreSQL 18，数据卷 `/var/lib/postgresql`。
 - `message-init`: 生成 Direxio message-server 配置和 TURN 配置。
-- `message-server`: 运行 Matrix + P2P 统一后端，公开容器内 8008。
+- `message-server`: 运行 Matrix + Direxio 统一后端，公开容器内 8008。
 - `caddy`: 对外 80/443，反代 `/_matrix/*` 和 `/_p2p/*`。
 - `coturn`: TURN relay。
 

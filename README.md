@@ -167,7 +167,7 @@ Reset application data while preserving EC2, DNS, fixed IP, and Caddy TLS:
 
 ```bash
 DIREXIO_RESET_APP_DATA_CONFIRM=1 DOMAIN=<domain> bash scripts/reset-app-data.sh
-P2P_EXISTING_STATE_ACTION=continue DOMAIN=<domain> bash scripts/orchestrate.sh
+DIREXIO_EXISTING_STATE_ACTION=continue DOMAIN=<domain> bash scripts/orchestrate.sh
 ```
 
 Application data reset clears server-side app volumes, so the follow-up

@@ -36,7 +36,7 @@ bash -lc 'echo ok; command -v node; command -v aws; command -v ssh; command -v s
 ## Minimal Command
 
 ```bash
-AWS_PROFILE=p2p-matrix \
+AWS_PROFILE=direxio-deployer \
 AWS_DEFAULT_REGION=us-east-1 \
 DOMAIN=__DOMAIN__ \
 DOMAIN_MODE=user \

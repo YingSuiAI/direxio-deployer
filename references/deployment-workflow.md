@@ -31,8 +31,8 @@ DOMAIN=__DOMAIN__ bash scripts/orchestrate.sh status
 If state has resources, require one:
 
 ```bash
-P2P_EXISTING_STATE_ACTION=continue
-P2P_EXISTING_STATE_ACTION=destroy
+DIREXIO_EXISTING_STATE_ACTION=continue
+DIREXIO_EXISTING_STATE_ACTION=destroy
 DOMAIN=<different-domain>
 ```
 
@@ -102,14 +102,14 @@ Destroy allows root AWS access-key identity when the operator explicitly chose
 root credentials. Use the same deployment profile for teardown that was used
 for provisioning.
 
-Use `P2P_KEEP_WORKDIR=1 DOMAIN=__DOMAIN__ bash scripts/destroy.sh` on POSIX, or set `$env:P2P_KEEP_WORKDIR = "1"` before `.\scripts\destroy.ps1` on Windows, only when preserving local state files for debugging; if used, report that the service directory still exists.
+Use `DIREXIO_KEEP_WORKDIR=1 DOMAIN=__DOMAIN__ bash scripts/destroy.sh` on POSIX, or set `$env:DIREXIO_KEEP_WORKDIR = "1"` before `.\scripts\destroy.ps1` on Windows, only when preserving local state files for debugging; if used, report that the service directory still exists.
 
 ## Run
 
 From the repository root:
 
 ```bash
-AWS_PROFILE=p2p-matrix \
+AWS_PROFILE=direxio-deployer \
 AWS_DEFAULT_REGION=us-east-1 \
 DOMAIN=__DOMAIN__ \
 DOMAIN_MODE=user \
@@ -208,7 +208,7 @@ data:
 
 ```bash
 DOMAIN=__DOMAIN__ MESSAGE_SERVER_IMAGE=direxio/message-server:latest bash scripts/update.sh
-P2P_EXISTING_STATE_ACTION=continue DOMAIN=__DOMAIN__ bash scripts/orchestrate.sh
+DIREXIO_EXISTING_STATE_ACTION=continue DOMAIN=__DOMAIN__ bash scripts/orchestrate.sh
 ```
 
 `update.sh` SSHes to the recorded EC2 instance, runs Docker Compose pull/up,
@@ -225,7 +225,7 @@ TLS volumes:
 
 ```bash
 DIREXIO_RESET_APP_DATA_CONFIRM=1 DOMAIN=__DOMAIN__ bash scripts/reset-app-data.sh
-P2P_EXISTING_STATE_ACTION=continue DOMAIN=__DOMAIN__ bash scripts/orchestrate.sh
+DIREXIO_EXISTING_STATE_ACTION=continue DOMAIN=__DOMAIN__ bash scripts/orchestrate.sh
 ```
 
 `reset-app-data.sh` removes only `postgres-data`, `message-config`, and
@@ -261,9 +261,9 @@ If rate-limited, the log shows `retry after <timestamp> UTC`.
    ```
    Once the endpoint returns 200, re-run orchestrate.sh to complete:
    ```bash
-   P2P_EXISTING_STATE_ACTION=continue \
+   DIREXIO_EXISTING_STATE_ACTION=continue \
    DNS_READY=1 \
-   AWS_PROFILE=p2p-matrix \
+   AWS_PROFILE=direxio-deployer \
    AWS_DEFAULT_REGION=us-east-1 \
    DOMAIN=<DOMAIN> \
    DOMAIN_MODE=route53 \
@@ -298,7 +298,7 @@ that the old IP is safe to replace:
 
 ```bash
 DIREXIO_CONFIRM_DNS_OVERWRITE=1 \
-P2P_EXISTING_STATE_ACTION=continue \
+DIREXIO_EXISTING_STATE_ACTION=continue \
 DOMAIN=__DOMAIN__ \
 DOMAIN_MODE=route53 \
 CONFIRM_DOMAIN_BINDING=1 \
@@ -315,7 +315,7 @@ node scripts/json.mjs get ~/.direxio/nodes/<service_id>/state.json resources
 After authoritative DNS returns the new IP, continue with the same state:
 
 ```bash
-P2P_EXISTING_STATE_ACTION=continue \
+DIREXIO_EXISTING_STATE_ACTION=continue \
 DOMAIN=__DOMAIN__ \
 DOMAIN_MODE=route53 \
 CONFIRM_DOMAIN_BINDING=1 \
@@ -341,14 +341,14 @@ After authoritative DNS returns the new IP:
 
 ```bash
 DNS_READY=1 \
-AWS_PROFILE=p2p-matrix \
+AWS_PROFILE=direxio-deployer \
 AWS_DEFAULT_REGION=us-east-1 \
 DOMAIN=__DOMAIN__ \
 DOMAIN_MODE=user \
 CONFIRM_DOMAIN_BINDING=1 \
 INSTANCE_TYPE=t3.small \
 MESSAGE_SERVER_IMAGE=direxio/message-server:latest \
-P2P_EXISTING_STATE_ACTION=continue \
+DIREXIO_EXISTING_STATE_ACTION=continue \
 bash scripts/orchestrate.sh
 ```
 

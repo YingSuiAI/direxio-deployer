@@ -10,12 +10,12 @@ When an agent runtime supports skill metadata, point it at `SKILL.md` and use `s
 
 Recognition keywords:
 
-- deploy P2P-IM Matrix
-- resume P2P Matrix deployment
-- verify P2P Matrix server
-- destroy P2P Matrix AWS resources
+- deploy Direxio
+- resume Direxio deployment
+- verify Direxio message server
+- destroy Direxio AWS resources
 - wire Direxio MCP/plugin
-- refresh P2P agent token
+- refresh Direxio agent token
 
 Required capabilities:
 

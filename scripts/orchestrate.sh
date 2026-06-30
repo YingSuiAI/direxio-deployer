@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# orchestrate.sh - p2p-matrix deployment state-machine engine.
+# orchestrate.sh - Direxio deployment state-machine engine.
 #
-# Turns "one AWS credential -> working IM server -> local direxio-connect bridge" into 8 phases
-# (S0..S7). State is persisted to $P2P_WORKDIR/state.json and supports:
+# Turns "one AWS credential -> working Direxio server -> local direxio-connect bridge" into 8 phases
+# (S0..S7). State is persisted to $DIREXIO_WORKDIR/state.json and supports:
 #   - resume: continue from the first unfinished phase
 #   - checkpoints: wait for user/AWS actions without losing progress
 #   - destroy: every AWS resource is recorded for destroy.sh
@@ -21,7 +21,7 @@
 set -uo pipefail
 
 HERE=$(cd "$(dirname "$0")" && pwd)
-P2P_INSTALL_SCRIPTS_DIR="$HERE"
+DIREXIO_INSTALL_SCRIPTS_DIR="$HERE"
 
 # Prefer workspace-local tools when present.
 REPO_ROOT=$(cd "$HERE/.." && pwd)
@@ -30,7 +30,6 @@ if [ -d "$REPO_ROOT/.tools/bin" ]; then
   export PATH
 fi
 
-P2P_WORKDIR_WAS_SET=${P2P_WORKDIR+x}
 DIREXIO_WORKDIR_WAS_SET=${DIREXIO_WORKDIR+x}
 
 source "$HERE/lib/state.sh"
@@ -67,8 +66,8 @@ check_deps() {
       warn "Install AWS CLI v2 and configure credentials first:"
       warn "  macOS: curl 'https://awscli.amazonaws.com/AWSCLIV2.pkg' -o AWSCLIV2.pkg && sudo installer -pkg ./AWSCLIV2.pkg -target /"
       warn "  Linux x86_64: curl 'https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip' -o awscliv2.zip && unzip awscliv2.zip && sudo ./aws/install"
-      warn "  Configure: aws configure --profile p2p-matrix"
-      warn "  Use: export AWS_PROFILE=p2p-matrix AWS_DEFAULT_REGION=<region>"
+      warn "  Configure: aws configure --profile direxio-deployer"
+      warn "  Use: export AWS_PROFILE=direxio-deployer AWS_DEFAULT_REGION=<region>"
       warn "See references/user-journey.md for the AWS CLI setup guide."
       ;;
   esac
@@ -184,7 +183,7 @@ status_resume_safety() {
   local current=$1 billable
   billable=$(recorded_billable_resources)
   if [ -n "$billable" ] || phase_at_or_after_s3 "$current"; then
-    echo "do not reset state; fix the issue and rerun with P2P_EXISTING_STATE_ACTION=continue"
+    echo "do not reset state; fix the issue and rerun with DIREXIO_EXISTING_STATE_ACTION=continue"
   else
     echo "safe to rerun the same command after the next action is complete"
   fi
@@ -257,12 +256,12 @@ print_recovery_summary() {
 
 cmd_status() {
   if [ ! -f "$STATE_JSON" ]; then
-    if [ -z "${DOMAIN:-}" ] && [ -z "$P2P_WORKDIR_WAS_SET" ] && [ -z "$DIREXIO_WORKDIR_WAS_SET" ]; then
+    if [ -z "${DOMAIN:-}" ] && [ -z "$DIREXIO_WORKDIR_WAS_SET" ]; then
       cmd_status_inventory
       return 0
     fi
     warn "state.json not found: $STATE_JSON"
-    warn "Set DOMAIN=<service domain> or explicit P2P_WORKDIR=<service dir> to inspect a specific deployment."
+    warn "Set DOMAIN=<service domain> or explicit DIREXIO_WORKDIR=<service dir> to inspect a specific deployment."
     return 0
   fi
   echo "run_id     : $(state_get run_id)"
@@ -426,7 +425,7 @@ precheck_new_deploy_domain_env() {
     return 2
   fi
   if [ -z "$domain" ]; then
-    warn "Deployment blocked: DOMAIN is missing. P2P-IM requires a confirmed production Matrix server_name."
+    warn "Deployment blocked: DOMAIN is missing. Direxio requires a confirmed production Matrix server_name."
     warn "Use this skill to prepare domain/DNS, then rerun:"
     warn "  DOMAIN=__DOMAIN__ DOMAIN_MODE=user CONFIRM_DOMAIN_BINDING=1 bash $0"
     return 2
@@ -473,7 +472,7 @@ ensure_production_domain_selected() {
     return 2
   fi
   if [ -z "$domain" ]; then
-    warn "Deployment blocked: DOMAIN is missing. P2P-IM requires a confirmed production Matrix server_name."
+    warn "Deployment blocked: DOMAIN is missing. Direxio requires a confirmed production Matrix server_name."
     warn "Use this skill to prepare domain/DNS, then rerun:"
     warn "  DOMAIN=__DOMAIN__ DOMAIN_MODE=user CONFIRM_DOMAIN_BINDING=1 bash $0"
     return 2
@@ -501,14 +500,14 @@ guard_existing_state() {
   if [ "$(json_get "$STATE_JSON" domain_mode)" = "ec2" ]; then
     warn "Found legacy temporary-domain deployment state (domain_mode=ec2). Production deployment no longer supports resuming this mode."
     warn "Destroy and rebuild, or use a new service directory:"
-    warn "  P2P_EXISTING_STATE_ACTION=destroy bash $0"
+    warn "  DIREXIO_EXISTING_STATE_ACTION=destroy bash $0"
     warn "  DOMAIN=__DOMAIN__ DOMAIN_MODE=user CONFIRM_DOMAIN_BINDING=1 bash $0"
     return 2
   fi
   confirmed=$(json_get "$STATE_JSON" existing_state_confirmed false)
   [ "$confirmed" = "true" ] && return 0
 
-  action=${P2P_EXISTING_STATE_ACTION:-}
+  action=${DIREXIO_EXISTING_STATE_ACTION:-}
   if [ -z "$action" ] && [ -t 0 ]; then
     warn "Found existing deployment state with recorded AWS resources:"
     json_entries "$STATE_JSON" resources | sed 's/^/  /' >&2
@@ -529,12 +528,12 @@ guard_existing_state() {
       return 0 ;;
     ""|abort)
       warn "Existing service state must be handled explicitly to avoid accidental reuse or duplicate EC2 creation."
-      warn "Resume:  P2P_EXISTING_STATE_ACTION=continue bash $0"
-      warn "Rebuild: P2P_EXISTING_STATE_ACTION=destroy bash $0"
+      warn "Resume:  DIREXIO_EXISTING_STATE_ACTION=continue bash $0"
+      warn "Rebuild: DIREXIO_EXISTING_STATE_ACTION=destroy bash $0"
       warn "New service: DOMAIN=__DOMAIN__ DOMAIN_MODE=user CONFIRM_DOMAIN_BINDING=1 bash $0"
       return 2 ;;
     *)
-      warn "Unknown P2P_EXISTING_STATE_ACTION=$action (expected continue|destroy|abort)."
+      warn "Unknown DIREXIO_EXISTING_STATE_ACTION=$action (expected continue|destroy|abort)."
       return 2 ;;
   esac
 }
