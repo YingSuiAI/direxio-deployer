@@ -94,14 +94,14 @@ function main() {
 
 function usage(exitCode) {
   const output = `Usage:
-  direxio-deployer skill install --agent <runtime> [--scope project|global] [--project <path>]
-  direxio-deployer skill update --agent <runtime> [--scope project|global] [--project <path>]
-  direxio-deployer skill refresh --agent <runtime> [--scope project|global] [--project <path>]
+  direxio-deployer skill install --agent <runtime> [--scope global|project] [--project <path>]
+  direxio-deployer skill update --agent <runtime> [--scope global|project] [--project <path>]
+  direxio-deployer skill refresh --agent <runtime> [--scope global|project] [--project <path>]
 
 Options:
   --agent <runtime>   Target agent runtime. Default: codex
-  --scope <scope>     project or global. Default: project
-  --project <path>    Project root for project installs. Default: current directory
+  --scope <scope>     global or project. Default: global
+  --project <path>    Project root for explicit project installs. Default: current directory
   --target <path>     Explicit install target override
   --home <path>       Home directory override for global installs
   --dry-run           Resolve and print without writing
@@ -115,7 +115,7 @@ Options:
 function parseArgs(args) {
   const options = {
     agent: "codex",
-    scope: "project",
+    scope: "global",
     project: process.cwd(),
     home: homedir(),
     target: null,

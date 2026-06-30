@@ -5,7 +5,7 @@
 ## 阶段
 
 - **S0_PREREQ_AWS**: 校验 AWS CLI、凭据和账号身份。
-- **S1_PREFLIGHT**: 校验 region、默认 VPC、vCPU 配额、Ubuntu amd64 AMI。
+- **S1_PREFLIGHT**: 校验 region、默认 VPC、vCPU 配额、Elastic IP 可用配额、Ubuntu amd64 AMI。
 - **S2_DOMAIN**: 确认正式长期域名和 Matrix `server_name` 不可逆绑定。
 - **S3_PROVISION**: 创建 EC2、密钥对、安全组、Elastic IP，按 DNS 模式处理 Route53 hosted zone/A 记录或等待外部 DNS，渲染 cloud-init。默认镜像 `MESSAGE_SERVER_IMAGE=direxio/message-server:latest`。
 - **S4_BOOTSTRAP_STACK**: 等 cloud-init 安装 Docker 并启动 `postgres:18 + message-server + caddy + coturn`，轮询 `https://<domain>/healthz`。

@@ -161,6 +161,9 @@ done
 if [ "$count" -eq 1 ]; then
   printf 'transient network failure' > "$out"
   printf '000'
+elif [ "$count" -lt "${MATRIX_SUCCESS_AFTER:-2}" ]; then
+  printf 'action not ready' > "$out"
+  printf '404'
 else
   printf '{"access_token":"matrix-token","device_id":"DEVICE","user_id":"@agent:im.example.test","homeserver":"https://im.example.test"}' > "$out"
   printf '200'
@@ -173,6 +176,15 @@ DIREXIO_MATRIX_SESSION_RETRY_INTERVAL=0 \
 PATH="$matrix_retry_dir/bin:$PATH" \
   _create_cc_connect_matrix_session "https://im.example.test" "agent-token" "DEVICE" "$matrix_retry_dir/session.json"
 [ "$(cat "$matrix_retry_dir/count")" = "2" ]
+json_test_check "$matrix_retry_dir/session.json" "data.user_id === '@agent:im.example.test' && data.access_token === 'matrix-token'"
+
+rm -f "$matrix_retry_dir/count" "$matrix_retry_dir/session.json"
+MATRIX_RETRY_COUNT="$matrix_retry_dir/count" \
+MATRIX_SUCCESS_AFTER=6 \
+DIREXIO_MATRIX_SESSION_RETRY_INTERVAL=0 \
+PATH="$matrix_retry_dir/bin:$PATH" \
+  _create_cc_connect_matrix_session "https://im.example.test" "agent-token" "DEVICE" "$matrix_retry_dir/session.json"
+[ "$(cat "$matrix_retry_dir/count")" = "6" ]
 json_test_check "$matrix_retry_dir/session.json" "data.user_id === '@agent:im.example.test' && data.access_token === 'matrix-token'"
 
 [ "$(_agent_skill_install_path codex)" = "PROJECT_ROOT/.codex/skills/direxio-deployer" ]

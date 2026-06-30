@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# S1 PREFLIGHT - default VPC, EC2 vCPU quota, and AMI checks.
+# S1 PREFLIGHT - default VPC, EC2 vCPU quota, Elastic IP, and AMI checks.
 #
-# New AWS accounts often start with low or zero EC2 quota. Report the blocker
-# and keep polling instead of losing deployment state.
+# New AWS accounts often start with low or exhausted EC2/EIP quota. Report the
+# blocker before S3 creates resources.
 
 run_phase() {
   aws_env_prep
@@ -37,7 +37,10 @@ run_phase() {
       || { phase_set S1_PREFLIGHT failed "quota polling interrupted"; return 1; }
   fi
 
-  # 3) AMI (amd64/x86).
+  # 3) Elastic IP quota and current regional usage. Unknown quota is warned but not blocked.
+  _check_eip_capacity || return $?
+
+  # 4) AMI (amd64/x86).
   local ami
   ami=$(aws_lookup_ubuntu_ami)
   if [ "$ami" = "None" ] || [ -z "$ami" ]; then
@@ -69,4 +72,34 @@ _quota_ge_2() {
   q=${q:-0}
   _is_unknown_quota "$q" && return 1
   _num_ge "$q" 2
+}
+
+_check_eip_capacity() {
+  local quota allocated available
+  quota=$(aws service-quotas get-service-quota --service-code ec2 --quota-code "$EC2_VPC_EIP_QUOTA_CODE" \
+          --query 'Quota.Value' --output text 2>/dev/null || echo "unknown")
+  quota=${quota:-unknown}
+  allocated=$(aws ec2 describe-addresses \
+              --query 'length(Addresses[?Domain==`vpc`])' --output text 2>/dev/null || echo "unknown")
+  allocated=${allocated:-unknown}
+
+  res_set eip_quota "$quota"
+  res_set eip_allocated "$allocated"
+
+  if _is_unknown_quota "$quota" || _is_unknown_quota "$allocated"; then
+    warn "Could not read Elastic IP quota or current allocation; continuing. If allocate-address fails, check regional EIP quota."
+    return 0
+  fi
+
+  available=$(awk -v q="$quota" -v a="$allocated" 'BEGIN { v=int(q+0)-int(a+0); if (v < 0) v=0; print v }')
+  res_set eip_available "$available"
+  log "Elastic IP quota = $quota, allocated = $allocated, available = $available (need 1)"
+
+  if ! _num_ge "$available" 1; then
+    phase_set S1_PREFLIGHT waiting_user "Elastic IP quota exhausted: allocated=$allocated quota=$quota"
+    warn "This region has no available Elastic IP quota: allocated=$allocated quota=$quota."
+    warn "Release an unused Elastic IP, request a higher EC2-VPC Elastic IP quota, or choose another AWS region, then rerun."
+    return 2
+  fi
+  return 0
 }

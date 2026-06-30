@@ -4,11 +4,24 @@
 
 1. Confirm `DOMAIN`, `DOMAIN_MODE`, and `CONFIRM_DOMAIN_BINDING=1`.
 2. Confirm AWS region, credentials, billing, instance type, and costs.
-3. Check dependencies with the OS-specific commands in `tooling.md`.
-4. Check current DNS provider. Prefer `DOMAIN_MODE=route53` when the user
+3. Before asking for final deployment confirmation, check regional hard blockers
+   that can be read without creating resources: default VPC, EC2 vCPU quota,
+   Elastic IP quota/current allocation, and Ubuntu AMI availability. The S1
+   preflight performs these checks; for a manual EIP check, compare:
+
+```bash
+aws service-quotas get-service-quota --service-code ec2 --quota-code L-0263D0A3 --query 'Quota.Value' --output text
+aws ec2 describe-addresses --query 'length(Addresses[?Domain==`vpc`])' --output text
+```
+
+   If the selected region has no available Elastic IP capacity, stop before
+   confirmation and ask the user to release an unused Elastic IP, request a
+   higher EC2-VPC Elastic IP quota, or choose another region.
+4. Check dependencies with the OS-specific commands in `tooling.md`.
+5. Check current DNS provider. Prefer `DOMAIN_MODE=route53` when the user
    confirms AWS may manage the hosted zone and A record. Use `DOMAIN_MODE=user`
    only as a fallback when no DNS provider automation is available.
-5. Check state:
+6. Check state:
 
 ```bash
 bash scripts/orchestrate.sh status

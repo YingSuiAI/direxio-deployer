@@ -23,9 +23,16 @@ chmod 700 "$tmp/bin/cygpath"
 
 cat > "$tmp/bin/cmd.exe" <<'EOF'
 #!/usr/bin/env bash
-printf 'ADAM\\84960\r\n'
+echo "cmd.exe must not be used for ACL user detection" >&2
+exit 42
 EOF
 chmod 700 "$tmp/bin/cmd.exe"
+
+cat > "$tmp/bin/powershell.exe" <<'EOF'
+#!/usr/bin/env bash
+printf 'ADAM\\84960\r\n'
+EOF
+chmod 700 "$tmp/bin/powershell.exe"
 
 cat > "$tmp/bin/icacls" <<'EOF'
 #!/usr/bin/env bash
@@ -46,6 +53,8 @@ restrict_private_file "$key"
 
 grep -Fq '/inheritance:r' "$ICACLS_LOG"
 grep -Fq 'ADAM\CodexSandboxUsers' "$ICACLS_LOG"
-grep -Fq 'ADAM\84960:R' "$ICACLS_LOG"
+grep -Fq 'NT AUTHORITY\SYSTEM:F' "$ICACLS_LOG"
+grep -Fq 'BUILTIN\Administrators:F' "$ICACLS_LOG"
+grep -Fq 'ADAM\84960:F' "$ICACLS_LOG"
 
 echo "private file permissions ok"

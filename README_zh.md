@@ -17,14 +17,14 @@
 
 ## Skill 安装和更新
 
-通过 npm 安装 deployer skill，再把它写入当前智能体运行时的 skill 目录。默认推荐 project-local 安装，让部署 skill 跟随当前 workspace。
+通过 npm 安装 deployer skill，再把它写入当前智能体运行时的 skill 目录。默认安装到所选智能体运行时的全局 skill 目录；只有在明确希望跟随某个仓库或 workspace 时，才指定 project-local 安装。
 
 GitHub 仓库保留测试用于维护和 CI，但发布到 npm 的包以及安装到智能体 skill 目录的副本不包含 `tests/`，以减小用户安装体积。
 
-如果你想让 Codex 一句话安装并开始部署，不要说“安装 skills <GitHub 链接>”。那会触发 GitHub skill 安装器，容易安装到全局 `~/.codex`。推荐只说短句，让 agent 先读本 README 中的 npm/project-local 安装规则：
+如果你想让 Codex 一句话安装并开始部署，不要说“安装 skills <GitHub 链接>”。那会触发 GitHub skill 安装器，而不是 npm 管理的安装器。推荐只说短句，让 agent 先读本 README 中的 npm 安装规则：
 
 ```text
-请按 direxio-deployer README 的 npm/project-local 规则安装 skill，然后部署 Direxio，域名 __DOMAIN__。
+请按 direxio-deployer README 的 npm 安装规则安装 skill，然后部署 Direxio，域名 __DOMAIN__。
 ```
 
 Agent 读到这句后应执行下方 npm 安装命令；不要改用 GitHub skill installer。
@@ -33,34 +33,34 @@ POSIX shell：
 
 ```bash
 npm install -g direxio-deployer@latest
-direxio-deployer skill install --agent codex --scope project --project .
+direxio-deployer skill install --agent codex
 ```
 
 Windows PowerShell：
 
 ```powershell
 npm install -g direxio-deployer@latest
-direxio-deployer skill install --agent codex --scope project --project .
+direxio-deployer skill install --agent codex
 ```
 
 在同一个宿主运行时中更新已安装 skill：
 
 ```bash
 npm install -g direxio-deployer@latest
-direxio-deployer skill update --agent codex --scope project --project .
+direxio-deployer skill update --agent codex
 ```
 
-根据当前运行时替换 agent 名称：`codex`、`claudecode`、`gemini`、`cursor`、`copilot`、`openclaw`、`hermes`、`opencode`、`qoder`、`reasonix`，或使用 `references/agent-targets.md` 中列出的其他目标。只有明确想安装到宿主级目录时才使用 `--scope global`：
+根据当前运行时替换 agent 名称：`codex`、`claudecode`、`gemini`、`cursor`、`copilot`、`openclaw`、`hermes`、`opencode`、`qoder`、`reasonix`，或使用 `references/agent-targets.md` 中列出的其他目标。只有明确想安装到某个项目目录时才使用 `--scope project --project <path>`：
 
 ```bash
-direxio-deployer skill install --agent codex --scope global
+direxio-deployer skill install --agent codex --scope project --project .
 ```
 
 安装器会在目标目录写入 `.direxio-skill-install.json`，并拒绝覆盖没有该 manifest 的既有目录，除非显式传入 `--force`。如需固定版本，先安装指定 npm 版本：
 
 ```bash
-npm install -g direxio-deployer@0.1.3
-direxio-deployer skill update --agent codex --scope project --project .
+npm install -g direxio-deployer@0.1.4
+direxio-deployer skill update --agent codex
 ```
 
 这个 CLI 由 Node 实现，并使用当前宿主的原生路径。Windows 下写入 Windows 路径；Linux、macOS、Git Bash 或 WSL 下写入对应运行时能读取的路径。

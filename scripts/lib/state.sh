@@ -57,15 +57,33 @@ restrict_private_file() {
       if command -v cygpath >/dev/null 2>&1; then
         win_file=$(cygpath -w "$file")
       fi
-      user=$(cmd.exe /c whoami 2>/dev/null | tr -d '\r' | tail -n 1 || true)
+      user=$(_windows_current_user)
       user_domain=${USERDOMAIN:-}
-      icacls "$win_file" /inheritance:r >/dev/null 2>&1 || true
-      icacls "$win_file" /remove:g \
+      MSYS2_ARG_CONV_EXCL='*' icacls "$win_file" /inheritance:r >/dev/null 2>&1 || true
+      MSYS2_ARG_CONV_EXCL='*' icacls "$win_file" /remove:g \
         "Users" "Authenticated Users" "Everyone" "CodexSandboxUsers" \
         "${user_domain}\\CodexSandboxUsers" >/dev/null 2>&1 || true
-      [ -n "$user" ] && icacls "$win_file" /grant:r "$user:R" >/dev/null 2>&1 || true
+      MSYS2_ARG_CONV_EXCL='*' icacls "$win_file" /grant:r "NT AUTHORITY\\SYSTEM:F" "BUILTIN\\Administrators:F" >/dev/null 2>&1 || true
+      [ -n "$user" ] && MSYS2_ARG_CONV_EXCL='*' icacls "$win_file" /grant:r "$user:F" >/dev/null 2>&1 || true
       ;;
   esac
+}
+
+_windows_current_user() {
+  if [ -n "${USERDOMAIN:-}" ] && [ -n "${USERNAME:-}" ]; then
+    printf '%s\\%s\n' "$USERDOMAIN" "$USERNAME"
+    return 0
+  fi
+  if command -v powershell.exe >/dev/null 2>&1; then
+    powershell.exe -NoProfile -NonInteractive -Command '[System.Security.Principal.WindowsIdentity]::GetCurrent().Name' 2>/dev/null \
+      | tr -d '\r' | tail -n 1
+    return 0
+  fi
+  if command -v whoami.exe >/dev/null 2>&1; then
+    whoami.exe 2>/dev/null | tr -d '\r' | tail -n 1
+    return 0
+  fi
+  return 0
 }
 
 # Initialize state.json for a new deployment.

@@ -52,6 +52,12 @@ NODE
 project="$tmp/project"
 mkdir -p "$project"
 
+"$NODE_BIN" bin/direxio-deployer.mjs skill install --agent codex --home "$tmp/home" > "$tmp/default-global.out"
+global_target="$tmp/home/.codex/skills/direxio-deployer"
+assert_file_exists "$global_target/SKILL.md"
+assert_file_exists "$global_target/.direxio-skill-install.json"
+assert_contains "$global_target/.direxio-skill-install.json" '"scope": "global"'
+
 "$NODE_BIN" bin/direxio-deployer.mjs skill install --agent codex --scope project --project "$project" > "$tmp/install.out"
 target="$project/.codex/skills/direxio-deployer"
 assert_file_exists "$target/SKILL.md"
@@ -88,10 +94,10 @@ if [ -f "$unmanaged_project/.codex/skills/direxio-deployer/manual.txt" ]; then
   exit 1
 fi
 
-"$NODE_BIN" bin/direxio-deployer.mjs skill install --agent gemini --scope global --home "$tmp/home" --dry-run > "$tmp/dry-run.out"
+"$NODE_BIN" bin/direxio-deployer.mjs skill install --agent gemini --home "$tmp/home2" --dry-run > "$tmp/dry-run.out"
 assert_contains "$tmp/dry-run.out" '"dryRun": true'
 assert_contains "$tmp/dry-run.out" '.gemini'
-if [ -e "$tmp/home/.gemini" ]; then
+if [ -e "$tmp/home2/.gemini" ]; then
   echo "dry-run should not create global target directories" >&2
   exit 1
 fi
@@ -109,7 +115,7 @@ custom_target="$tmp/custom target/skill"
 assert_file_exists "$custom_target/SKILL.md"
 assert_file_exists "$custom_target/.direxio-skill-install.json"
 
-"$NODE_BIN" bin/direxio-deployer.mjs skill refresh --agent codex --scope project --project "$project" --dry-run > "$tmp/refresh.out"
+"$NODE_BIN" bin/direxio-deployer.mjs skill refresh --agent codex --home "$tmp/home" --dry-run > "$tmp/refresh.out"
 assert_contains "$tmp/refresh.out" '"command": "refresh"'
 assert_contains "$tmp/refresh.out" '"target"'
 

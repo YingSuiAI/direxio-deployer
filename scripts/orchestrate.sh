@@ -122,7 +122,7 @@ cmd_status_inventory() {
 phase_user_meaning() {
   case "$1" in
     S0_PREREQ_AWS)      echo "AWS credentials, CLI tooling, or account identity are not ready." ;;
-    S1_PREFLIGHT)       echo "AWS region, default VPC, quota, or Ubuntu AMI checks are not ready." ;;
+    S1_PREFLIGHT)       echo "AWS region, default VPC, EC2/EIP quota, or Ubuntu AMI checks are not ready." ;;
     S2_DOMAIN)          echo "The long-lived domain, DNS authority, or irreversible Matrix server_name binding is not confirmed." ;;
     S3_PROVISION)       echo "AWS infrastructure provisioning, fixed public IP, security group, or DNS record setup is not complete." ;;
     S4_BOOTSTRAP_STACK) echo "The EC2 instance exists, but cloud-init, Docker, Caddy/TLS, or message-server has not reached healthy state." ;;
@@ -212,7 +212,7 @@ status_next_action() {
 
   case "$1" in
     S0_PREREQ_AWS)      echo "configure AWS CLI credentials for the selected deployment identity and rerun status" ;;
-    S1_PREFLIGHT)       echo "fix AWS region, default VPC, EC2 quota, or AMI availability before creating resources" ;;
+    S1_PREFLIGHT)       echo "fix AWS region, default VPC, EC2/EIP quota, or AMI availability before creating resources" ;;
     S2_DOMAIN)          echo "confirm the long-lived domain, DNS authority, and irreversible Matrix server_name binding" ;;
     S3_PROVISION)       echo "inspect EC2 provisioning, Elastic IP allocation, security group creation, and DNS record setup" ;;
     S4_BOOTSTRAP_STACK) echo "inspect cloud-init, Docker, Caddy/TLS, and message-server logs over SSH" ;;

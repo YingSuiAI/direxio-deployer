@@ -53,6 +53,9 @@ aws_redact_arn() {
 # EC2 vCPU quota code: Running On-Demand Standard instances.
 EC2_STD_QUOTA_CODE="L-1216C47A"
 
+# EC2-VPC Elastic IP addresses per region.
+EC2_VPC_EIP_QUOTA_CODE="L-0263D0A3"
+
 # Dynamically resolve the latest Ubuntu 22.04 amd64 AMI; never hard-code AMI IDs.
 aws_lookup_ubuntu_ami() {
   local ami

@@ -4,52 +4,52 @@ Use this file when installing or updating this skill and when reviewing S6 local
 
 ## Npm Skill Installation
 
-Prefer a project-local npm-managed install when a project or workspace exists. Install the versioned package, then let the CLI copy the skill bundle into the runtime-specific target:
+Prefer the npm-managed global install for normal users. Install the versioned package, then let the CLI copy the skill bundle into the selected runtime's host-level skill directory:
 
-Do not use a generic "install skills <GitHub URL>" instruction for normal users. That can invoke a host's GitHub skill installer and place this repository under the global runtime directory before the npm-managed installer runs. A short user prompt should point the agent back to this npm/project-local rule:
+Do not use a generic "install skills <GitHub URL>" instruction for normal users. That can invoke a host's GitHub skill installer instead of the npm-managed installer. A short user prompt should point the agent back to this npm install rule:
 
 ```text
-Follow the direxio-deployer README npm/project-local install rule, then deploy Direxio with domain __DOMAIN__.
+Follow the direxio-deployer README npm install rule, then deploy Direxio with domain __DOMAIN__.
 ```
 
 POSIX shells:
 
 ```bash
 npm install -g direxio-deployer@latest
-direxio-deployer skill install --agent codex --scope project --project PROJECT_ROOT
-direxio-deployer skill update --agent codex --scope project --project PROJECT_ROOT
+direxio-deployer skill install --agent codex
+direxio-deployer skill update --agent codex
 ```
 
 Windows PowerShell:
 
 ```powershell
 npm install -g direxio-deployer@latest
-direxio-deployer skill install --agent codex --scope project --project PROJECT_ROOT
-direxio-deployer skill update --agent codex --scope project --project PROJECT_ROOT
+direxio-deployer skill install --agent codex
+direxio-deployer skill update --agent codex
 ```
 
-Use `--scope global` only when the user explicitly asks for a global install or no project target exists. Use a Git clone only for deployer development or local patching, not as the normal end-user installation path. The npm installer writes `.direxio-skill-install.json` and refuses to overwrite unmanaged existing target directories unless `--force` is passed.
+Use `--scope project --project PROJECT_ROOT` only when the user explicitly asks for a repository-local install. Use a Git clone only for deployer development or local patching, not as the normal end-user installation path. The npm installer writes `.direxio-skill-install.json` and refuses to overwrite unmanaged existing target directories unless `--force` is passed.
 
-| Runtime | Project-local skill target | Global fallback only when explicitly requested or no project exists |
+| Runtime | Default global skill target | Explicit project-local skill target |
 | --- | --- | --- |
-| Codex | `PROJECT_ROOT/.codex/skills/direxio-deployer` | `${CODEX_HOME:-$HOME/.codex}/skills/direxio-deployer` |
-| Claude Code | `PROJECT_ROOT/.claude/skills/direxio-deployer` | `${CLAUDE_HOME:-$HOME/.claude}/skills/direxio-deployer` |
-| Gemini | `PROJECT_ROOT/.gemini/skills/direxio-deployer` | `${GEMINI_HOME:-$HOME/.gemini}/skills/direxio-deployer` |
-| Cursor | `PROJECT_ROOT/.cursor/skills/direxio-deployer` | `${CURSOR_HOME:-$HOME/.cursor}/skills/direxio-deployer` |
-| GitHub Copilot | `PROJECT_ROOT/.github/copilot/skills/direxio-deployer` | `$HOME/.github/copilot/skills/direxio-deployer` |
-| OpenClaw | `PROJECT_ROOT/.openclaw/skills/direxio-deployer` | `${OPENCLAW_HOME:-$HOME/.openclaw}/skills/direxio-deployer` |
-| Hermes | `PROJECT_ROOT/.hermes/skills/direxio-deployer` | `${HERMES_HOME:-$HOME/.hermes}/skills/direxio-deployer` |
-| ACP-compatible | `PROJECT_ROOT/.agents/skills/direxio-deployer` | `$HOME/.agents/skills/direxio-deployer` |
-| Antigravity | `PROJECT_ROOT/.antigravity/skills/direxio-deployer` | `${ANTIGRAVITY_HOME:-$HOME/.antigravity}/skills/direxio-deployer` |
-| Devin | `PROJECT_ROOT/.devin/skills/direxio-deployer` | `${DEVIN_HOME:-$HOME/.devin}/skills/direxio-deployer` |
-| iFlow | `PROJECT_ROOT/.iflow/skills/direxio-deployer` | `${IFLOW_HOME:-$HOME/.iflow}/skills/direxio-deployer` |
-| Kimi | `PROJECT_ROOT/.kimi/skills/direxio-deployer` | `${KIMI_HOME:-$HOME/.kimi}/skills/direxio-deployer` |
-| OpenCode | `PROJECT_ROOT/.opencode/skills/direxio-deployer` | `${OPENCODE_HOME:-$HOME/.opencode}/skills/direxio-deployer` |
-| Pi | `PROJECT_ROOT/.pi/agent/skills/direxio-deployer` | `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/skills/direxio-deployer` |
-| Qoder | `PROJECT_ROOT/.qoder/skills/direxio-deployer` | `${QODER_HOME:-$HOME/.qoder}/skills/direxio-deployer` |
-| Reasonix | `PROJECT_ROOT/.reasonix/skills/direxio-deployer` | `${REASONIX_HOME:-$HOME/.reasonix}/skills/direxio-deployer` |
-| tmux | `PROJECT_ROOT/.agent/skills/direxio-deployer` | `$HOME/.agent/skills/direxio-deployer` |
-| Generic or unknown | `PROJECT_ROOT/.agent/skills/direxio-deployer` | `$HOME/.agent/skills/direxio-deployer` |
+| Codex | `${CODEX_HOME:-$HOME/.codex}/skills/direxio-deployer` | `PROJECT_ROOT/.codex/skills/direxio-deployer` |
+| Claude Code | `${CLAUDE_HOME:-$HOME/.claude}/skills/direxio-deployer` | `PROJECT_ROOT/.claude/skills/direxio-deployer` |
+| Gemini | `${GEMINI_HOME:-$HOME/.gemini}/skills/direxio-deployer` | `PROJECT_ROOT/.gemini/skills/direxio-deployer` |
+| Cursor | `${CURSOR_HOME:-$HOME/.cursor}/skills/direxio-deployer` | `PROJECT_ROOT/.cursor/skills/direxio-deployer` |
+| GitHub Copilot | `$HOME/.github/copilot/skills/direxio-deployer` | `PROJECT_ROOT/.github/copilot/skills/direxio-deployer` |
+| OpenClaw | `${OPENCLAW_HOME:-$HOME/.openclaw}/skills/direxio-deployer` | `PROJECT_ROOT/.openclaw/skills/direxio-deployer` |
+| Hermes | `${HERMES_HOME:-$HOME/.hermes}/skills/direxio-deployer` | `PROJECT_ROOT/.hermes/skills/direxio-deployer` |
+| ACP-compatible | `$HOME/.agents/skills/direxio-deployer` | `PROJECT_ROOT/.agents/skills/direxio-deployer` |
+| Antigravity | `${ANTIGRAVITY_HOME:-$HOME/.antigravity}/skills/direxio-deployer` | `PROJECT_ROOT/.antigravity/skills/direxio-deployer` |
+| Devin | `${DEVIN_HOME:-$HOME/.devin}/skills/direxio-deployer` | `PROJECT_ROOT/.devin/skills/direxio-deployer` |
+| iFlow | `${IFLOW_HOME:-$HOME/.iflow}/skills/direxio-deployer` | `PROJECT_ROOT/.iflow/skills/direxio-deployer` |
+| Kimi | `${KIMI_HOME:-$HOME/.kimi}/skills/direxio-deployer` | `PROJECT_ROOT/.kimi/skills/direxio-deployer` |
+| OpenCode | `${OPENCODE_HOME:-$HOME/.opencode}/skills/direxio-deployer` | `PROJECT_ROOT/.opencode/skills/direxio-deployer` |
+| Pi | `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/skills/direxio-deployer` | `PROJECT_ROOT/.pi/agent/skills/direxio-deployer` |
+| Qoder | `${QODER_HOME:-$HOME/.qoder}/skills/direxio-deployer` | `PROJECT_ROOT/.qoder/skills/direxio-deployer` |
+| Reasonix | `${REASONIX_HOME:-$HOME/.reasonix}/skills/direxio-deployer` | `PROJECT_ROOT/.reasonix/skills/direxio-deployer` |
+| tmux | `$HOME/.agent/skills/direxio-deployer` | `PROJECT_ROOT/.agent/skills/direxio-deployer` |
+| Generic or unknown | `$HOME/.agent/skills/direxio-deployer` | `PROJECT_ROOT/.agent/skills/direxio-deployer` |
 
 ## Direxio Connect Target
 

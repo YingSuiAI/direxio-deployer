@@ -1,6 +1,6 @@
 ---
 name: direxio-deployer
-description: Deploy, resume, verify, destroy, and locally wire a production P2P-IM Matrix server on AWS for any connent/connect-supported local agent runtime. Use when installing or updating this skill itself; install the versioned npm package `direxio-deployer` and use its CLI to place the skill in the runtime-specific project-local path from references/agent-targets.md unless the user explicitly asks for a global installation.
+description: Deploy, resume, verify, destroy, and locally wire a production P2P-IM Matrix server on AWS for any connent/connect-supported local agent runtime. Use when installing or updating this skill itself; install the versioned npm package `direxio-deployer` and use its CLI to place the skill in the runtime-specific global path from references/agent-targets.md unless the user explicitly asks for a project-local installation.
 ---
 
 # Direxio Deployer
@@ -24,13 +24,17 @@ against the versioned npm package:
 
 ```bash
 npm install -g direxio-deployer@latest
-direxio-deployer skill refresh --agent <runtime> --scope project --project <project-root>
+direxio-deployer skill refresh --agent <runtime>
 ```
 
 Use the current runtime name for `<runtime>` when known, such as `codex`,
-`claudecode`, `gemini`, `cursor`, `openclaw`, or `hermes`. Prefer project scope
-when a project or workspace root exists. Use `--scope global` only when the
-user explicitly asks for a global installation or no project target exists.
+`claudecode`, `gemini`, `cursor`, `openclaw`, or `hermes`. Use project scope
+only when the user explicitly asks for a repository-local install or provides
+a project root for that purpose:
+
+```bash
+direxio-deployer skill refresh --agent <runtime> --scope project --project <project-root>
+```
 
 `direxio-deployer skill refresh` checks the latest npm version, updates the
 global CLI when npm reports a newer package, and refreshes the managed skill
@@ -261,6 +265,19 @@ Step-by-step onboarding flow:
      credits only apply when the account, plan, region, and service usage are
      eligible. Recommend setting an AWS Budget or billing alert before leaving
      the node running.
+   - **Before asking for the final deployment confirmation**, run the S1
+     preflight or equivalent AWS CLI checks for the selected region so hard
+     capacity blockers are known up front. In particular, check EC2-VPC Elastic IP quota because each deployment needs one fixed public IP:
+
+     ```bash
+     aws service-quotas get-service-quota --service-code ec2 --quota-code L-0263D0A3 --query 'Quota.Value' --output text
+     aws ec2 describe-addresses --query 'length(Addresses[?Domain==`vpc`])' --output text
+     ```
+
+     If allocated Elastic IPs are already greater than or equal to quota, stop
+     before confirmation and tell the user to release an unused Elastic IP,
+     request quota, or choose another region. Do not wait until S3 allocation
+     fails on the live deployment path.
    - If the user asks what is billed, mention EC2/server, fixed public IPv4 or
      Elastic IP, storage, DNS, network traffic, and call relay traffic.
 
@@ -300,24 +317,25 @@ When the user asks to install or update this skill itself, or asks to wire Direx
 If the user says "install skills" and includes the GitHub repository URL
 `YingSuiAI/direxio-deployer`, do not use a generic GitHub skill installer for
 normal deployment use. First install the npm package and then run
-`direxio-deployer skill install --agent <runtime> --scope project --project
-<project-root>`. Use a Git clone only when the user explicitly asks for
+`direxio-deployer skill install --agent <runtime>`. Use a Git clone only when the user explicitly asks for
 deployer development or local patching.
 
-For this skill repository itself, first determine whether the current working directory belongs to a project or workspace. Treat an explicit workspace root, project files, or an existing agent-specific directory such as `.codex/`, `.claude/`, `.gemini/`, `.cursor/`, `.github/copilot/`, `.devin/`, `.opencode/`, `.qoder/`, `.pi/`, `.openclaw/`, or `.hermes/` as a project target.
-
-If a project target exists, install or update this skill with the versioned npm CLI at the runtime-specific project-local path from `references/agent-targets.md`:
+Install or update this skill with the versioned npm CLI at the runtime-specific
+global path from `references/agent-targets.md`:
 
 ```bash
 npm install -g direxio-deployer@latest
-direxio-deployer skill install --agent <runtime> --scope project --project <project-root>
-direxio-deployer skill update --agent <runtime> --scope project --project <project-root>
+direxio-deployer skill install --agent <runtime>
+direxio-deployer skill update --agent <runtime>
 ```
 
-The installer writes `.direxio-skill-install.json` into the target directory and refuses to overwrite unmanaged existing content unless the operator explicitly uses `--force`. Use global runtime skill directories only when the user explicitly asks for a global install or no project target exists:
+The installer writes `.direxio-skill-install.json` into the target directory
+and refuses to overwrite unmanaged existing content unless the operator
+explicitly uses `--force`. Use project-local runtime skill directories only
+when the user explicitly asks to install into a repository or workspace:
 
 ```bash
-direxio-deployer skill install --agent <runtime> --scope global
+direxio-deployer skill install --agent <runtime> --scope project --project <project-root>
 ```
 
 Use a Git clone only for development or local patching of this deployer, not as the normal end-user installation path.
@@ -355,7 +373,7 @@ The local MCP tool surface is `direxio-mcp`, installed from `direxio-mcp@latest`
 
 `DIREXIO_AGENT_PLATFORM` describes the host runtime following the skill, while `DIREXIO_CC_CONNECT_AGENT` describes the local agent backend that `direxio-connect` should launch. Host runtimes such as Hermes or OpenClaw are not native cc-connect backend types; S6 maps them to the generic ACP backend by default and records `cc_connect_agent=acp`. Override `DIREXIO_CC_CONNECT_AGENT` only when the operator intentionally wants a different local backend.
 
-`DIREXIO_AGENT_INSTALL` may be `skip`, `recommend`, or `auto`. Only `auto` attempts to run `npm install -g direxio-connent@latest` and `direxio-connect daemon install --config ~/.direxio/nodes/<service_id>/cc-connect/config.toml --service-name <service_id> --force`; the default `recommend` records and prints the command without mutating local daemon state. An automatic install is reported as installed only when `direxio-connect daemon status --service-name <service_id>` returns `Status: Running` and recent daemon logs do not show ACP session initialization failure; otherwise S6 records `agent_install_status=install_failed`. S6 calls `agent.matrix_session.create` with `agent_token` and retries transient HTTP 000/5xx responses before failing, because the Matrix action can become reachable a few seconds after `/healthz`.
+`DIREXIO_AGENT_INSTALL` may be `skip`, `recommend`, or `auto`. Only `auto` attempts to run `npm install -g direxio-connent@latest` and `direxio-connect daemon install --config ~/.direxio/nodes/<service_id>/cc-connect/config.toml --service-name <service_id> --force`; the default `recommend` records and prints the command without mutating local daemon state. An automatic install is reported as installed only when `direxio-connect daemon status --service-name <service_id>` returns `Status: Running` and recent daemon logs do not show ACP session initialization failure; otherwise S6 records `agent_install_status=install_failed`. S6 calls `agent.matrix_session.create` with `agent_token` and retries transient HTTP 000/404/408/409/425/429/5xx responses before failing, because the Matrix action can become reachable after `/healthz`; defaults are 12 attempts with exponential backoff capped by `DIREXIO_MATRIX_SESSION_RETRY_MAX_INTERVAL`.
 
 Voice input is supported through `direxio-connect` speech-to-text. When `DIREXIO_SPEECH_API_KEY` or a provider-specific key such as `DIREXIO_SPEECH_QWEN_API_KEY`, `OPENAI_API_KEY`, `GROQ_API_KEY`, `DASHSCOPE_API_KEY`, `GEMINI_API_KEY`, or `GOOGLE_API_KEY` is present, S6 writes `[speech] enabled = true` into the generated config. Without an STT key, do not claim voice input is enabled.
 

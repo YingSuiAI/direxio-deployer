@@ -62,33 +62,48 @@ if [ "${1:-}" = "doctor" ] && [ "${2:-}" = "--json" ]; then
   exit 0
 fi
 
-frame() {
-  local body=$1
-  printf 'Content-Length: %s\r\n\r\n%s' "${#body}" "$body"
-}
-
-frame '{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"fake-direxio-mcp","version":"0.0.0"}}}'
-frame '{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"search_rooms"},{"name":"send_message"},{"name":"list_messages"}]}}'
+echo "fake direxio-mcp executable should only be run directly for doctor" >&2
+exit 1
 EOF
 chmod 700 "$fakebin/direxio-mcp"
 
-cat > "$tmp/fake-mcp.ps1" <<'EOF'
-if ($env:DIREXIO_CREDENTIALS_FILE -ne $env:EXPECTED_CREDENTIALS_FILE) {
-  [Console]::Error.WriteLine("wrong DIREXIO_CREDENTIALS_FILE")
-  exit 1
+fake_pkg="$fakebin/node_modules/direxio-mcp"
+mkdir -p "$fake_pkg/dist" "$fake_pkg/node_modules/@modelcontextprotocol/sdk/dist/esm/client"
+cat > "$fake_pkg/package.json" <<'EOF'
+{"name":"direxio-mcp","version":"0.0.0","type":"module"}
+EOF
+cat > "$fake_pkg/dist/index.js" <<'EOF'
+#!/usr/bin/env node
+throw new Error("fake MCP server entry should be launched by the SDK transport only");
+EOF
+cat > "$fake_pkg/node_modules/@modelcontextprotocol/sdk/dist/esm/client/stdio.js" <<'EOF'
+export class StdioClientTransport {
+  constructor(options) {
+    this.options = options;
+  }
 }
-
-if (($args.Count -ge 2) -and ($args[0] -eq "doctor") -and ($args[1] -eq "--json")) {
-  [Console]::Out.WriteLine('{"ok":true,"domain":"runtime-summary.example.test","agent_room_id":"!agent:runtime-summary.example.test","token":"redacted"}')
-  exit 0
+EOF
+cat > "$fake_pkg/node_modules/@modelcontextprotocol/sdk/dist/esm/client/index.js" <<'EOF'
+export class Client {
+  async connect(transport) {
+    if (!transport?.options?.args?.[0]?.endsWith("dist/index.js")) {
+      throw new Error("SDK transport did not receive direxio-mcp dist/index.js");
+    }
+    if (transport.options.env.DIREXIO_CREDENTIALS_FILE !== process.env.EXPECTED_CREDENTIALS_FILE) {
+      throw new Error("wrong DIREXIO_CREDENTIALS_FILE");
+    }
+  }
+  async listTools() {
+    return {
+      tools: [
+        { name: "search_rooms" },
+        { name: "send_message" },
+        { name: "list_messages" }
+      ]
+    };
+  }
+  async close() {}
 }
-
-function Frame($body) {
-  [Console]::Out.Write("Content-Length: $($body.Length)`r`n`r`n$body")
-}
-
-Frame '{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"fake-direxio-mcp","version":"0.0.0"}}}'
-Frame '{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"search_rooms"},{"name":"send_message"},{"name":"list_messages"}]}}'
 EOF
 
 mcp_command=direxio-mcp
@@ -96,9 +111,8 @@ case "$(uname -s)" in
   MINGW*|MSYS*|CYGWIN*) use_windows_mcp=1 ;;
   *) use_windows_mcp=0 ;;
 esac
-if { [ "$use_windows_mcp" = "1" ] || ! command -v node >/dev/null 2>&1; } && command -v node.exe >/dev/null 2>&1; then
-  fake_mcp_ps1=$(windows_path "$tmp/fake-mcp.ps1")
-  mcp_command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"$fake_mcp_ps1\""
+if [ "$use_windows_mcp" = "1" ] || ! command -v node >/dev/null 2>&1; then
+  mcp_command="$fakebin/direxio-mcp"
 fi
 
 cat > "$fakebin/curl" <<'EOF'

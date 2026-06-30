@@ -35,6 +35,7 @@ required=(
   tests/aws_credentials_test.sh
   tests/connect_daemon_runtime_check_test.sh
   tests/pricing_estimate_test.sh
+  tests/eip_preflight_test.sh
   tests/route53_zone_auto_create_test.sh
   tests/route53_overwrite_guard_test.sh
   tests/destroy_root_identity_test.sh
@@ -246,12 +247,14 @@ grep -q 'aws freetier get-account-plan-state --output json' SKILL.md
 grep -q 'aws freetier get-account-plan-state --output json' references/deployment-workflow.md
 grep -q '100 USD initial credits' SKILL.md
 grep -q '100 USD initial credits' references/deployment-workflow.md
-grep -q 'Follow the direxio-deployer README npm/project-local install rule' README.md
-grep -q '请按 direxio-deployer README 的 npm/project-local 规则安装 skill' README_zh.md
+grep -q 'Follow the direxio-deployer README npm install rule' README.md
+grep -q '请按 direxio-deployer README 的 npm 安装规则安装 skill' README_zh.md
 grep -q 'should run the npm install commands below' README.md
 grep -q '应执行下方 npm 安装命令' README_zh.md
 grep -q 'do not use a generic GitHub skill installer' SKILL.md
-grep -q 'Follow the direxio-deployer README npm/project-local install rule' references/agent-targets.md
+grep -q 'Follow the direxio-deployer README npm install rule' references/agent-targets.md
+grep -q 'EC2-VPC Elastic IP quota' SKILL.md
+grep -q 'EC2-VPC Elastic IP quota' references/deployment-workflow.md
 grep -q 'orchestrate.sh confirm app_initialization' SKILL.md
 grep -q 'orchestrate.sh confirm agent_mcp_runtime' SKILL.md
 grep -q 'DIREXIO_CONFIRM_RUNTIME_PROBE=1' SKILL.md

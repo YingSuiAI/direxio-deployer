@@ -19,14 +19,14 @@
 
 ## Skill Installation And Updates
 
-Install the deployer skill from npm, then place it into the current agent runtime's skill directory. Project-local installs are preferred because they keep the deployment skill scoped to the workspace that uses it.
+Install the deployer skill from npm, then place it into the current agent runtime's skill directory. The default install is global for the selected agent runtime. Use a project-local install only when you explicitly want the skill copied into a specific repository or workspace.
 
 The GitHub repository keeps tests for maintainers and CI, but the published npm package and installed skill copy exclude `tests/` to keep user installs small.
 
-If you want Codex to install and deploy in one instruction, do not say "install skills <GitHub URL>". That triggers GitHub skill installation and can place the skill in the global `~/.codex` directory. Use a short instruction that tells the agent to read this README's npm/project-local install rule:
+If you want Codex to install and deploy in one instruction, do not say "install skills <GitHub URL>". That triggers GitHub skill installation instead of the npm-managed installer. Use a short instruction that tells the agent to read this README's npm install rule:
 
 ```text
-Follow the direxio-deployer README npm/project-local install rule, then deploy Direxio with domain __DOMAIN__.
+Follow the direxio-deployer README npm install rule, then deploy Direxio with domain __DOMAIN__.
 ```
 
 After reading this instruction, the agent should run the npm install commands below; it should not switch to a GitHub skill installer.
@@ -35,34 +35,34 @@ POSIX shells:
 
 ```bash
 npm install -g direxio-deployer@latest
-direxio-deployer skill install --agent codex --scope project --project .
+direxio-deployer skill install --agent codex
 ```
 
 Windows PowerShell:
 
 ```powershell
 npm install -g direxio-deployer@latest
-direxio-deployer skill install --agent codex --scope project --project .
+direxio-deployer skill install --agent codex
 ```
 
 Update the installed skill with the same host runtime:
 
 ```bash
 npm install -g direxio-deployer@latest
-direxio-deployer skill update --agent codex --scope project --project .
+direxio-deployer skill update --agent codex
 ```
 
-Use the matching agent name for your runtime: `codex`, `claudecode`, `gemini`, `cursor`, `copilot`, `openclaw`, `hermes`, `opencode`, `qoder`, `reasonix`, or another target listed in `references/agent-targets.md`. Use `--scope global` only when you intentionally want a host-level skill install:
+Use the matching agent name for your runtime: `codex`, `claudecode`, `gemini`, `cursor`, `copilot`, `openclaw`, `hermes`, `opencode`, `qoder`, `reasonix`, or another target listed in `references/agent-targets.md`. Add `--scope project --project <path>` only when you intentionally want a repository-local skill install:
 
 ```bash
-direxio-deployer skill install --agent codex --scope global
+direxio-deployer skill install --agent codex --scope project --project .
 ```
 
 The installer writes `.direxio-skill-install.json` into the target directory and refuses to overwrite unmanaged existing content unless `--force` is provided. To pin a version, install that package version first:
 
 ```bash
-npm install -g direxio-deployer@0.1.3
-direxio-deployer skill update --agent codex --scope project --project .
+npm install -g direxio-deployer@0.1.4
+direxio-deployer skill update --agent codex
 ```
 
 The CLI is implemented in Node and uses native paths for the host it runs on. On Windows it writes Windows-compatible paths; on Linux, macOS, Git Bash, or WSL it writes paths for that runtime.

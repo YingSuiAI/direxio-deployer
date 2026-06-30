@@ -886,11 +886,13 @@ EOF
 
 _create_cc_connect_matrix_session() {
   local asurl=$1 agent_auth_token=$2 device_id=$3 out=$4 body code http_body
-  local max_attempts interval attempt preview
+  local max_attempts interval max_interval attempt preview sleep_for
   body=$(json_build matrix-session-create "$device_id")
-  max_attempts=${DIREXIO_MATRIX_SESSION_CREATE_MAX:-4}
+  max_attempts=${DIREXIO_MATRIX_SESSION_CREATE_MAX:-12}
   interval=${DIREXIO_MATRIX_SESSION_RETRY_INTERVAL:-2}
+  max_interval=${DIREXIO_MATRIX_SESSION_RETRY_MAX_INTERVAL:-10}
   attempt=1
+  sleep_for=$interval
   while [ "$attempt" -le "$max_attempts" ]; do
     http_body=$(mktemp)
     code=$(curl -sk \
@@ -913,10 +915,14 @@ _create_cc_connect_matrix_session() {
     preview=$(head -c 200 "$http_body" 2>/dev/null || true)
     rm -f "$http_body"
     case "${code:-000}" in
-      000|5*)
+      000|404|408|409|425|429|5*)
         if [ "$attempt" -lt "$max_attempts" ]; then
-          warn "agent.matrix_session.create returned HTTP ${code:-000} on attempt $attempt/$max_attempts; retrying."
-          sleep "$interval"
+          warn "agent.matrix_session.create returned HTTP ${code:-000} on attempt $attempt/$max_attempts; retrying in ${sleep_for}s."
+          sleep "$sleep_for"
+          if _is_non_negative_integer "$sleep_for" && _is_non_negative_integer "$max_interval"; then
+            sleep_for=$((sleep_for * 2))
+            [ "$sleep_for" -gt "$max_interval" ] && sleep_for=$max_interval
+          fi
           attempt=$((attempt + 1))
           continue
         fi
@@ -930,6 +936,13 @@ _create_cc_connect_matrix_session() {
     return 1
   done
   return 1
+}
+
+_is_non_negative_integer() {
+  case "$1" in
+    ''|*[!0-9]*) return 1 ;;
+    *) return 0 ;;
+  esac
 }
 
 _write_cc_connect_config() {
