@@ -21,6 +21,7 @@ required=(
   scripts/reset-app-data.sh
   scripts/pricing-estimate.sh
   scripts/mcp-tools-list.mjs
+  scripts/lib/windows-paths.ps1
   scripts/lib/ops.sh
   scripts/lib/operation_report.sh
   scripts/lib/json.sh
@@ -30,6 +31,8 @@ required=(
   tests/operation_report_test.sh
   tests/npm_skill_distribution_test.sh
   tests/private_file_permissions_test.sh
+  tests/windows_path_wrappers_test.sh
+  tests/windows_path_wrappers_test.ps1
   tests/orchestrate_status_recovery_test.sh
   tests/update_reset_ops_test.sh
   tests/aws_credentials_test.sh

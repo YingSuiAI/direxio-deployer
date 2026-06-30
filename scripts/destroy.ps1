@@ -7,6 +7,7 @@ $ErrorActionPreference = 'Stop'
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = Split-Path -Parent $ScriptDir
+. (Join-Path $ScriptDir 'lib\windows-paths.ps1')
 
 function Find-GitBash {
   $candidates = @(
@@ -23,43 +24,13 @@ function Find-GitBash {
   throw "Git Bash was not found. Install Git for Windows or run scripts/destroy.sh from a POSIX shell."
 }
 
-function ConvertTo-GitBashPath([string] $Path) {
-  $normalized = $Path.Replace('\', '/')
-  if ($normalized -match '^/[A-Za-z]/') {
-    return $normalized
-  }
-  if ($normalized -match '^/mnt/[A-Za-z]/') {
-    $drive = $normalized.Substring(5, 1).ToLowerInvariant()
-    $rest = $normalized.Substring(6)
-    return "/$drive$rest"
-  }
-  $full = [System.IO.Path]::GetFullPath($Path)
-  $drive = $full.Substring(0, 1).ToLowerInvariant()
-  $rest = $full.Substring(2).Replace('\', '/')
-  return "/$drive$rest"
-}
-
-function Convert-ArgumentForGitBash([string] $Value) {
-  if ($Value -match '^[A-Za-z]:[\\/]') {
-    return ConvertTo-GitBashPath $Value
-  }
-  if ($Value -match '^\.{1,2}[\\/]') {
-    return ConvertTo-GitBashPath (Join-Path (Get-Location).ProviderPath $Value)
-  }
-  return $Value
-}
-
 function Quote-BashArg([string] $Value) {
   return "'" + ($Value -replace "'", "'\''") + "'"
 }
 
 $bash = Find-GitBash
 
-$windowsDirexioHome = if ($env:DIREXIO_HOME -and ($env:DIREXIO_HOME -notmatch '^/[A-Za-z]/' -and $env:DIREXIO_HOME -notmatch '^/mnt/[A-Za-z]/')) {
-  $env:DIREXIO_HOME
-} else {
-  Join-Path $env:USERPROFILE '.direxio'
-}
+$windowsDirexioHome = Resolve-WindowsDirexioHome
 $env:DIREXIO_WINDOWS_HOME = $windowsDirexioHome
 $env:DIREXIO_HOME = ConvertTo-GitBashPath $windowsDirexioHome
 $env:DIREXIO_LOCAL_PATH_STYLE = 'windows'

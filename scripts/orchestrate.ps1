@@ -7,6 +7,7 @@ $ErrorActionPreference = 'Stop'
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = Split-Path -Parent $ScriptDir
+. (Join-Path $ScriptDir 'lib\windows-paths.ps1')
 
 function Find-GitBash {
   $candidates = @(
@@ -21,13 +22,6 @@ function Find-GitBash {
     }
   }
   throw "Git Bash was not found. Install Git for Windows or run scripts/orchestrate.sh from a POSIX shell."
-}
-
-function ConvertTo-GitBashPath([string] $Path) {
-  $full = [System.IO.Path]::GetFullPath($Path)
-  $drive = $full.Substring(0, 1).ToLowerInvariant()
-  $rest = $full.Substring(2).Replace('\', '/')
-  return "/$drive$rest"
 }
 
 function Quote-BashArg([string] $Value) {
@@ -72,7 +66,7 @@ function Set-AgentCommandIfMissing([string[]] $EnvNames, [string[]] $CommandName
 
 $bash = Find-GitBash
 
-$windowsDirexioHome = if ($env:DIREXIO_HOME) { $env:DIREXIO_HOME } else { Join-Path $env:USERPROFILE '.direxio' }
+$windowsDirexioHome = Resolve-WindowsDirexioHome
 $env:DIREXIO_WINDOWS_HOME = $windowsDirexioHome
 $env:DIREXIO_HOME = ConvertTo-GitBashPath $windowsDirexioHome
 $env:DIREXIO_LOCAL_PATH_STYLE = 'windows'
