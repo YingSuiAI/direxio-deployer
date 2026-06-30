@@ -57,7 +57,7 @@ run_phase() {
   if [ -z "$(res_get key_name)" ]; then
     log "Creating key pair $name ..."
     aws ec2 create-key-pair --key-name "$name" --query KeyMaterial --output text > "$keyfile"
-    chmod 600 "$keyfile"
+    restrict_private_file "$keyfile"
     res_set key_name "$name"; res_set key_file "$keyfile"
   else
     log "Key pair already exists; skipping."; keyfile=$(res_get key_file)

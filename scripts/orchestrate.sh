@@ -966,15 +966,35 @@ runtime_check_status() {
   json_get "$STATE_JSON" "runtime_checks.$check.status" "not_run"
 }
 
+runtime_status_counts_as_failure() {
+  local status=$1
+  case "$status" in
+    passed|manual_pending|skipped) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
 cmd_verify_runtime() {
   [ -f "$STATE_JSON" ] || {
     warn "state.json not found: $STATE_JSON"
     return 1
   }
 
-  local rc=0 failed_count=0 connect_status doctor_status tools_status smoke_status status
+  local rc=0 failed_count=0 connect_status doctor_status tools_status smoke_status status install_status install_policy service_name
 
-  cmd_verify_connect_daemon >/dev/null || rc=1
+  install_status=$(json_get "$STATE_JSON" agent_install_status)
+  install_policy=$(json_get "$STATE_JSON" agent_install_policy)
+  service_name=$(json_get "$STATE_JSON" agent_service_id)
+  [ -n "$service_name" ] || service_name=$(json_get "$STATE_JSON" domain)
+  if [ "$install_status" = "recommend" ] || { [ "$install_status" = "skip" ] && [ "${install_policy:-skip}" = "skip" ]; }; then
+    state_set_object runtime_checks.connect_daemon \
+      status=manual_pending \
+      "ts=$(_now)" \
+      "evidence=direxio-connect daemon install is an explicit operator action for policy=$install_status" \
+      "service_name=${service_name:-cc-connect}"
+  else
+    cmd_verify_connect_daemon >/dev/null || rc=1
+  fi
   cmd_verify_mcp_doctor >/dev/null || rc=1
   cmd_verify_mcp_tools >/dev/null || rc=1
   cmd_verify_mcp_smoke >/dev/null || rc=1
@@ -985,7 +1005,7 @@ cmd_verify_runtime() {
   smoke_status=$(runtime_check_status mcp_smoke)
 
   for status in "$connect_status" "$doctor_status" "$tools_status" "$smoke_status"; do
-    [ "$status" = "passed" ] || failed_count=$((failed_count + 1))
+    runtime_status_counts_as_failure "$status" && failed_count=$((failed_count + 1))
   done
 
   if [ "$failed_count" -eq 0 ]; then

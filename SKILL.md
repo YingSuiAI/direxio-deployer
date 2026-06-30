@@ -355,7 +355,7 @@ The local MCP tool surface is `direxio-mcp`, installed from `direxio-mcp@latest`
 
 `DIREXIO_AGENT_PLATFORM` describes the host runtime following the skill, while `DIREXIO_CC_CONNECT_AGENT` describes the local agent backend that `direxio-connect` should launch. Host runtimes such as Hermes or OpenClaw are not native cc-connect backend types; S6 maps them to the generic ACP backend by default and records `cc_connect_agent=acp`. Override `DIREXIO_CC_CONNECT_AGENT` only when the operator intentionally wants a different local backend.
 
-`DIREXIO_AGENT_INSTALL` may be `skip`, `recommend`, or `auto`. Only `auto` attempts to run `npm install -g direxio-connent@latest` and `direxio-connect daemon install --config ~/.direxio/nodes/<service_id>/cc-connect/config.toml --service-name <service_id> --force`; the default `recommend` records and prints the command without mutating local daemon state. An automatic install is reported as installed only when `direxio-connect daemon status --service-name <service_id>` returns `Status: Running` and recent daemon logs do not show ACP session initialization failure; otherwise S6 records `agent_install_status=install_failed`.
+`DIREXIO_AGENT_INSTALL` may be `skip`, `recommend`, or `auto`. Only `auto` attempts to run `npm install -g direxio-connent@latest` and `direxio-connect daemon install --config ~/.direxio/nodes/<service_id>/cc-connect/config.toml --service-name <service_id> --force`; the default `recommend` records and prints the command without mutating local daemon state. An automatic install is reported as installed only when `direxio-connect daemon status --service-name <service_id>` returns `Status: Running` and recent daemon logs do not show ACP session initialization failure; otherwise S6 records `agent_install_status=install_failed`. S6 calls `agent.matrix_session.create` with `agent_token` and retries transient HTTP 000/5xx responses before failing, because the Matrix action can become reachable a few seconds after `/healthz`.
 
 Voice input is supported through `direxio-connect` speech-to-text. When `DIREXIO_SPEECH_API_KEY` or a provider-specific key such as `DIREXIO_SPEECH_QWEN_API_KEY`, `OPENAI_API_KEY`, `GROQ_API_KEY`, `DASHSCOPE_API_KEY`, `GEMINI_API_KEY`, or `GOOGLE_API_KEY` is present, S6 writes `[speech] enabled = true` into the generated config. Without an STT key, do not claim voice input is enabled.
 
@@ -398,9 +398,12 @@ DOMAIN=<DOMAIN> bash scripts/orchestrate.sh verify mcp_tools
 DOMAIN=<DOMAIN> bash scripts/orchestrate.sh verify mcp_smoke
 ```
 
-Use `verify runtime` as the normal aggregate check. It runs the service-scoped
-connect daemon check plus MCP doctor, MCP `tools/list`, and read-only backend
-smoke, then writes `runtime_checks.summary`. The individual commands are useful
+Use `verify runtime` as the normal aggregate check. It runs MCP doctor, MCP
+`tools/list`, and read-only backend smoke. It also runs the service-scoped
+connect daemon check when the daemon was expected to be installed; when S6
+recorded `agent_install_status=recommend` or `skip`, the aggregate marks
+`runtime_checks.connect_daemon.status=manual_pending` and does not fail the
+summary for that explicit operator action. The individual commands are useful
 when diagnosing one layer. These commands write `runtime_checks.connect_daemon`,
 `runtime_checks.mcp_doctor`, `runtime_checks.mcp_tools`, and
 `runtime_checks.mcp_smoke` into `state.json` and the operation report.
@@ -503,7 +506,8 @@ NS nameservers before authoritative DNS can resolve. Never use temporary
    **Credential freshness:** The synced `password` and owner `access_token`
    are one-time/volatile values. User login or token exchange can reset them
    on the server. Before reporting the eight-digit app initialization code or using an owner
-   `access_token` for API calls, rerun the credential sync path or pull the
+   `access_token` for owner API calls, or using `agent_token` for
+   `agent.matrix_session.create`, rerun the credential sync path or pull the
    latest `/opt/p2p/bootstrap.json` from the server; do not reuse values from
    old chat output, old `state.json`, or stale local `credentials.json`.
    **Runtime detection note:** S6 checks active-process signals before stale

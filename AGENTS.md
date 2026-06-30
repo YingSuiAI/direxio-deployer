@@ -42,7 +42,7 @@ If a change writes a path into `state.json`, `credentials.json`, `env`, `cc-conn
 ## Direxio Connect Wiring
 
 - S5/S6 must fail closed when `agent_room_id` is missing or uses a legacy pseudo id such as `!agent:<domain>`.
-- S6 must create a Matrix session through `agent.matrix_session.create` and require `@agent:<server>` for the bridge. Returning `@owner:<server>` is a server-side compatibility failure.
+- S6 must create a Matrix session through `agent.matrix_session.create` using `agent_token`, not owner `access_token`, and require `@agent:<server>` for the bridge. Returning `@owner:<server>` is a server-side compatibility failure.
 - The generated cc-connect config must contain one Matrix platform and must restrict sync/replies to the real `agent_room_id`.
 - The generated agent config must preserve the selected connect agent type and optional agent-specific TOML. Some providers require more than `cmd`; for example `reasonix` needs `serve_url`, `tmux` needs `session`, and generic `acp` may need command/args.
 - `DIREXIO_AGENT_INSTALL=auto` may install/start `direxio-connect`; `recommend` must only write files and print commands.

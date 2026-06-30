@@ -149,7 +149,7 @@ PY
 }
 
 ensure_agent_room() {
-  local owner_token agent_user session room_resp join_resp agent_token room_id room_path
+  local owner_token agent_auth_token agent_user session room_resp join_resp matrix_agent_token room_id room_path
   if copy_bootstrap_file && bootstrap_has_real_agent_room "$BOOTSTRAP_FILE"; then
     log "agent_room_id is already present."
     return 0
@@ -160,15 +160,20 @@ ensure_agent_room() {
     log "FATAL: access_token is missing; cannot create agent room"
     return 1
   fi
+  agent_auth_token=$(json_string agent_token "$BOOTSTRAP_FILE")
+  if [ -z "$agent_auth_token" ]; then
+    log "FATAL: agent_token is missing; cannot create agent Matrix session"
+    return 1
+  fi
   agent_user="@agent:${DOMAIN}"
   session=$(mktemp)
-  if ! container_post_json "/_p2p/command" '{"action":"agent.matrix_session.create","params":{"device_id":"DIREXIO_DEPLOY_BOOTSTRAP"}}' "$owner_token" > "$session" 2>/dev/null; then
+  if ! container_post_json "/_p2p/command" '{"action":"agent.matrix_session.create","params":{"device_id":"DIREXIO_DEPLOY_BOOTSTRAP"}}' "$agent_auth_token" > "$session" 2>/dev/null; then
     log "FATAL: agent.matrix_session.create failed: $(head -c 160 "$session" 2>/dev/null)"
     rm -f "$session"
     return 1
   fi
-  agent_token=$(json_string access_token "$session")
-  if [ -z "$agent_token" ]; then
+  matrix_agent_token=$(json_string access_token "$session")
+  if [ -z "$matrix_agent_token" ]; then
     log "FATAL: agent.matrix_session.create did not return access_token: $(head -c 160 "$session" 2>/dev/null)"
     rm -f "$session"
     return 1
@@ -190,7 +195,7 @@ ensure_agent_room() {
 
   room_path=$(matrix_room_path "$room_id")
   join_resp=$(mktemp)
-  if ! container_post_json "/_matrix/client/v3/rooms/${room_path}/join" '{}' "$agent_token" > "$join_resp" 2>/dev/null; then
+  if ! container_post_json "/_matrix/client/v3/rooms/${room_path}/join" '{}' "$matrix_agent_token" > "$join_resp" 2>/dev/null; then
     log "FATAL: agent join failed for ${room_id}: $(head -c 160 "$join_resp" 2>/dev/null)"
     rm -f "$join_resp"
     return 1

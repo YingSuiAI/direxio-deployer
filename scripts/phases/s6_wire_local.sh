@@ -885,25 +885,51 @@ EOF
 }
 
 _create_cc_connect_matrix_session() {
-  local asurl=$1 access_token=$2 device_id=$3 out=$4 body code http_body
+  local asurl=$1 agent_auth_token=$2 device_id=$3 out=$4 body code http_body
+  local max_attempts interval attempt preview
   body=$(json_build matrix-session-create "$device_id")
-  http_body=$(mktemp)
-  code=$(curl -sk -o "$http_body" -w '%{http_code}' -X POST "$asurl/_p2p/command" \
-    -H 'Content-Type: application/json' \
-    -H "Authorization: Bearer $access_token" \
-    -d "$body" 2>/dev/null || true)
-  if [ "$code" != "200" ]; then
-    warn "agent.matrix_session.create returned HTTP ${code:-000}: $(head -c 200 "$http_body" 2>/dev/null)"
+  max_attempts=${DIREXIO_MATRIX_SESSION_CREATE_MAX:-4}
+  interval=${DIREXIO_MATRIX_SESSION_RETRY_INTERVAL:-2}
+  attempt=1
+  while [ "$attempt" -le "$max_attempts" ]; do
+    http_body=$(mktemp)
+    code=$(curl -sk \
+      --connect-timeout "${DIREXIO_MATRIX_SESSION_CURL_CONNECT_TIMEOUT:-10}" \
+      --max-time "${DIREXIO_MATRIX_SESSION_CURL_MAX_TIME:-20}" \
+      -o "$http_body" -w '%{http_code}' -X POST "$asurl/_p2p/command" \
+      -H 'Content-Type: application/json' \
+      -H "Authorization: Bearer $agent_auth_token" \
+      -d "$body" 2>/dev/null || true)
+    if [ "$code" = "200" ]; then
+      if ! json_assert "$http_body" matrix-session >/dev/null; then
+        warn "agent.matrix_session.create response is missing Matrix session fields: $(head -c 200 "$http_body" 2>/dev/null)"
+        rm -f "$http_body"
+        return 1
+      fi
+      mv "$http_body" "$out"
+      chmod 600 "$out" 2>/dev/null || true
+      return 0
+    fi
+    preview=$(head -c 200 "$http_body" 2>/dev/null || true)
     rm -f "$http_body"
+    case "${code:-000}" in
+      000|5*)
+        if [ "$attempt" -lt "$max_attempts" ]; then
+          warn "agent.matrix_session.create returned HTTP ${code:-000} on attempt $attempt/$max_attempts; retrying."
+          sleep "$interval"
+          attempt=$((attempt + 1))
+          continue
+        fi
+        ;;
+      401)
+        warn "agent.matrix_session.create rejected agent_token. Refresh bootstrap credentials or deploy a message-server build that allows agent_token for this action."
+        ;;
+      *) ;;
+    esac
+    warn "agent.matrix_session.create returned HTTP ${code:-000}: $preview"
     return 1
-  fi
-  if ! json_assert "$http_body" matrix-session >/dev/null; then
-    warn "agent.matrix_session.create response is missing Matrix session fields: $(head -c 200 "$http_body" 2>/dev/null)"
-    rm -f "$http_body"
-    return 1
-  fi
-  mv "$http_body" "$out"
-  chmod 600 "$out" 2>/dev/null || true
+  done
+  return 1
 }
 
 _write_cc_connect_config() {
@@ -1334,7 +1360,7 @@ run_phase() {
 
   mkdir -p "$workspace"
   mkdir -p "$cc_runtime_dir"
-  if ! _create_cc_connect_matrix_session "$asurl" "$access_token" "DIREXIO_CC_CONNECT_${node_id}" "$cc_session"; then
+  if ! _create_cc_connect_matrix_session "$asurl" "$token" "DIREXIO_CC_CONNECT_${node_id}" "$cc_session"; then
     phase_set S6_WIRE_LOCAL failed "agent Matrix session creation failed"
     fail "failed to create cc-connect Matrix session via agent.matrix_session.create."
   fi

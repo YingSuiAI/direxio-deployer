@@ -2,7 +2,7 @@
 
 每次重部署或清空数据卷后，`password`、owner `access_token`、`agent_token` 和 cc-connect Matrix session 都会变化。状态机 S6 会自动回填；手动恢复时按这里检查。
 
-从服务端同步过来的 `password` 和 owner `access_token` 必须按一次性/易失凭据处理。`password` 是后端字段名，对用户展示时必须叫八位 App 初始化码。用户完成初始化或 token exchange 后，服务端可能立刻重置这些值；任何需要再次获取初始化码，或需要用 `access_token` 调 `/_p2p/command`、Matrix Client API 等接口的操作，都必须先重新从服务器拉取最新 `/opt/p2p/bootstrap.json`，再更新本地 `credentials.json`。不要复用聊天记录、旧 `state.json`、旧 `credentials.json` 或历史部署输出里的 password/access token。
+从服务端同步过来的 `password` 和 owner `access_token` 必须按一次性/易失凭据处理。`password` 是后端字段名，对用户展示时必须叫八位 App 初始化码。用户完成初始化或 token exchange 后，服务端可能立刻重置这些值；任何需要再次获取初始化码，或需要用 `access_token` 调 owner 身份 API/Matrix Client API，或需要用 `agent_token` 调 `agent.matrix_session.create` 的操作，都必须先重新从服务器拉取最新 `/opt/p2p/bootstrap.json`，再更新本地 `credentials.json`。不要复用聊天记录、旧 `state.json`、旧 `credentials.json` 或历史部署输出里的 password/access token。
 
 现有节点执行 `scripts/update.sh` 或 `scripts/reset-app-data.sh` 后，本地旧证据也必须作废。脚本会清掉旧 `password`、`access_token`、`agent_token`、`agent_room_id`、`user_confirmations` 和 `runtime_checks`，把 `agent_install_status` 标成 `refresh_pending`，并只在 `WorkDir` 匹配当前 service 时停止对应的本地 bridge（stops only the matching service-scoped direxio-connect daemon），再把 S4-S7 标回 pending。这样旧的用户确认、MCP discovery、Agent runtime probe 或旧 bridge 安装状态不会被误用到更新/重置后的节点。`status` 会显示 `Local refresh:`，提醒 update/reset 已经清掉旧 credentials、user confirmations、runtime checks 和 bridge install proof；下一步必须 rerun the deployment workflow to refresh S4-S7, local credentials, MCP snippets, and runtime checks。后续必须续跑 `scripts/orchestrate.sh`，让 S5/S6/S7 和 `verify runtime` 重新写入当前证据。
 

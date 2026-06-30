@@ -136,6 +136,45 @@ if DIREXIO_AGENT_INSTALL_MODE=gateway _agent_install_mode hermes >/dev/null 2>&1
   exit 1
 fi
 
+matrix_retry_dir="$tmp/matrix-retry"
+mkdir -p "$matrix_retry_dir/bin"
+cat > "$matrix_retry_dir/bin/curl" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+count_file=${MATRIX_RETRY_COUNT:?}
+count=0
+[ -f "$count_file" ] && count=$(cat "$count_file")
+count=$((count + 1))
+printf '%s\n' "$count" > "$count_file"
+out=
+auth=
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -o) out=$2; shift 2 ;;
+    -H) [ "${2:-}" = "Authorization: Bearer agent-token" ] && auth=agent-token; shift 2 ;;
+    -w) shift 2 ;;
+    *) shift ;;
+  esac
+done
+[ -n "$out" ] || exit 2
+[ "$auth" = "agent-token" ] || exit 3
+if [ "$count" -eq 1 ]; then
+  printf 'transient network failure' > "$out"
+  printf '000'
+else
+  printf '{"access_token":"matrix-token","device_id":"DEVICE","user_id":"@agent:im.example.test","homeserver":"https://im.example.test"}' > "$out"
+  printf '200'
+fi
+EOF
+chmod 700 "$matrix_retry_dir/bin/curl"
+MATRIX_RETRY_COUNT="$matrix_retry_dir/count" \
+DIREXIO_MATRIX_SESSION_CREATE_MAX=2 \
+DIREXIO_MATRIX_SESSION_RETRY_INTERVAL=0 \
+PATH="$matrix_retry_dir/bin:$PATH" \
+  _create_cc_connect_matrix_session "https://im.example.test" "agent-token" "DEVICE" "$matrix_retry_dir/session.json"
+[ "$(cat "$matrix_retry_dir/count")" = "2" ]
+json_test_check "$matrix_retry_dir/session.json" "data.user_id === '@agent:im.example.test' && data.access_token === 'matrix-token'"
+
 [ "$(_agent_skill_install_path codex)" = "PROJECT_ROOT/.codex/skills/direxio-deployer" ]
 [ "$(_agent_skill_install_path claude-code)" = "PROJECT_ROOT/.claude/skills/direxio-deployer" ]
 [ "$(_agent_skill_install_path claudecode)" = "PROJECT_ROOT/.claude/skills/direxio-deployer" ]

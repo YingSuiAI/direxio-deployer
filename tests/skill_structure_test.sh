@@ -29,6 +29,7 @@ required=(
   tests/lib/json_test.sh
   tests/operation_report_test.sh
   tests/npm_skill_distribution_test.sh
+  tests/private_file_permissions_test.sh
   tests/orchestrate_status_recovery_test.sh
   tests/update_reset_ops_test.sh
   tests/aws_credentials_test.sh

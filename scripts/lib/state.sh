@@ -46,6 +46,28 @@ is_yes() {
   esac
 }
 
+restrict_private_file() {
+  local file=$1 uname_s win_file user user_domain
+  chmod 600 "$file" 2>/dev/null || true
+  uname_s=$(uname -s 2>/dev/null || printf unknown)
+  case "$uname_s" in
+    MINGW*|MSYS*|CYGWIN*)
+      command -v icacls >/dev/null 2>&1 || return 0
+      win_file=$file
+      if command -v cygpath >/dev/null 2>&1; then
+        win_file=$(cygpath -w "$file")
+      fi
+      user=$(cmd.exe /c whoami 2>/dev/null | tr -d '\r' | tail -n 1 || true)
+      user_domain=${USERDOMAIN:-}
+      icacls "$win_file" /inheritance:r >/dev/null 2>&1 || true
+      icacls "$win_file" /remove:g \
+        "Users" "Authenticated Users" "Everyone" "CodexSandboxUsers" \
+        "${user_domain}\\CodexSandboxUsers" >/dev/null 2>&1 || true
+      [ -n "$user" ] && icacls "$win_file" /grant:r "$user:R" >/dev/null 2>&1 || true
+      ;;
+  esac
+}
+
 # Initialize state.json for a new deployment.
 state_init() {
   mkdir -p "$P2P_WORKDIR"

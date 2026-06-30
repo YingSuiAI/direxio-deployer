@@ -145,7 +145,10 @@ When the user or runtime evidence confirms a manual product gate, write it back
 to state before regenerating the report. Connect daemon status is a
 service-scoped local bridge check, MCP doctor is a non-polluting runtime check,
 MCP tools is stdio `tools/list` discovery, and MCP smoke is a read-only backend
-call. They are not the full runtime product gate:
+call. In the default `DIREXIO_AGENT_INSTALL=recommend` path, `verify runtime`
+records `connect_daemon=manual_pending` instead of failing the aggregate,
+because daemon installation is an explicit operator action. These checks are
+not the full runtime product gate:
 
 ```bash
 DOMAIN=__DOMAIN__ bash scripts/orchestrate.sh verify runtime

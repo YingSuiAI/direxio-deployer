@@ -29,6 +29,8 @@ grep -q '^    grep -q .*P2P_PORTAL_PASSWORD=' "$tmp/user-data.yaml"
 grep -q '/var/direxio-message-server/p2p/bootstrap.json' "$tmp/bundle/init-tokens.sh"
 grep -q 'portal.bootstrap' "$tmp/bundle/init-tokens.sh"
 grep -q 'agent.matrix_session.create' "$tmp/bundle/init-tokens.sh"
+grep -q 'agent_auth_token=$(json_string agent_token "$BOOTSTRAP_FILE")' "$tmp/bundle/init-tokens.sh"
+grep -q 'agent.matrix_session.create.*"$agent_auth_token"' "$tmp/bundle/init-tokens.sh"
 grep -q '/_matrix/client/v3/createRoom' "$tmp/bundle/init-tokens.sh"
 grep -q '/_matrix/client/v3/rooms/${room_path}/join' "$tmp/bundle/init-tokens.sh"
 
