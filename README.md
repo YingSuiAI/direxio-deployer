@@ -23,10 +23,10 @@ Install the deployer skill from npm, then place it into the current agent runtim
 
 The GitHub repository keeps tests for maintainers and CI, but the published npm package and installed skill copy exclude `tests/` to keep user installs small.
 
-If you want Codex to install and deploy in one instruction, do not say "install skills <GitHub URL>". That triggers GitHub skill installation instead of the npm-managed installer. Use a short instruction that tells the agent to read this README's npm install rule:
+If you want Codex to install and deploy in one instruction, do not say "install skills <GitHub URL>". That triggers GitHub skill installation instead of the npm-managed installer. Use a short instruction that gives the repository address for reading only and tells the agent to follow the README's npm install rule:
 
 ```text
-Follow the direxio-deployer README npm install rule, then deploy Direxio with domain __DOMAIN__.
+Read https://github.com/YingSuiAI/direxio-deployer README and follow its npm install rule, then deploy Direxio with domain __DOMAIN__.
 ```
 
 After reading this instruction, the agent should run the npm install commands below; it should not switch to a GitHub skill installer.

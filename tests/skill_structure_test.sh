@@ -247,12 +247,12 @@ grep -q 'aws freetier get-account-plan-state --output json' SKILL.md
 grep -q 'aws freetier get-account-plan-state --output json' references/deployment-workflow.md
 grep -q '100 USD initial credits' SKILL.md
 grep -q '100 USD initial credits' references/deployment-workflow.md
-grep -q 'Follow the direxio-deployer README npm install rule' README.md
-grep -q '请按 direxio-deployer README 的 npm 安装规则安装 skill' README_zh.md
+grep -q 'Read https://github.com/YingSuiAI/direxio-deployer README and follow its npm install rule' README.md
+grep -q '请阅读 https://github.com/YingSuiAI/direxio-deployer 的 README，并按其中 npm 安装规则安装 skill' README_zh.md
 grep -q 'should run the npm install commands below' README.md
 grep -q '应执行下方 npm 安装命令' README_zh.md
 grep -q 'do not use a generic GitHub skill installer' SKILL.md
-grep -q 'Follow the direxio-deployer README npm install rule' references/agent-targets.md
+grep -q 'Read https://github.com/YingSuiAI/direxio-deployer README and follow its npm install rule' references/agent-targets.md
 grep -q 'EC2-VPC Elastic IP quota' SKILL.md
 grep -q 'EC2-VPC Elastic IP quota' references/deployment-workflow.md
 grep -q 'orchestrate.sh confirm app_initialization' SKILL.md

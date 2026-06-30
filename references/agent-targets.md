@@ -6,10 +6,10 @@ Use this file when installing or updating this skill and when reviewing S6 local
 
 Prefer the npm-managed global install for normal users. Install the versioned package, then let the CLI copy the skill bundle into the selected runtime's host-level skill directory:
 
-Do not use a generic "install skills <GitHub URL>" instruction for normal users. That can invoke a host's GitHub skill installer instead of the npm-managed installer. A short user prompt should point the agent back to this npm install rule:
+Do not use a generic "install skills <GitHub URL>" instruction for normal users. That can invoke a host's GitHub skill installer instead of the npm-managed installer. A short user prompt should give the repository URL for reading only and point the agent back to this npm install rule:
 
 ```text
-Follow the direxio-deployer README npm install rule, then deploy Direxio with domain __DOMAIN__.
+Read https://github.com/YingSuiAI/direxio-deployer README and follow its npm install rule, then deploy Direxio with domain __DOMAIN__.
 ```
 
 POSIX shells:

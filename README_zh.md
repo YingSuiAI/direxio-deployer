@@ -21,10 +21,10 @@
 
 GitHub 仓库保留测试用于维护和 CI，但发布到 npm 的包以及安装到智能体 skill 目录的副本不包含 `tests/`，以减小用户安装体积。
 
-如果你想让 Codex 一句话安装并开始部署，不要说“安装 skills <GitHub 链接>”。那会触发 GitHub skill 安装器，而不是 npm 管理的安装器。推荐只说短句，让 agent 先读本 README 中的 npm 安装规则：
+如果你想让 Codex 一句话安装并开始部署，不要说“安装 skills <GitHub 链接>”。那会触发 GitHub skill 安装器，而不是 npm 管理的安装器。推荐只说短句，把仓库地址作为读取 README 的位置，并让 agent 按 README 中的 npm 安装规则执行：
 
 ```text
-请按 direxio-deployer README 的 npm 安装规则安装 skill，然后部署 Direxio，域名 __DOMAIN__。
+请阅读 https://github.com/YingSuiAI/direxio-deployer 的 README，并按其中 npm 安装规则安装 skill，然后部署 Direxio，域名 __DOMAIN__。
 ```
 
 Agent 读到这句后应执行下方 npm 安装命令；不要改用 GitHub skill installer。
