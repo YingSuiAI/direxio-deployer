@@ -97,16 +97,27 @@ $env:DIREXIO_CONNECT_AGENT = "gemini"
 $env:DIREXIO_GEMINI_COMMAND = "C:\Tools\gemini.cmd"
 ```
 
-For Cursor on Windows, S6 avoids writing `cursor.cmd` because daemon process
-spawners may not execute `.cmd` files directly. When it finds Cursor's CLI
-install tree, it writes the real `Cursor.exe` path and `cli.js --trust` args.
-If Cursor is installed in a non-standard location, set:
+For Cursor on Windows, S6 uses Cursor Agent CLI, not Cursor Desktop CLI. The
+expected command is `%LOCALAPPDATA%\cursor-agent\agent.cmd`. S6 writes that path
+and `mode = "yolo"` so headless turns do not stop at workspace trust prompts.
+If Cursor Agent CLI is installed in a non-standard location, set:
 
 ```powershell
 $env:DIREXIO_CONNECT_AGENT = "cursor"
-$env:DIREXIO_CURSOR_COMMAND = "C:\Path\To\Cursor.exe"
-$env:DIREXIO_CONNECT_AGENT_OPTIONS_TOML = 'args = ["C:/Path/To/resources/app/out/cli.js", "--trust"]'
+$env:DIREXIO_CURSOR_AGENT_COMMAND = "C:\Path\To\agent.cmd"
 ```
+
+Cursor Agent authentication may still require one interactive login:
+
+```powershell
+& "$env:LOCALAPPDATA\cursor-agent\agent.cmd" status
+& "$env:LOCALAPPDATA\cursor-agent\agent.cmd" login
+```
+
+After login, rerun `.\scripts\orchestrate.ps1`; S6 refreshes
+`config.toml`, reinstalls the service-scoped daemon, and `verify runtime`
+checks daemon logs for missing CLI, missing login, workspace trust, and other
+agent backend failures.
 
 For Codex Desktop, the wrapper also tries to find the real bundled `codex.exe` because WindowsApps aliases cannot always be spawned by child processes:
 

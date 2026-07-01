@@ -66,6 +66,19 @@ fi
 
 json_test_check "$state" "data.runtime_checks.connect_daemon.status === 'passed' && data.runtime_checks.connect_daemon.service_name === 'connect-check.example.test' && data.runtime_checks.connect_daemon.daemon_status === 'Running' && data.runtime_checks.connect_daemon.work_dir === '$expected_work_dir' && !data.user_confirmations?.agent_mcp_runtime"
 
+assert_agent_log_failure() {
+  local name=$1 log=$2 expected=$3 rc
+  set +e
+  DIREXIO_WORKDIR="$service_dir" PATH="$fakebin:$PATH" CONNECT_WORK_DIR="$service_dir/direxio-connect" CONNECT_LOG_OUTPUT="$log" bash "$ROOT/scripts/orchestrate.sh" verify connect_daemon > "$tmp/$name.out" 2>&1
+  rc=$?
+  set -e
+  [ "$rc" -ne 0 ] || {
+    echo "connect daemon check must fail for $name log" >&2
+    exit 1
+  }
+  json_test_check "$state" "data.runtime_checks.connect_daemon.status === 'failed' && data.runtime_checks.connect_daemon.evidence.includes('local agent backend failure') && data.runtime_checks.connect_daemon.agent_error.includes('$expected')"
+}
+
 set +e
 DIREXIO_WORKDIR="$service_dir" PATH="$fakebin:$PATH" CONNECT_WORK_DIR="$service_dir/direxio-connect" CONNECT_LOG_OUTPUT='ACP error (ACP_SESSION_INIT_FAILED): ACP metadata is missing for agent:main:acp:a18569b4-1f24-4f8a-aec6-f6a54530d50e. Recreate this ACP session with /acp spawn and rebind the thread.' bash "$ROOT/scripts/orchestrate.sh" verify connect_daemon > "$tmp/acp-error.out" 2>&1
 acp_rc=$?
@@ -74,7 +87,11 @@ set -e
   echo "connect daemon check must fail when daemon logs show ACP session init failure" >&2
   exit 1
 }
-json_test_check "$state" "data.runtime_checks.connect_daemon.status === 'failed' && data.runtime_checks.connect_daemon.evidence.includes('ACP session initialization failure') && data.runtime_checks.connect_daemon.agent_error.includes('ACP_SESSION_INIT_FAILED')"
+json_test_check "$state" "data.runtime_checks.connect_daemon.status === 'failed' && data.runtime_checks.connect_daemon.evidence.includes('local agent backend failure') && data.runtime_checks.connect_daemon.agent_error.includes('ACP_SESSION_INIT_FAILED')"
+
+assert_agent_log_failure cursor-cli-missing 'time=2026-07-01T16:59:10 level=ERROR msg="failed to create agent" project=cursor error="cursor: \"C:/Users/alice/AppData/Local/cursor-agent/agent.cmd\" CLI not found in PATH"' 'failed to create agent'
+assert_agent_log_failure cursor-auth-required 'time=2026-07-01T17:00:18 level=ERROR msg="cursorSession: process failed" stderr="Error: Authentication required. Please run '\''agent login'\'' first, or set CURSOR_API_KEY environment variable."' 'Authentication required'
+assert_agent_log_failure cursor-trust-required 'time=2026-07-01T17:04:00 level=ERROR msg="cursorSession: process failed" stderr="Workspace Trust Required. Pass --trust, --yolo, or -f if you trust this directory"' 'Workspace Trust Required'
 
 report_output=$(DIREXIO_WORKDIR="$service_dir" bash "$ROOT/scripts/orchestrate.sh" report new_deploy)
 report_path=$(printf '%s\n' "$report_output" | sed -nE 's/^operation report: //p' | tail -n 1)

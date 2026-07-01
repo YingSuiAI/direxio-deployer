@@ -208,8 +208,10 @@ json_test_check "$matrix_retry_dir/session.json" "data.user_id === '@agent:servi
 [ "$(_agent_global_skill_install_path claude-code)" = '${CLAUDE_HOME:-${CLAUDECODE_HOME:-$HOME/.claude}}/skills/direxio-deployer' ]
 [ "$(_agent_global_skill_install_path claudecode)" = '${CLAUDE_HOME:-${CLAUDECODE_HOME:-$HOME/.claude}}/skills/direxio-deployer' ]
 [ "$(_agent_global_skill_install_path generic)" = '$HOME/.agent/skills/direxio-deployer' ]
-[ "$(_agent_workspace "$tmp/service")" = "$tmp/service/workspace" ]
+[ "$(_agent_workspace "$tmp/service")" = "$(pwd -P)" ]
 [ "$(DIREXIO_AGENT_WORKSPACE="$tmp/custom-workspace" _agent_workspace "$tmp/service")" = "$tmp/custom-workspace" ]
+mkdir -p "$tmp/.codex/skills/direxio-deployer"
+[ "$(cd "$tmp/.codex/skills/direxio-deployer" && _agent_workspace "$tmp/service")" = "$tmp/service/workspace" ]
 
 install_command=$(_connect_install_command "direxio-connect" "$HOME/.direxio/nodes/service.example.test/direxio-connect/config.toml" "service.example.test")
 case "$install_command" in
@@ -329,27 +331,25 @@ grep -q 'model = "whisper-test"' "$speech_config_path"
 [ "$(DIREXIO_OPENCLAW_COMMAND=/opt/openclaw/bin/openclaw _connect_agent_command acp openclaw)" = "/opt/openclaw/bin/openclaw" ]
 [ "$(DIREXIO_HERMES_COMMAND=/opt/hermes/bin/hermes _connect_agent_command acp hermes)" = "direxio-connect" ]
 
-fake_cursor_root="$tmp/Cursor"
-mkdir -p "$fake_cursor_root/resources/app/bin" "$fake_cursor_root/resources/app/out"
-: > "$fake_cursor_root/Cursor.exe"
-: > "$fake_cursor_root/resources/app/out/cli.js"
-cat > "$fake_cursor_root/resources/app/bin/cursor.cmd" <<'EOF'
+fake_cursor_agent="$tmp/localapp/cursor-agent"
+mkdir -p "$fake_cursor_agent"
+cat > "$fake_cursor_agent/agent.cmd" <<'EOF'
 @echo off
 EOF
-chmod 700 "$fake_cursor_root/resources/app/bin/cursor.cmd"
+chmod 700 "$fake_cursor_agent/agent.cmd"
 (
-  export PATH="$fake_cursor_root/resources/app/bin:$PATH"
+  export LOCALAPPDATA="$tmp/localapp"
   export DIREXIO_LOCAL_PATH_STYLE=windows
   cursor_windows_cmd=$(_connect_agent_command cursor)
   case "$cursor_windows_cmd" in
-    *Cursor.exe) ;;
-    *) echo "expected Windows Cursor command to resolve to Cursor.exe, got: $cursor_windows_cmd" >&2; exit 1 ;;
+    *cursor-agent/agent.cmd) ;;
+    *) echo "expected Windows Cursor command to resolve to Cursor Agent CLI, got: $cursor_windows_cmd" >&2; exit 1 ;;
   esac
   cursor_options=$(_connect_agent_options_toml cursor cursor)
-  [[ "$cursor_options" == *'args = ['* ]]
-  [[ "$cursor_options" == *'cli.js'* ]]
-  [[ "$cursor_options" == *'"--trust"'* ]]
+  [[ "$cursor_options" == *'mode = "yolo"'* ]]
+  [[ "$cursor_options" != *'cli.js'* ]]
 )
+[ "$(DIREXIO_CURSOR_MODE=ask _connect_agent_options_toml cursor cursor)" = 'mode = "ask"' ]
 
 cmd_config_path="$tmp/direxio-connect/config-with-cmd.toml"
 _write_connect_config "$cmd_config_path" "$tmp/direxio-connect/data-cmd" "codex-node" "codex" "$tmp/workspace" "https://service.example.test" "matrix-token" "@agent:service.example.test" "!agents-real:service.example.test" "@owner:service.example.test" "/opt/codex/bin/codex"

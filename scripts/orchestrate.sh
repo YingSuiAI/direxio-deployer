@@ -37,6 +37,7 @@ source "$HERE/lib/aws.sh"
 source "$HERE/lib/domain.sh"
 source "$HERE/lib/operation_report.sh"
 source "$HERE/lib/local-paths.sh"
+source "$HERE/lib/connect-daemon-logs.sh"
 
 # Phase -> script mapping. Use case instead of declare -A for macOS bash 3.2.
 phase_file() {
@@ -845,13 +846,6 @@ paths_match_for_check() {
   direxio_paths_equal "$1" "$2"
 }
 
-connect_daemon_agent_error_from_logs() {
-  local binary=$1 service_name=$2
-  "$binary" daemon logs --service-name "$service_name" -n "${DIREXIO_CONNECT_LOG_TAIL_LINES:-120}" 2>/dev/null \
-    | grep -Eio 'ACP_SESSION_INIT_FAILED|ACP metadata is missing|Recreate this ACP session' \
-    | head -n 1 || true
-}
-
 cmd_verify_connect_daemon() {
   [ -f "$STATE_JSON" ] || {
     warn "state.json not found: $STATE_JSON"
@@ -909,13 +903,13 @@ cmd_verify_connect_daemon() {
       state_set_object runtime_checks.connect_daemon \
         status=failed \
         "ts=$(_now)" \
-        "evidence=direxio-connect daemon logs report ACP session initialization failure" \
+        "evidence=direxio-connect daemon logs report local agent backend failure" \
         "service_name=$service_name" \
         "daemon_status=$daemon_status" \
         "work_dir=$(normalize_check_path "$work_dir")" \
         "expected_work_dir=$(normalize_check_path "$target_work_dir")" \
         "agent_error=$agent_error"
-      warn "direxio-connect daemon logs report ACP session initialization failure"
+      warn "direxio-connect daemon logs report local agent backend failure"
       return 1
     fi
     state_set_object runtime_checks.connect_daemon \

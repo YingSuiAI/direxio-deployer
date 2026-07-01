@@ -55,6 +55,11 @@ _validate_connect_agent() {
   printf '%s\n' "$agent"
 }
 
+# shellcheck disable=SC1090
+source "$S6_DIR/../lib/connect-agent-adapters.sh"
+# shellcheck disable=SC1090
+source "$S6_DIR/../lib/connect-daemon-logs.sh"
+
 _detect_agent_runtime() {
   local active_runtime explicit_agent home_runtime
   if [ -n "${DIREXIO_AGENT_PLATFORM:-}" ] && [ "${DIREXIO_AGENT_PLATFORM:-}" != "auto" ]; then
@@ -393,88 +398,6 @@ _validate_real_agent_room_id() {
   esac
 }
 
-_connect_agent_type() {
-  local runtime=$1 explicit=${DIREXIO_CONNECT_AGENT:-}
-  if [ -n "$explicit" ]; then
-    _validate_connect_agent "$explicit"
-    return 0
-  fi
-  case "$runtime" in
-    openclaw|hermes) printf 'acp\n'; return 0 ;;
-  esac
-  _validate_connect_agent "$runtime"
-}
-
-_connect_agent_command() {
-  local agent runtime raw_key var value
-  runtime=${2:-$1}
-  agent=$(_connect_agent_alias "$1" 2>/dev/null || printf '%s\n' "$1")
-  if [ -n "${DIREXIO_CONNECT_AGENT_CMD:-}" ]; then
-    printf '%s\n' "$DIREXIO_CONNECT_AGENT_CMD"
-    return 0
-  fi
-  if [ "$runtime" = "hermes" ] && [ "$agent" = "acp" ]; then
-    _local_connect_path "${DIREXIO_HERMES_ACP_ADAPTER_COMMAND:-${DIREXIO_CONNECT_BIN:-direxio-connect}}"
-    return 0
-  fi
-  for raw_key in $(_connect_runtime_command_aliases "$runtime") "$agent" $(_connect_agent_command_aliases "$agent"); do
-    var="DIREXIO_$(printf '%s' "$raw_key" | tr '[:lower:]-' '[:upper:]_')_COMMAND"
-    value=$(printenv "$var" 2>/dev/null || true)
-    if [ -n "$value" ]; then
-      printf '%s\n' "$value"
-      return 0
-    fi
-  done
-  if [ "$agent" = "cursor" ] && [ "$(_local_path_style)" = "windows" ]; then
-    _cursor_windows_exe_command && return 0
-  fi
-  case "$runtime" in
-    openclaw|hermes) printf '%s\n' "$runtime" ;;
-  esac
-}
-
-_connect_runtime_command_aliases() {
-  case "$1" in
-    openclaw) printf '%s\n' openclaw ;;
-    hermes) printf '%s\n' hermes ;;
-  esac
-}
-
-_connect_agent_command_aliases() {
-  case "$1" in
-    claudecode) printf '%s\n' claude-code claude ;;
-    opencode) printf '%s\n' open-code ;;
-    antigravity) printf '%s\n' agy ;;
-    qoder) printf '%s\n' qodercli ;;
-  esac
-}
-
-_cursor_cli_command_path() {
-  command -v cursor.cmd 2>/dev/null || command -v cursor 2>/dev/null || true
-}
-
-_cursor_windows_install_file() {
-  local kind=$1 cursor_cmd cmd_dir candidate
-  cursor_cmd=$(_cursor_cli_command_path)
-  [ -n "$cursor_cmd" ] || return 1
-  cmd_dir=$(dirname "$cursor_cmd")
-  case "$kind" in
-    exe) candidate="$cmd_dir/../../../Cursor.exe" ;;
-    cli) candidate="$cmd_dir/../out/cli.js" ;;
-    *) return 1 ;;
-  esac
-  [ -f "$candidate" ] || return 1
-  _local_connect_path "$candidate"
-}
-
-_cursor_windows_exe_command() {
-  _cursor_windows_install_file exe
-}
-
-_cursor_windows_cli_arg() {
-  _cursor_windows_install_file cli
-}
-
 _connect_repo() {
   printf '%s\n' "${DIREXIO_CONNECT_REPO:-https://github.com/YingSuiAI/direxio-connect.git}"
 }
@@ -498,7 +421,7 @@ _connect_runtime_dir() {
 }
 
 _agent_workspace() {
-  local service_dir=$1
+  local service_dir=$1 pwd_local
   if [ -n "${DIREXIO_AGENT_WORKSPACE:-}" ]; then
     printf '%s\n' "$DIREXIO_AGENT_WORKSPACE"
     return 0
@@ -507,6 +430,11 @@ _agent_workspace() {
     printf '%s\n' "$DIREXIO_AGENT_WORKSPACE_WINDOWS"
     return 0
   fi
+  pwd_local=$(pwd -P 2>/dev/null || pwd)
+  case "$pwd_local" in
+    */.codex/skills/direxio-deployer|*/.cursor/skills/direxio-deployer|*/.claude/skills/direxio-deployer|*/.gemini/skills/direxio-deployer) ;;
+    *) printf '%s\n' "$pwd_local"; return 0 ;;
+  esac
   printf '%s/workspace\n' "$service_dir"
 }
 
@@ -571,120 +499,6 @@ _mcp_server_name() {
 _connect_binary_path() {
   local service_dir=$1
   printf '%s\n' "${DIREXIO_CONNECT_BIN:-direxio-connect}"
-}
-
-_connect_agent_options_toml() {
-  local runtime=${1:-} agent=${2:-} args_toml q_display
-  if [ -n "${DIREXIO_CONNECT_AGENT_OPTIONS_TOML:-}" ]; then
-    printf '%s\n' "$DIREXIO_CONNECT_AGENT_OPTIONS_TOML"
-    return 0
-  fi
-  case "$runtime:$agent" in
-    cursor:cursor)
-      local cursor_cli
-      cursor_cli=$(_cursor_windows_cli_arg 2>/dev/null || true)
-      if [ -n "$cursor_cli" ]; then
-        printf 'args = %s\n' "$(_toml_array "$cursor_cli" --trust)"
-      else
-        printf 'args = %s\n' "$(_toml_array --trust)"
-      fi
-      ;;
-    openclaw:acp)
-      args_toml=$(_openclaw_acp_args_toml) || return 1
-      q_display=$(_toml_escape "OpenClaw ACP")
-      printf 'args = %s\n' "$args_toml"
-      printf 'display_name = "%s"\n' "$q_display"
-      ;;
-    hermes:acp)
-      args_toml=$(_hermes_acp_args_toml)
-      q_display=$(_toml_escape "Hermes ACP")
-      printf 'args = %s\n' "$args_toml"
-      printf 'display_name = "%s"\n' "$q_display"
-      ;;
-  esac
-}
-
-_openclaw_acp_args_toml() {
-  local url token_file session missing=
-  if [ -n "${DIREXIO_OPENCLAW_ACP_ARGS_TOML:-}" ]; then
-    printf '%s\n' "$DIREXIO_OPENCLAW_ACP_ARGS_TOML"
-    return 0
-  fi
-  url=${DIREXIO_OPENCLAW_ACP_URL:-}
-  token_file=${DIREXIO_OPENCLAW_ACP_TOKEN_FILE:-}
-  session=${DIREXIO_OPENCLAW_ACP_SESSION:-}
-  if [ -n "$url" ] && [ -n "$token_file" ] && [ -n "$session" ]; then
-    token_file=$(_local_connect_path "$token_file")
-    _toml_array acp --url "$url" --token-file "$token_file" --session "$session"
-    return 0
-  fi
-  if [ -n "$url" ] || [ -n "$token_file" ]; then
-    [ -n "$url" ] || missing="${missing} DIREXIO_OPENCLAW_ACP_URL"
-    [ -n "$token_file" ] || missing="${missing} DIREXIO_OPENCLAW_ACP_TOKEN_FILE"
-    [ -n "$session" ] || missing="${missing} DIREXIO_OPENCLAW_ACP_SESSION"
-    fail "OpenClaw ACP explicit Gateway settings are incomplete:${missing}. Set all of DIREXIO_OPENCLAW_ACP_URL, DIREXIO_OPENCLAW_ACP_TOKEN_FILE, and DIREXIO_OPENCLAW_ACP_SESSION; otherwise leave URL/token-file unset so openclaw acp can auto-detect from its config."
-    return 1
-  fi
-  # Fallback: OpenClaw acp auto-discovers gateway from ~/.openclaw/openclaw.json.
-  warn "OpenClaw ACP: Gateway URL/token-file not set; using session '${session:-agent:main:main}' and letting openclaw acp auto-detect the Gateway from its config."
-  _toml_array acp --session "${session:-agent:main:main}"
-}
-
-_hermes_acp_args_toml() {
-  local hermes_cmd
-  hermes_cmd=${DIREXIO_HERMES_COMMAND:-hermes}
-  hermes_cmd=$(_local_connect_path "$hermes_cmd")
-  if [ -n "${DIREXIO_HERMES_ACP_ARGS_TOML:-}" ]; then
-    _toml_array_prepend "$DIREXIO_HERMES_ACP_ARGS_TOML" hermes-acp-adapter -- "$hermes_cmd"
-    return 0
-  fi
-  _toml_array hermes-acp-adapter -- "$hermes_cmd" acp
-}
-
-_toml_array() {
-  local first=1 value q_value
-  printf '['
-  for value in "$@"; do
-    q_value=$(_toml_escape "$value")
-    if [ "$first" -eq 0 ]; then
-      printf ', '
-    fi
-    printf '"%s"' "$q_value"
-    first=0
-  done
-  printf ']\n'
-}
-
-_toml_array_prepend() {
-  local suffix_toml=$1 prefix_toml suffix_inner
-  shift
-  prefix_toml=$(_toml_array "$@")
-  suffix_inner=$(printf '%s' "$suffix_toml" | sed -E 's/^[[:space:]]*\[[[:space:]]*//; s/[[:space:]]*\][[:space:]]*$//')
-  if [ -z "$suffix_inner" ]; then
-    printf '%s\n' "$prefix_toml"
-    return 0
-  fi
-  printf '%s, %s]\n' "${prefix_toml%]}" "$suffix_inner"
-}
-
-_toml_has_key() {
-  local toml=$1 key=$2
-  printf '%s\n' "$toml" | grep -Eq "^[[:space:]]*${key}[[:space:]]*="
-}
-
-_connect_default_agent_options_toml() {
-  local agent=$1 custom_toml=${2:-}
-  case "$agent" in
-    codex)
-      _toml_has_key "$custom_toml" backend || printf 'backend = "app_server"\n'
-      _toml_has_key "$custom_toml" app_server_url || printf 'app_server_url = "stdio"\n'
-      _toml_has_key "$custom_toml" mode || printf 'mode = "yolo"\n'
-      ;;
-  esac
-}
-
-_toml_escape() {
-  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
 
 _powershell_single_quote() {
@@ -1048,7 +862,7 @@ _connect_daemon_has_agent_startup_error() {
   local binary=$1 service_name=$2 logs
   [ -n "$service_name" ] || service_name=direxio-connect
   logs=$("$binary" daemon logs --service-name "$service_name" -n "${DIREXIO_CONNECT_LOG_TAIL_LINES:-120}" 2>/dev/null || true)
-  printf '%s\n' "$logs" | grep -Eiq 'ACP_SESSION_INIT_FAILED|ACP metadata is missing|Recreate this ACP session'
+  [ -n "$(connect_daemon_agent_error_from_text "$logs")" ]
 }
 
 _maybe_auto_install_connect() {
@@ -1074,7 +888,7 @@ _maybe_auto_install_connect() {
       fi
       if _connect_daemon_has_agent_startup_error "$binary" "$service_name"; then
         state_set connect_install_status "install_failed" 2>/dev/null || true
-        warn "direxio-connect daemon is Running, but logs show ACP session initialization failed. Check OpenClaw ACP URL, token-file, and session."
+        warn "direxio-connect daemon is Running, but logs show the local agent backend failed. Check agent CLI install/login/trust settings and daemon logs."
         return 0
       fi
       state_set connect_install_status "installed" 2>/dev/null || true
@@ -1135,7 +949,7 @@ _maybe_auto_install_connect() {
     fi
     if _connect_daemon_has_agent_startup_error "$binary" "$service_name"; then
       state_set connect_install_status "install_failed" 2>/dev/null || true
-      warn "direxio-connect daemon is Running, but logs show ACP session initialization failed. Check OpenClaw ACP URL, token-file, and session."
+      warn "direxio-connect daemon is Running, but logs show the local agent backend failed. Check agent CLI install/login/trust settings and daemon logs."
       return 0
     fi
     state_set connect_install_status "installed" 2>/dev/null || true
