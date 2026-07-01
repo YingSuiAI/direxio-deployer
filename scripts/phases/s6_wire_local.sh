@@ -730,7 +730,14 @@ _upper_drive() {
 }
 
 _local_path_style() {
-  printf '%s\n' "${DIREXIO_LOCAL_PATH_STYLE:-posix}"
+  local style="${DIREXIO_LOCAL_PATH_STYLE:-}"
+  if [ -z "$style" ]; then
+    case "$(uname -s)" in
+      *MINGW*|*MSYS*|*CYGWIN*) style=windows ;;
+      *) style=posix ;;
+    esac
+  fi
+  printf '%s\n' "$style"
 }
 
 _local_connect_path() {
