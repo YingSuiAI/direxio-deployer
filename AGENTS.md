@@ -16,7 +16,7 @@
 
 Every deployer change must classify paths and commands by the platform that will consume them:
 
-- **Remote server paths** are Linux paths inside EC2/cloud-init/Docker, such as `/opt/p2p` and `/var/direxio-message-server`.
+- **Remote server paths** are Linux paths inside EC2/cloud-init/Docker, such as `/var/direxio-message-server`, `/var/direxio-message-server/p2p/bootstrap.json`, and `/etc/direxio-message-server`.
 - **Deployer execution paths** are used by the orchestration engine. Bash phase scripts can use POSIX paths, but PowerShell entrypoints must convert Windows paths before invoking Bash.
 - **Local bridge paths** are consumed by `direxio-connect` and the local agent process. On Windows they must be Windows-compatible paths, not `/mnt/c/...` or Git Bash-only `/c/...` paths.
 - **Documentation paths** must be portable examples using `$HOME`, `%USERPROFILE%`, `$env:USERPROFILE`, `<service_id>`, or `<domain>`, not machine-specific absolute paths.

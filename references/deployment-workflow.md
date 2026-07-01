@@ -212,7 +212,7 @@ DIREXIO_EXISTING_STATE_ACTION=continue DOMAIN=__DOMAIN__ bash scripts/orchestrat
 ```
 
 `update.sh` SSHes to the recorded EC2 instance, runs Docker Compose pull/up,
-reruns `/opt/p2p/init-tokens.sh`, clears stale local secret fields, stops only
+reruns `/var/direxio-message-server/init-tokens.sh`, clears stale local secret fields, stops only
 the matching service-scoped direxio-connect daemon when its `WorkDir` matches
 this service, and marks S4-S7 pending so health, credential sync, local
 MCP/agent wiring, and final verification run again. It does not remove Docker

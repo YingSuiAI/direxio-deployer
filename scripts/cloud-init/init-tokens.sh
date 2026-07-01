@@ -2,12 +2,12 @@
 # init-tokens.sh - wait for message-server bootstrap credentials after compose is up.
 set -euo pipefail
 
-DIREXIO_DIR=${DIREXIO_DIR:-/opt/p2p}
+DIREXIO_DIR=${DIREXIO_DIR:-/var/direxio-message-server}
 COMPOSE="docker compose -f ${DIREXIO_DIR}/docker-compose.yml --env-file ${DIREXIO_DIR}/.env"
 DOMAIN=${DOMAIN:?DOMAIN is required (e.g. __DOMAIN__)}
 CONTAINER_BOOTSTRAP_FILE=${CONTAINER_BOOTSTRAP_FILE:-/var/direxio-message-server/p2p/bootstrap.json}
-BOOTSTRAP_FILE=${BOOTSTRAP_FILE:-/opt/p2p/bootstrap.json}
-WELLKNOWN_DIR=${WELLKNOWN_DIR:-/opt/p2p/wellknown}
+BOOTSTRAP_FILE=${BOOTSTRAP_FILE:-/var/direxio-message-server/p2p/bootstrap.json}
+WELLKNOWN_DIR=${WELLKNOWN_DIR:-/var/direxio-message-server/wellknown}
 
 log() { echo "[init-tokens] $*" >&2; }
 
@@ -62,6 +62,10 @@ wait_for_message_server() {
 
 copy_bootstrap_file() {
   local tmp
+  if [ -s "$BOOTSTRAP_FILE" ]; then
+    chmod 0600 "$BOOTSTRAP_FILE" 2>/dev/null || true
+    return 0
+  fi
   tmp=$(mktemp)
   if ! $COMPOSE exec -T message-server sh -c "test -s '$CONTAINER_BOOTSTRAP_FILE' && cat '$CONTAINER_BOOTSTRAP_FILE'" > "$tmp" 2>/dev/null; then
     rm -f "$tmp"

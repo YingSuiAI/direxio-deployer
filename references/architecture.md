@@ -9,7 +9,7 @@
   ├─ /_matrix/*, /_dendrite/*, /_synapse/* -> message-server:8008
   ├─ /_p2p/*                              -> message-server:8008
   ├─ /.well-known/matrix/*                -> Caddy 静态响应
-  ├─ /.well-known/portal/*                -> /opt/p2p/wellknown 静态文件
+  ├─ /.well-known/portal/*                -> /var/direxio-message-server/wellknown 静态文件
   └─ /healthz                             -> /_p2p/health
 
 message-server -> PostgreSQL 18
@@ -26,13 +26,13 @@ coturn         -> TURN 3478 + 49160-49200/udp
 1. `postgres` healthy。
 2. `message-init` 生成 `/etc/direxio-message-server/message-server.yaml` 和 signing key，并写入 TURN 配置。
 3. `message-server` 启动，加载 Matrix + Direxio 业务，读取 `P2P_PORTAL_PASSWORD` 和 `P2P_PORTAL_CREDENTIALS_FILE`。
-4. `init-tokens.sh` 调用 `portal.bootstrap`，从容器复制凭据到宿主 `/opt/p2p/bootstrap.json`。如果最新服务端没有写入 `agent_room_id`，脚本会通过 Matrix Client API 创建真实 agent room、邀请并加入 `@agent:<server>`，再把 `agent_room_id` 回写到宿主和容器凭据文件。
-5. `init-tokens.sh` 生成 `/opt/p2p/wellknown/owner.json`。
+4. `message-server` 通过 bind mount 直接写宿主 `/var/direxio-message-server/p2p/bootstrap.json`。`init-tokens.sh` 调用 `portal.bootstrap`；如果最新服务端没有写入 `agent_room_id`，脚本会通过 Matrix Client API 创建真实 agent room、邀请并加入 `@agent:<server>`，再把 `agent_room_id` 回写到凭据文件。
+5. `init-tokens.sh` 生成 `/var/direxio-message-server/wellknown/owner.json`。
 6. `caddy` 对外服务 Matrix、Direxio API 和 well-known。
 
 ## 凭据模型
 
-`/opt/p2p/bootstrap.json` 会包含:
+`/var/direxio-message-server/p2p/bootstrap.json` 会包含:
 
 - `password`: 后端字段名；对用户展示时是八位 App 初始化码。
 - `access_token`: 当前用户的统一 bearer token，可用于 Matrix `/_matrix/client/*` 和需要用户身份的 Direxio 调用。

@@ -9,7 +9,7 @@
 - **S2_DOMAIN**: 确认正式长期域名和 Matrix `server_name` 不可逆绑定。
 - **S3_PROVISION**: 创建 EC2、密钥对、安全组、Elastic IP，按 DNS 模式处理 Route53 hosted zone/A 记录或等待外部 DNS，渲染 cloud-init。默认镜像 `MESSAGE_SERVER_IMAGE=direxio/message-server:latest`。
 - **S4_BOOTSTRAP_STACK**: 等 cloud-init 安装 Docker 并启动 `postgres:18 + message-server + caddy + coturn`，轮询 `https://<domain>/healthz`。
-- **S5_INIT_TOKENS**: SSH 读取云端 `init-tokens.sh` 生成的 `/opt/p2p/bootstrap.json`，归一化 `password`、`access_token`、`agent_token`、真实 `agent_room_id`。云端脚本会先调用 `portal.bootstrap`，用 `agent_token` 创建 `@agent:<server>` Matrix session，再用 owner Matrix token 创建房间并邀请/加入 agent，最后回写真正的 agent room。`password`、owner `access_token` 和 `agent_token` 按一次性/易失凭据处理；需要登录或用 token 调接口前，必须重新从服务器拉取最新 `/opt/p2p/bootstrap.json`，不要复用旧输出。
+- **S5_INIT_TOKENS**: SSH 读取云端 `init-tokens.sh` 生成的 `/var/direxio-message-server/p2p/bootstrap.json`，归一化 `password`、`access_token`、`agent_token`、真实 `agent_room_id`。云端脚本会先调用 `portal.bootstrap`，用 `agent_token` 创建 `@agent:<server>` Matrix session，再用 owner Matrix token 创建房间并邀请/加入 agent，最后回写真正的 agent room。`password`、owner `access_token` 和 `agent_token` 按一次性/易失凭据处理；需要登录或用 token 调接口前，必须重新从服务器拉取最新 `/var/direxio-message-server/p2p/bootstrap.json`，不要复用旧输出。
 - **S6_WIRE_LOCAL**: 写本地凭据、用 `agent_token` 创建 `@agent:<server>` Matrix session、写 `direxio-connect/config.toml`，写 MCP 配置片段，并按策略安装或推荐 `direxio-connect`。
 - **S7_VERIFY_E2E**: 验证 `/_p2p`、Matrix versions、well-known、owner.json+CORS、TURN。
 
@@ -41,6 +41,6 @@ S7 自动验收通过后应交付:
 
 - DNS 未指向 EIP: S3 返回 waiting。Route53 模式下先检查 hosted zone/NS 委托；manual DNS fallback 下用户或 DNS provider automation 设置 A 记录后用 `DNS_READY=1` 续跑。
 - `/healthz` 不通: 看 `/var/log/cloud-init-output.log` 和 `docker compose logs message-server`。
-- bootstrap 缺字段: 在实例上重跑 `sudo sh -lc 'cd /opt/p2p && DOMAIN=<domain> bash /opt/p2p/init-tokens.sh'`，再看宿主 `/opt/p2p/bootstrap.json` 和容器内 `/var/direxio-message-server/p2p/bootstrap.json`。
-- `agent_room_id` 缺失或是旧伪 ID: 确认 `.env` 有 `P2P_PORTAL_PASSWORD`，然后重跑 `/opt/p2p/init-tokens.sh`；脚本应创建真实 Matrix room 并回写。
+- bootstrap 缺字段: 在实例上重跑 `sudo sh -lc 'cd /var/direxio-message-server && DOMAIN=<domain> bash /var/direxio-message-server/init-tokens.sh'`，再看宿主 `/var/direxio-message-server/p2p/bootstrap.json` 和容器内 `/var/direxio-message-server/p2p/bootstrap.json`。
+- `agent_room_id` 缺失或是旧伪 ID: 确认 `.env` 有 `P2P_PORTAL_PASSWORD`，然后重跑 `/var/direxio-message-server/init-tokens.sh`；脚本应创建真实 Matrix room 并回写。
 - TURN 为空: 检查 `TURN_SECRET`、coturn、安全组 3478 和 49160-49200/udp。

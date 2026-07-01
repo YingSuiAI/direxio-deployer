@@ -21,12 +21,32 @@ if grep -q 'P2P_REMOTE_NODE_' "$tmp/user-data.yaml"; then
   exit 1
 fi
 
+grep -q '/var/direxio-message-server/bundle.tar.gz' "$tmp/user-data.yaml"
+grep -q 'cd /var/direxio-message-server' "$tmp/user-data.yaml"
 grep -q '/etc/direxio-message-server/message-server.yaml' "$tmp/bundle/docker-compose.yml"
 grep -q '/var/direxio-message-server/p2p/bootstrap.json' "$tmp/bundle/docker-compose.yml"
 grep -q 'P2P_PORTAL_CREDENTIALS_FILE: /var/direxio-message-server/p2p/bootstrap.json' "$tmp/bundle/docker-compose.yml"
 grep -q 'P2P_PORTAL_PASSWORD: ${P2P_PORTAL_PASSWORD}' "$tmp/bundle/docker-compose.yml"
+awk '
+  /^  message-server:/ { in_service=1; next }
+  /^  [^[:space:]].*:/ { in_service=0 }
+  in_service && /\/var\/direxio-message-server\/p2p:\/var\/direxio-message-server\/p2p/ { found=1 }
+  END { exit found ? 0 : 1 }
+' "$tmp/bundle/docker-compose.yml"
+grep -q '/var/direxio-message-server/wellknown:/srv/p2p/wellknown:ro' "$tmp/bundle/docker-compose.yml"
 grep -q '^    grep -q .*P2P_PORTAL_PASSWORD=' "$tmp/user-data.yaml"
 grep -q '/var/direxio-message-server/p2p/bootstrap.json' "$tmp/bundle/init-tokens.sh"
+grep -q 'BOOTSTRAP_FILE=${BOOTSTRAP_FILE:-/var/direxio-message-server/p2p/bootstrap.json}' "$tmp/bundle/init-tokens.sh"
+grep -q 'if \[ -s "$BOOTSTRAP_FILE" \]' "$tmp/bundle/init-tokens.sh"
+deprecated_remote_dir="/opt""/p2p"
+if grep -q "$deprecated_remote_dir/bootstrap.json" "$tmp/bundle/init-tokens.sh"; then
+  echo "init-tokens.sh must not mirror bootstrap credentials to the deprecated bootstrap path" >&2
+  exit 1
+fi
+if grep -R -q "$deprecated_remote_dir" "$tmp/bundle" "$tmp/user-data.yaml"; then
+  echo "rendered remote deployment bundle must not use deprecated remote deployment paths" >&2
+  exit 1
+fi
 grep -q 'portal.bootstrap' "$tmp/bundle/init-tokens.sh"
 grep -q 'agent.matrix_session.create' "$tmp/bundle/init-tokens.sh"
 grep -q 'agent_auth_token=$(json_string agent_token "$BOOTSTRAP_FILE")' "$tmp/bundle/init-tokens.sh"

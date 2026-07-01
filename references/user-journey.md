@@ -48,7 +48,7 @@ bash scripts/orchestrate.sh
 
 ## Token Initialization
 
-S5 reads `/opt/p2p/bootstrap.json` from the instance. Current message-server builds initialize on startup and write the backend `password` field plus owner, Matrix, and agent tokens. User-facing delivery should call `password` the eight-digit app initialization code.
+S5 reads `/var/direxio-message-server/p2p/bootstrap.json` from the instance. Current message-server builds initialize on startup and write the backend `password` field plus owner, Matrix, and agent tokens. User-facing delivery should call `password` the eight-digit app initialization code.
 
 ## Delivery
 

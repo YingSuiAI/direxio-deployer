@@ -47,7 +47,7 @@ install rule. Use a Git clone only for deployer development or local patching.
 Classify every path by consumer before writing it to `state.json`,
 `credentials.json`, `env`, `direxio-connect/config.toml`, docs, or printed commands:
 
-- Remote server paths are Linux paths consumed on EC2, such as `/opt/p2p`.
+- Remote server paths are Linux paths consumed on EC2, such as `/var/direxio-message-server`.
 - Deployer execution paths may be POSIX paths inside Bash phases.
 - Local bridge paths are consumed by `direxio-connect` and local agent
   processes. On Windows they must be Windows-compatible paths.

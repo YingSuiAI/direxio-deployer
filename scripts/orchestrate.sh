@@ -126,7 +126,7 @@ phase_user_meaning() {
     S2_DOMAIN)          echo "The long-lived domain, DNS authority, or irreversible Matrix server_name binding is not confirmed." ;;
     S3_PROVISION)       echo "AWS infrastructure provisioning, fixed public IP, security group, or DNS record setup is not complete." ;;
     S4_BOOTSTRAP_STACK) echo "The EC2 instance exists, but cloud-init, Docker, Caddy/TLS, or message-server has not reached healthy state." ;;
-    S5_INIT_TOKENS)     echo "The server is not yet returning fresh bootstrap credentials from /opt/p2p/bootstrap.json." ;;
+    S5_INIT_TOKENS)     echo "The server is not yet returning fresh bootstrap credentials from /var/direxio-message-server/p2p/bootstrap.json." ;;
     S6_WIRE_LOCAL)      echo "The cloud service is likely up, but local direxio-connect, service credentials, or MCP snippets are not wired." ;;
     S7_VERIFY_E2E)      echo "The deployed service failed one or more final automated health, Matrix, CORS, TURN, or API checks." ;;
     DONE)               echo "Automated S0-S7 checks are complete." ;;
@@ -216,7 +216,7 @@ status_next_action() {
     S2_DOMAIN)          echo "confirm the long-lived domain, DNS authority, and irreversible Matrix server_name binding" ;;
     S3_PROVISION)       echo "inspect EC2 provisioning, Elastic IP allocation, security group creation, and DNS record setup" ;;
     S4_BOOTSTRAP_STACK) echo "inspect cloud-init, Docker, Caddy/TLS, and message-server logs over SSH" ;;
-    S5_INIT_TOKENS)     echo "inspect /opt/p2p/bootstrap.json, init-tokens.sh, and message-server bootstrap logs" ;;
+    S5_INIT_TOKENS)     echo "inspect /var/direxio-message-server/p2p/bootstrap.json, init-tokens.sh, and message-server bootstrap logs" ;;
     S6_WIRE_LOCAL)      echo "refresh local credentials, direxio-connect config, MCP snippets, and agent runtime settings without destroying cloud resources" ;;
     S7_VERIFY_E2E)      echo "inspect the failed health, Matrix, well-known, owner.json/CORS, TURN, MCP, or runtime gate before declaring delivery" ;;
     DONE)               echo "give the user the App domain and eight-digit initialization code, then record App initialization and agent/MCP confirmation separately" ;;

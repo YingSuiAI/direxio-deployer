@@ -4,29 +4,31 @@ This note captures operational lessons from the production deployment of
 `im2.jkmf.top` on AWS from a Windows workstation. Keep it short and practical:
 symptom, cause, and what the next operator or agent should do.
 
-## AS Bootstrap Initialization
+## Message Server Bootstrap Initialization
 
 Symptom:
 
 ```text
 S5_INIT_TOKENS failed: read bootstrap.json timed out
-/opt/p2p/bootstrap.json was missing or incomplete
+/var/direxio-message-server/p2p/bootstrap.json was missing or incomplete
 ```
 
 Cause:
 
-Current Direxio message-server builds initialize on service startup and write
-`/opt/p2p/bootstrap.json` with the login `password`, `agent_token`, and owner
-metadata. Calling the old bootstrap HTTP endpoint or scraping logs is no longer
-part of the deploy path.
+Current Direxio message-server builds honor
+`P2P_PORTAL_CREDENTIALS_FILE=/var/direxio-message-server/p2p/bootstrap.json`.
+They write the login `password`, `agent_token`, owner metadata, and
+`agent_room_id` there on startup and after portal session changes.
 
 Fix now in ops:
 
-- Cloud-side `scripts/cloud-init/init-tokens.sh` waits for AS `/healthz` and
-  the credentials file.
-- `docker-compose.yml` bind-mounts host `/opt/p2p` into the AS container so the
-  file is readable from the EC2 host.
-- Local S5 reads the file with `ssh ... sudo cat /opt/p2p/bootstrap.json`,
+- `docker-compose.yml` bind-mounts only the container
+  `/var/direxio-message-server/p2p` subtree to the same host path, so the
+  bootstrap file is directly readable from EC2 without exposing the whole data
+  volume to Caddy.
+- Cloud-side `scripts/cloud-init/init-tokens.sh` waits for message-server
+  `/_p2p/health` and calls `portal.bootstrap`.
+- Local S5 reads the file with `ssh ... sudo cat /var/direxio-message-server/p2p/bootstrap.json`,
   normalizes it into local `outputs.json`, and stores `password`/`agent_token`
   in state.
 
@@ -82,7 +84,7 @@ Fix now in ops:
   stop only leftover local `orchestrate.sh`/`curl`/`ssh` children for that run,
   and resume with `DIREXIO_EXISTING_STATE_ACTION=continue`.
 - If SSH to the instance is blocked but AWS access still works, attach a
-  temporary SSM role and use SSM Run Command to read `/opt/p2p/bootstrap.json`
+  temporary SSM role and use SSM Run Command to read `/var/direxio-message-server/p2p/bootstrap.json`
   without printing secrets. Remove or audit the temporary role after recovery.
 
 ## DNS And State Handling
@@ -174,8 +176,8 @@ Workaround (use when the health check is the only blocker and the rate limit is 
 
 2. Write the modified Caddyfile to the remote host. Use base64+SSH to avoid shell escaping issues:
    ```bash
-   echo '<base64-encoded-caddyfile>' | base64 -d | sudo tee /opt/p2p/Caddyfile
-   sudo docker compose -f /opt/p2p/docker-compose.yml restart caddy
+   echo '<base64-encoded-caddyfile>' | base64 -d | sudo tee /var/direxio-message-server/Caddyfile
+   sudo docker compose -f /var/direxio-message-server/docker-compose.yml restart caddy
    ```
 
 3. Wait 5 seconds, then verify HTTPS works:

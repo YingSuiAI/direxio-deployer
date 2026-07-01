@@ -41,7 +41,7 @@ curl --resolve <DOMAIN>:443:<PUBLIC_IP> -fsS https://<DOMAIN>/healthz
 - S1 waits for default VPC, EC2 quota, or AMI availability.
 - S3 waits for DNS A record.
 - S4 waits for Docker/image pulls/Caddy certificate issuance.
-- S5 waits for `/opt/p2p/bootstrap.json` and password/agent_token extraction.
+- S5 waits for `/var/direxio-message-server/p2p/bootstrap.json` and password/agent_token extraction.
 
 Rerun the same command after fixing the blocker; state resumes from the first unfinished phase.
 

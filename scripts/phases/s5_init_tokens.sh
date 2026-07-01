@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# S5 INIT_TOKENS - fetch AS-written bootstrap credentials from the instance.
+# S5 INIT_TOKENS - fetch message-server bootstrap credentials from the instance.
 # Also verify owner.json so the client does not report Portal as undeployed.
+
+DIREXIO_REMOTE_BOOTSTRAP_FILE=${DIREXIO_REMOTE_BOOTSTRAP_FILE:-/var/direxio-message-server/p2p/bootstrap.json}
 
 run_phase() {
   phase_set S5_INIT_TOKENS in_progress "fetching tokens"
@@ -12,12 +14,12 @@ run_phase() {
   raw=$(mktemp)
   trap 'rm -f "${raw:-}"; trap - RETURN' RETURN
 
-  log "Fetching /opt/p2p/bootstrap.json ..."
+  log "Fetching ${DIREXIO_REMOTE_BOOTSTRAP_FILE} ..."
   if ! poll_until "read bootstrap.json" "${TOKEN_POLL_INTERVAL:-10}" "${TOKEN_POLL_MAX:-12}" \
         _read_remote_bootstrap "$keyfile" "$pubip" "$raw"; then
     phase_set S5_INIT_TOKENS failed "failed to fetch bootstrap.json"
-    warn "Could not read /opt/p2p/bootstrap.json. Check whether message-server wrote credentials:"
-    warn "  ssh -i $keyfile ubuntu@$pubip 'sudo cat /opt/p2p/bootstrap.json 2>/dev/null; cd /opt/p2p; sudo docker compose logs message-server | tail -40'"
+    warn "Could not read ${DIREXIO_REMOTE_BOOTSTRAP_FILE}. Check whether message-server wrote credentials:"
+    warn "  ssh -i $keyfile ubuntu@$pubip 'sudo cat ${DIREXIO_REMOTE_BOOTSTRAP_FILE} 2>/dev/null; cd /var/direxio-message-server; sudo docker compose logs message-server | tail -40'"
     return 1
   fi
   if ! _normalize_bootstrap_output "$domain" "$raw" "$out"; then
@@ -30,7 +32,7 @@ run_phase() {
     log "owner.json 200 OK (Portal discovery healthy)"
   else
     warn "/.well-known/portal/owner.json did not return 200. The client may report Portal as undeployed."
-    warn "  Check Caddy file_server and /opt/p2p/wellknown/owner.json generation."
+    warn "  Check Caddy file_server and /var/direxio-message-server/wellknown/owner.json generation."
   fi
 
   local password token access_token asurl agent_room_id
@@ -79,7 +81,7 @@ _read_remote_bootstrap() {
     -o ServerAliveInterval="${SSH_SERVER_ALIVE_INTERVAL:-5}"
     -o ServerAliveCountMax="${SSH_SERVER_ALIVE_COUNT_MAX:-2}"
   )
-  cmd=(ssh "${ssh_args[@]}" ubuntu@"$pubip" "sudo test -s /opt/p2p/bootstrap.json && sudo cat /opt/p2p/bootstrap.json")
+  cmd=(ssh "${ssh_args[@]}" ubuntu@"$pubip" "sudo test -s '${DIREXIO_REMOTE_BOOTSTRAP_FILE}' && sudo cat '${DIREXIO_REMOTE_BOOTSTRAP_FILE}'")
   timeout_seconds=${SSH_COMMAND_TIMEOUT:-30}
   if command -v timeout >/dev/null 2>&1; then
     timeout "$timeout_seconds" "${cmd[@]}" > "$out" 2>/dev/null

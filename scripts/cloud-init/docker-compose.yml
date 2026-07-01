@@ -75,7 +75,7 @@ services:
     volumes:
       - message-config:/etc/direxio-message-server
       - message-data:/var/direxio-message-server
-      - /opt/p2p:/opt/p2p
+      - /var/direxio-message-server/p2p:/var/direxio-message-server/p2p
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:8008/_p2p/health >/dev/null"]
       interval: 10s
@@ -100,7 +100,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
-      - /opt/p2p:/srv/p2p:ro
+      - /var/direxio-message-server/wellknown:/srv/p2p/wellknown:ro
     restart: unless-stopped
 
   coturn:

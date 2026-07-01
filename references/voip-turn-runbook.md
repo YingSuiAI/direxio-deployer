@@ -96,9 +96,9 @@ aws ec2 authorize-security-group-ingress --group-id "$sg" --protocol udp --port 
 在 cloud-init 的 IMDS 取公网 IP 那步顺便落 `PUBLIC_IP`;再生成一个随机 `TURN_SECRET`:
 ```bash
 # 已有:IP=$(curl ... public-ipv4)
-echo "PUBLIC_IP=$IP" >> /opt/p2p/.env
+echo "PUBLIC_IP=$IP" >> /var/direxio-message-server/.env
 # TURN 共享密钥(随机,homeserver 与 coturn 共用)
-echo "TURN_SECRET=$(head -c 32 /dev/urandom | base64 | tr -d '/+=' | head -c 40)" >> /opt/p2p/.env
+echo "TURN_SECRET=$(head -c 32 /dev/urandom | base64 | tr -d '/+=' | head -c 40)" >> /var/direxio-message-server/.env
 ```
 > 注:custom 域名模式下 PUBLIC_IP 取不到 IMDS 也能用 `curl ifconfig.me` 兜底;或由 deploy 端注入。
 

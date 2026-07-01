@@ -3,7 +3,7 @@
 #
 # Bundle cloud-init deployment files (docker-compose.yml / Caddyfile /
 # init-tokens.sh) into a tar.gz, inline it as one write_files entry, and unpack
-# it to /opt/p2p in runcmd. Comment-only lines are stripped at the end to keep
+# it to /var/direxio-message-server in runcmd. Comment-only lines are stripped at the end to keep
 # AWS user-data below the 16384-byte limit. Replaces __DOMAIN__ /
 # __ACME_EMAIL__ / __MESSAGE_SERVER_IMAGE__; the EC2 instance does not need to
 # clone repos.
@@ -53,14 +53,14 @@ BUNDLE_B64=$(COPYFILE_DISABLE=1 tar -C "$WORK" -cf - docker-compose.yml Caddyfil
 # Avoid passing multiline strings via awk -v; macOS awk rejects newline in string.
 EXTRA_WF=$(mktemp); trap 'rm -rf "$WORK" "$EXTRA_WF"' EXIT
 cat > "$EXTRA_WF" <<EOF
-  - path: /opt/p2p/bundle.tar.gz
+  - path: /var/direxio-message-server/bundle.tar.gz
     permissions: '0644'
     encoding: b64
     content: $BUNDLE_B64
 EOF
 
 # Insert unpack as the first runcmd step before Docker install / compose up.
-UNPACK='  - mkdir -p /opt/p2p && tar -xzf /opt/p2p/bundle.tar.gz -C /opt/p2p && chmod 0755 /opt/p2p/init-tokens.sh'
+UNPACK='  - mkdir -p /var/direxio-message-server && tar -xzf /var/direxio-message-server/bundle.tar.gz -C /var/direxio-message-server && chmod 0755 /var/direxio-message-server/init-tokens.sh'
 
 strip_userdata_comments() {
   awk '
