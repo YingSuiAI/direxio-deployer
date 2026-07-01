@@ -14,14 +14,8 @@
 		respond `{"m.homeserver":{"base_url":"https://{$DOMAIN}"}}` 200
 	}
 
-	handle_path /.well-known/portal/* {
-		header Access-Control-Allow-Origin *
-		header Access-Control-Allow-Methods "GET, OPTIONS"
-		header Access-Control-Allow-Headers "Content-Type"
-		@portal_options method OPTIONS
-		respond @portal_options 204
-		root * /srv/p2p/wellknown
-		file_server
+	handle /.well-known/portal/* {
+		reverse_proxy message-server:8008
 	}
 
 	handle /healthz {

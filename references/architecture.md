@@ -9,7 +9,7 @@
   ├─ /_matrix/*, /_dendrite/*, /_synapse/* -> message-server:8008
   ├─ /_p2p/*                              -> message-server:8008
   ├─ /.well-known/matrix/*                -> Caddy 静态响应
-  ├─ /.well-known/portal/*                -> /var/direxio-message-server/wellknown 静态文件
+  ├─ /.well-known/portal/*                -> message-server:8008
   └─ /healthz                             -> /_p2p/health
 
 message-server -> PostgreSQL 18
@@ -27,7 +27,7 @@ coturn         -> TURN 3478 + 49160-49200/udp
 2. `message-init` 生成 `/etc/direxio-message-server/message-server.yaml` 和 signing key，并写入 TURN 配置。
 3. `message-server` 启动，加载 Matrix + Direxio 业务，读取 `P2P_PORTAL_PASSWORD` 和 `P2P_PORTAL_CREDENTIALS_FILE`。
 4. `message-server` 通过 bind mount 直接写宿主 `/var/direxio-message-server/p2p/bootstrap.json`。`init-tokens.sh` 调用 `portal.bootstrap`；如果最新服务端没有写入 `agent_room_id`，脚本会通过 Matrix Client API 创建真实 agent room、邀请并加入 `@agent:<server>`，再把 `agent_room_id` 回写到凭据文件。
-5. `init-tokens.sh` 生成 `/var/direxio-message-server/wellknown/owner.json`。
+5. `message-server` 的 `/.well-known/portal/owner.json` handler 动态返回 owner discovery。
 6. `caddy` 对外服务 Matrix、Direxio API 和 well-known。
 
 ## 凭据模型

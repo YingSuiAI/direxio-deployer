@@ -124,11 +124,7 @@ ops_update_remote_command() {
   local image=${1:-} image_q remote_script
   remote_script=$(cat <<'EOF'
 set -eu
-DIREXIO_DIR=/var/direxio-message-server
-if [ ! -f "$DIREXIO_DIR/docker-compose.yml" ] && [ -f /opt/p2p/docker-compose.yml ]; then
-  DIREXIO_DIR=/opt/p2p
-fi
-cd "$DIREXIO_DIR"
+cd /var/direxio-message-server
 if [ -n "${MESSAGE_SERVER_IMAGE:-}" ]; then
   IMAGE=$MESSAGE_SERVER_IMAGE
   escaped_image=$(printf '%s\n' "$IMAGE" | sed 's/[\/&]/\\&/g')
@@ -142,21 +138,6 @@ docker compose --env-file .env pull
 docker compose --env-file .env up -d
 DOMAIN=$(grep '^DOMAIN=' .env | cut -d= -f2)
 BOOTSTRAP_FILE=/var/direxio-message-server/p2p/bootstrap.json
-INIT_TOKENS="$DIREXIO_DIR/init-tokens.sh"
-if [ "$DIREXIO_DIR" = "/opt/p2p" ]; then
-  BOOTSTRAP_FILE=/opt/p2p/bootstrap.json
-fi
-sync_container_bootstrap() {
-  tmp=$(mktemp)
-  if docker compose --env-file .env exec -T message-server sh -c 'test -s /var/direxio-message-server/p2p/bootstrap.json && cat /var/direxio-message-server/p2p/bootstrap.json' > "$tmp"; then
-    mkdir -p "$(dirname "$BOOTSTRAP_FILE")"
-    install -m 0600 "$tmp" "$BOOTSTRAP_FILE"
-    rm -f "$tmp"
-    return 0
-  fi
-  rm -f "$tmp"
-  return 1
-}
 bootstrap_ready() {
   test -s "$BOOTSTRAP_FILE" \
     && grep -q '"password"[[:space:]]*:' "$BOOTSTRAP_FILE" \
@@ -164,10 +145,10 @@ bootstrap_ready() {
   && grep -q '"access_token"[[:space:]]*:' "$BOOTSTRAP_FILE" \
     && grep -Eq '"agent_room_id"[[:space:]]*:[[:space:]]*"![^"]+"' "$BOOTSTRAP_FILE"
 }
-if sync_container_bootstrap && bootstrap_ready; then
+if bootstrap_ready; then
   echo "[update] existing bootstrap credentials are present; skipping portal.bootstrap."
 else
-  DOMAIN="$DOMAIN" bash "$INIT_TOKENS"
+  DOMAIN="$DOMAIN" bash /var/direxio-message-server/init-tokens.sh
 fi
 EOF
 )
@@ -182,11 +163,7 @@ EOF
 ops_reset_remote_command() {
   cat <<'EOF'
 set -eu
-DIREXIO_DIR=/var/direxio-message-server
-if [ ! -f "$DIREXIO_DIR/docker-compose.yml" ] && [ -f /opt/p2p/docker-compose.yml ]; then
-  DIREXIO_DIR=/opt/p2p
-fi
-cd "$DIREXIO_DIR"
+cd /var/direxio-message-server
 sudo docker compose --env-file .env down
 project=$(basename "$PWD")
 for volume in postgres-data message-config message-data; do
@@ -196,20 +173,13 @@ for volume in postgres-data message-config message-data; do
   fi
   sudo docker volume rm "${project}_${volume}" >/dev/null 2>&1 || true
 done
-BOOTSTRAP_FILE=/var/direxio-message-server/p2p/bootstrap.json
-WELLKNOWN_OWNER=/var/direxio-message-server/wellknown/owner.json
-INIT_TOKENS="$DIREXIO_DIR/init-tokens.sh"
-if [ "$DIREXIO_DIR" = "/opt/p2p" ]; then
-  BOOTSTRAP_FILE=/opt/p2p/bootstrap.json
-  WELLKNOWN_OWNER=/opt/p2p/wellknown/owner.json
-fi
-sudo rm -f "$BOOTSTRAP_FILE" "$WELLKNOWN_OWNER" /var/direxio-message-server/p2p/bootstrap.json /opt/p2p/bootstrap.json /var/direxio-message-server/wellknown/owner.json /opt/p2p/wellknown/owner.json
+sudo rm -f /var/direxio-message-server/p2p/bootstrap.json
 new_code=$(od -An -N4 -tu4 /dev/urandom | awk '{printf "%08d", $1 % 100000000}')
 sudo sed -i '/^P2P_PORTAL_PASSWORD=/d' .env
 printf 'P2P_PORTAL_PASSWORD=%s\n' "$new_code" | sudo tee -a .env >/dev/null
 sudo docker compose --env-file .env up -d
 DOMAIN=$(grep '^DOMAIN=' .env | cut -d= -f2)
-sudo DOMAIN="$DOMAIN" bash "$INIT_TOKENS"
+sudo DOMAIN="$DOMAIN" bash /var/direxio-message-server/init-tokens.sh
 EOF
 }
 

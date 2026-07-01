@@ -5,9 +5,7 @@ set -euo pipefail
 DIREXIO_DIR=${DIREXIO_DIR:-/var/direxio-message-server}
 COMPOSE="docker compose -f ${DIREXIO_DIR}/docker-compose.yml --env-file ${DIREXIO_DIR}/.env"
 DOMAIN=${DOMAIN:?DOMAIN is required (e.g. __DOMAIN__)}
-CONTAINER_BOOTSTRAP_FILE=${CONTAINER_BOOTSTRAP_FILE:-/var/direxio-message-server/p2p/bootstrap.json}
 BOOTSTRAP_FILE=${BOOTSTRAP_FILE:-/var/direxio-message-server/p2p/bootstrap.json}
-WELLKNOWN_DIR=${WELLKNOWN_DIR:-/var/direxio-message-server/wellknown}
 
 log() { echo "[init-tokens] $*" >&2; }
 
@@ -60,19 +58,12 @@ wait_for_message_server() {
   return 1
 }
 
-copy_bootstrap_file() {
-  local tmp
+bootstrap_file_ready() {
   if [ -s "$BOOTSTRAP_FILE" ]; then
     chmod 0600 "$BOOTSTRAP_FILE" 2>/dev/null || true
     return 0
   fi
-  tmp=$(mktemp)
-  if ! $COMPOSE exec -T message-server sh -c "test -s '$CONTAINER_BOOTSTRAP_FILE' && cat '$CONTAINER_BOOTSTRAP_FILE'" > "$tmp" 2>/dev/null; then
-    rm -f "$tmp"
-    return 1
-  fi
-  install -m 0600 "$tmp" "$BOOTSTRAP_FILE"
-  rm -f "$tmp"
+  return 1
 }
 
 bootstrap_has_core_credentials() {
@@ -114,9 +105,9 @@ bootstrap_portal() {
 
 wait_for_core_bootstrap_file() {
   local password agent_token access_token
-  log "waiting for ${CONTAINER_BOOTSTRAP_FILE} ..."
+  log "waiting for ${BOOTSTRAP_FILE} ..."
   for i in $(seq 1 90); do
-    if copy_bootstrap_file; then
+    if bootstrap_file_ready; then
       if bootstrap_has_core_credentials "$BOOTSTRAP_FILE"; then
         log "credentials file is ready."
         return 0
@@ -125,12 +116,8 @@ wait_for_core_bootstrap_file() {
     fi
     sleep 5
   done
-  log "FATAL: ${CONTAINER_BOOTSTRAP_FILE} was not written with complete credentials in time."
+  log "FATAL: ${BOOTSTRAP_FILE} was not written with complete credentials in time."
   return 1
-}
-
-copy_host_bootstrap_to_container() {
-  $COMPOSE exec -T message-server sh -c "mkdir -p '$(dirname "$CONTAINER_BOOTSTRAP_FILE")' && cat > '$CONTAINER_BOOTSTRAP_FILE' && chmod 600 '$CONTAINER_BOOTSTRAP_FILE'" < "$BOOTSTRAP_FILE"
 }
 
 write_agent_room_to_bootstrap() {
@@ -149,12 +136,11 @@ with open(path, "w", encoding="utf-8") as fh:
     fh.write("\n")
 PY
   chmod 0600 "$BOOTSTRAP_FILE"
-  copy_host_bootstrap_to_container
 }
 
 ensure_agent_room() {
   local owner_token agent_auth_token agent_user session room_resp join_resp matrix_agent_token room_id room_path
-  if copy_bootstrap_file && bootstrap_has_real_agent_room "$BOOTSTRAP_FILE"; then
+  if bootstrap_file_ready && bootstrap_has_real_agent_room "$BOOTSTRAP_FILE"; then
     log "agent_room_id is already present."
     return 0
   fi
@@ -213,7 +199,7 @@ ensure_agent_room() {
 wait_for_complete_bootstrap_file() {
   log "waiting for complete bootstrap credentials with agent_room_id ..."
   for i in $(seq 1 30); do
-    if copy_bootstrap_file && bootstrap_has_core_credentials "$BOOTSTRAP_FILE" && bootstrap_has_real_agent_room "$BOOTSTRAP_FILE"; then
+    if bootstrap_file_ready && bootstrap_has_core_credentials "$BOOTSTRAP_FILE" && bootstrap_has_real_agent_room "$BOOTSTRAP_FILE"; then
       log "complete credentials file is ready."
       return 0
     fi
@@ -223,25 +209,10 @@ wait_for_complete_bootstrap_file() {
   return 1
 }
 
-write_owner_json() {
-  local user_id homeserver
-  mkdir -p "$WELLKNOWN_DIR"
-  user_id=$(json_string user_id "$BOOTSTRAP_FILE")
-  [ -n "$user_id" ] || user_id=$(json_string owner_user_id "$BOOTSTRAP_FILE")
-  [ -n "$user_id" ] || user_id="@owner:${DOMAIN}"
-  homeserver=$(json_string homeserver "$BOOTSTRAP_FILE")
-  [ -n "$homeserver" ] || homeserver="https://${DOMAIN}"
-  cat > "${WELLKNOWN_DIR}/owner.json" <<EOF
-{"user_id":"${user_id}","owner_user_id":"${user_id}","display_name":"owner","domain":"${DOMAIN}","homeserver":"${homeserver}"}
-EOF
-  chmod 0644 "${WELLKNOWN_DIR}/owner.json"
-}
-
-mkdir -p "$(dirname "$BOOTSTRAP_FILE")" "$WELLKNOWN_DIR"
+mkdir -p "$(dirname "$BOOTSTRAP_FILE")"
 wait_for_message_server
 bootstrap_portal
 wait_for_core_bootstrap_file
 ensure_agent_room
 wait_for_complete_bootstrap_file
-write_owner_json
 echo "$BOOTSTRAP_FILE"

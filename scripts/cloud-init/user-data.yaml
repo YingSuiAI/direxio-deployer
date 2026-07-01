@@ -30,7 +30,7 @@ runcmd:
   - export DOMAIN=$(grep '^DOMAIN=' /var/direxio-message-server/.env | cut -d= -f2)
   - curl -fsSL https://get.docker.com | sh
   - systemctl enable --now docker
-  - mkdir -p /var/direxio-message-server/p2p /var/direxio-message-server/wellknown
+  - mkdir -p /var/direxio-message-server/p2p
   - chmod 700 /var/direxio-message-server
   - |
     set -e

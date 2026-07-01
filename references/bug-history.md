@@ -30,17 +30,13 @@
 3. **Dendrite SQLite broken**(element-hq/dendrite#3435,`near "SEQUENCE" syntax error`)→ 加 `postgres:16-alpine`,Dendrite 连 PG。
 4. **Caddyfile `email {$ACME_EMAIL}` 为空** → `wrong argument count`。修复:删掉默认 email 块,Caddy 自动签不需要 email。
 5. **Dendrite 启动早于 AS 写 registration** → 竞态。修复:compose `depends_on: asd service_healthy` + `postgres service_healthy`。
-6. **旧 init-tokens.sh 经 Caddy 308 跳转** → HTTP 初始化失败。当前流程改为在 message-server 健康后从容器同步 `/var/direxio-message-server/p2p/bootstrap.json`。
+6. **旧 init-tokens.sh 经 Caddy 308 跳转** → HTTP 初始化失败。当前流程改为在 message-server 健康后等待 bind-mounted `/var/direxio-message-server/p2p/bootstrap.json`。
 7. **init-tokens.sh CRLF** → `pipefail: invalid option name`。修复:文件存为 LF(`sed -i 's/\r$//'`)。
 
 ### ops PR #3 — owner.json 发现
 - **症状**:client 探 `/.well-known/portal/owner.json` 得 404 → 误报 "Portal 未部署"。
-- **根因**:AS 不自带 owner.json 的 HTTP handler;它把文件写到 wellknown 卷,需 Caddy 静态 serve。
-- **修复**:
-  - asd.yaml:`wellknown.output_dir: /var/direxio-message-server/wellknown`(宿主 `/var/direxio-message-server` 共享目录子目录)。
-  - Caddyfile:`handle_path /.well-known/portal/*` → `root * /srv/p2p/wellknown` → `file_server`。
-  - compose:caddy 挂 `/var/direxio-message-server/wellknown:/srv/p2p/wellknown:ro` 读同一份。
-- **后续发现**:Web client 从本地 dev origin 读 owner.json 时,HTTP 200 但缺 CORS 会被浏览器拦截,表现为 `net::ERR_FAILED 200 (OK)`。修复:Caddy 的 portal well-known handler 加 `Access-Control-Allow-Origin *`,S7 同步校验响应头。
+- **历史根因**:旧 AS 没有 owner.json HTTP handler,只能靠 deployer 写静态文件再让 Caddy serve。
+- **当前修复**:新版 message-server 在 `/.well-known/portal/owner.json` 提供动态 handler 并带 CORS；Caddy 直接 reverse proxy 到 message-server。deployer 不再写 `owner.json` 文件,也不再挂载 wellknown 静态目录。
 
 ### ops VoIP — 通话连不上 = 没 TURN relay
 - **症状**:语音/视频通话信令(`m.call.*`)互通,但 WebRTC 连不上;`/_matrix/client/v3/voip/turnServer` 返回 `{}`,ICE 只有 host/srflx 无 relay → 跨 NAT/防火墙必失败。**纯后端缺口,非前端。**

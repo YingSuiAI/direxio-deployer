@@ -100,7 +100,6 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
-      - /var/direxio-message-server/wellknown:/srv/p2p/wellknown:ro
     restart: unless-stopped
 
   coturn:

@@ -68,8 +68,10 @@ grep -q 'ServerAliveInterval=4' "$SSH_LOG"
 grep -q 'ServerAliveCountMax=3' "$SSH_LOG"
 grep -q '/var/direxio-message-server/p2p/bootstrap.json' "$SSH_LOG"
 deprecated_bootstrap_path="/opt""/p2p/bootstrap.json"
-grep -q "$deprecated_bootstrap_path" "$SSH_LOG"
-grep -q 'elif sudo test -s' "$SSH_LOG"
+if grep -q "$deprecated_bootstrap_path" "$SSH_LOG" || grep -q 'elif sudo test -s' "$SSH_LOG"; then
+  echo "S5 must use only the current bootstrap path" >&2
+  exit 1
+fi
 grep -q '^19$' "$TIMEOUT_LOG"
 json_test_check "$tmp/bootstrap.json" "data.password === '12345678' && data.agent_token === 'agent' && data.access_token === 'access'"
 

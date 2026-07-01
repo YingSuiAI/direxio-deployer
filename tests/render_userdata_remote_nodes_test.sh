@@ -33,11 +33,27 @@ awk '
   in_service && /\/var\/direxio-message-server\/p2p:\/var\/direxio-message-server\/p2p/ { found=1 }
   END { exit found ? 0 : 1 }
 ' "$tmp/bundle/docker-compose.yml"
-grep -q '/var/direxio-message-server/wellknown:/srv/p2p/wellknown:ro' "$tmp/bundle/docker-compose.yml"
+grep -F -q 'handle /.well-known/portal/*' "$tmp/bundle/Caddyfile"
+grep -F -q 'reverse_proxy message-server:8008' "$tmp/bundle/Caddyfile"
+deprecated_wellknown_dir="/var/direxio-message-server/""wellknown"
+deprecated_caddy_mount="/srv/""p2p"
+deprecated_static_server="file_""server"
+if grep -R -q "$deprecated_wellknown_dir\\|$deprecated_caddy_mount\\|$deprecated_static_server" "$tmp/bundle/docker-compose.yml" "$tmp/bundle/Caddyfile" "$tmp/user-data.yaml"; then
+  echo "portal well-known must be served by message-server, not static mounted files" >&2
+  exit 1
+fi
 grep -q '^    grep -q .*P2P_PORTAL_PASSWORD=' "$tmp/user-data.yaml"
 grep -q '/var/direxio-message-server/p2p/bootstrap.json' "$tmp/bundle/init-tokens.sh"
 grep -q 'BOOTSTRAP_FILE=${BOOTSTRAP_FILE:-/var/direxio-message-server/p2p/bootstrap.json}' "$tmp/bundle/init-tokens.sh"
 grep -q 'if \[ -s "$BOOTSTRAP_FILE" \]' "$tmp/bundle/init-tokens.sh"
+if grep -q 'exec -T message-server sh -c .*bootstrap.json' "$tmp/bundle/init-tokens.sh"; then
+  echo "init-tokens.sh must not copy bootstrap credentials out of the container" >&2
+  exit 1
+fi
+if grep -q 'owner.json' "$tmp/bundle/init-tokens.sh"; then
+  echo "init-tokens.sh must not write owner.json; message-server serves it dynamically" >&2
+  exit 1
+fi
 deprecated_remote_dir="/opt""/p2p"
 if grep -q "$deprecated_remote_dir/bootstrap.json" "$tmp/bundle/init-tokens.sh"; then
   echo "init-tokens.sh must not mirror bootstrap credentials to the deprecated bootstrap path" >&2
